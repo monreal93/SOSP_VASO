@@ -1,0 +1,11 @@
+[deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+Debugger = "31a5f54b-26ea-5ae9-a837-f05ce5417438"
+Infiltrator = "5903a43b-9cc3-4c30-8d17-598619ec4e9b"
+MAT = "23992714-dd62-5051-b70f-ba57cb901cac"
+MRIReco = "bdf86e05-2d2b-5731-a332-f3fe1f9e047f"
+MriResearchTools = "557dad86-b9bd-4533-8525-1a39684d020f"
+NFFTTools = "7424e34d-94f7-41d6-98a0-85abaf1b6c91"
+NIfTI = "a3a9e032-41b5-5fc4-967a-a6b7a19844d3"
+ROMEO = "1ea8258b-a15d-4adb-ad20-01632f467a84"
+Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
