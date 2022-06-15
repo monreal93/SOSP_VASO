@@ -1,4 +1,4 @@
-function  [spiral_grad_shape,adcSamples,adcDwell,rf_phase_offset,adc_phase_offset,gz_blips1] = prepare_spirals_rf_grad_adc(params,lims)
+function  [spiral_grad_shape,adcSamples,adcDwell,rf_phase_offset,adc_phase_offset] = prepare_spirals_rf_grad_adc(params,lims)
         
         
         
@@ -160,9 +160,9 @@ function  [spiral_grad_shape,adcSamples,adcDwell,rf_phase_offset,adc_phase_offse
         kzfov_half = 1/(params.gen.fov(3)/params.gen.n(3))/2/1000; %rad/2pi/mm
         kz_coordinates = (-1*kzfov_half)+delta_kz:delta_kz:kzfov_half;
 %         gz_blips = zeros(1,54);
-        for i=1:params.gen.n(3)
-            [gz_blips(i).blip(:),gz_blips(i).amp(:)] = DesignSOSPBlips_AMM(abs(1/kz_coordinates(i)),params);
-            gz_blips1(i).blip(:) = gz_blips(i).blip(:).*gz_blips(i).amp;
-        end
+%         for i=1:params.gen.n(3)
+%             [gz_blips(i).blip(:),gz_blips(i).amp(:)] = DesignSOSPBlips_AMM(abs(1/kz_coordinates(i)),params);
+%             gz_blips1(i).blip(:) = gz_blips(i).blip(:).*gz_blips(i).amp;
+%         end
 
 end
