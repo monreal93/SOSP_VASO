@@ -43,7 +43,7 @@ params.spi.vd = 1.6;                % Variability density
 params.spi.rxy = 2.8;                 % In-plane undersampling
 
 % EPI parameters
-params.epi.ry = 1;
+params.epi.ry = 2;
 
 % VASO parameters
 params.vaso.foci = 1;               % FOCI inversion?
