@@ -1,7 +1,9 @@
 clear all; clc
-cd /home/amonreal/Documents/PhD/PhD_2022/
+% Change directory to path where sosp_vaso git has been cloned
+cd /home/amonreal/Documents/PhD/PhD_2022/sosp_vaso/
+addpath(genpath("./pulseq/functions"))
+% Add path to pulseq installation folder
 addpath(genpath("/home/amonreal/Documents/PhD/tools/pulseq/"))
-addpath(genpath("/home/amonreal/Documents/PhD/PhD_2022/scripts/matlab/pulseq/functions"))
 
 %% ToDo
 % - Check exactly how the saturation pulse should be, what spoliers I need?
@@ -9,8 +11,6 @@ addpath(genpath("/home/amonreal/Documents/PhD/PhD_2022/scripts/matlab/pulseq/fun
 % - How am I gonna take into account the gradient delays (trajectory,adc
 % and time vector)
 % - Check if I need a delay for the skope trigger
-% - Do I need to implement ADC phase??
-
 
 %% Define parameters
 % Set system limits (MaxGrad=70, MaxSlew = 200);
@@ -18,7 +18,7 @@ lims = mr.opts('MaxGrad',65,'GradUnit','mT/m',...
     'MaxSlew',190,'SlewUnit','T/m/s',...
     'rfRingdownTime', 30e-6,'rfDeadtime', 180e-6,'adcDeadTime', 10e-6);  % To read it in VM I need rfDeadtime = 180e-6
 
-folder_name = 'sv_05302022';            % Day I am scanning
+folder_name = 'sv_06142022';            % Day I am scanning
 seq_name = 'sample';                      % use sv_n (n for the diff scans at each day)
 
 % General parameters
@@ -38,7 +38,7 @@ params.spi.rotate = 'none';         % Spiral ro0.tation (for now only none)
 params.spi.increment = 'linear';    % Spiral increment mode (for now only linear)
 params.spi.max_grad  = 65;    % 65     % Peak gradient amplitude for spiral   
 params.spi.max_sr = 165;      %165      % Max gradient slew rate for spiral
-params.spi.interl = 12;              % Spiral interleaves (for now odata1nly 1)
+params.spi.interl = 1;              % Spiral interleaves (for now odata1nly 1)
 params.spi.vd = 1.6;                % Variability density
 params.spi.rxy = 2.8;                 % In-plane undersampling
 
@@ -313,7 +313,17 @@ julia_time = repmat(params.gen.TE+(0:adc.dwell:adc.duration-adc.dwell),1,params.
 params.gen.t_vector = julia_time;
 
 %% Saving files
-% system(sprintf('cp -r ./data/data_template ./data/%s/',folder_name))
+% Check if folder exist, if no it creates it
+if exist(sprintf('./data/%s',folder_name)) == 0
+    tmp = sprintf('./data/%s',folder_name);
+    system(sprintf('mkdir %s',tmp))
+    system(sprintf('mkdir %s/acq',tmp))
+    system(sprintf('mkdir %s/ismrmd',tmp))
+    system(sprintf('mkdir %s/raw',tmp))
+    system(sprintf('mkdir %s/recon',tmp))
+    system(sprintf('mkdir %s/tmp',tmp))
+end
+
 namestr = strcat('./data/',folder_name,'/acq/',seq_name);
 seq.write(strcat(namestr,'.seq'));
 if params.gen.skope == 1
