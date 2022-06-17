@@ -38,7 +38,7 @@ params.spi.rotate = 'none';         % Spiral ro0.tation (for now only none)
 params.spi.increment = 'linear';    % Spiral increment mode (for now only linear)
 params.spi.max_grad  = 65;    % 65     % Peak gradient amplitude for spiral   
 params.spi.max_sr = 165;      %165      % Max gradient slew rate for spiral
-params.spi.interl = 1;              % Spiral interleaves (for now odata1nly 1)
+params.spi.interl = 2;              % Spiral interleaves (for now odata1nly 1)
 params.spi.vd = 1.6;                % Variability density
 params.spi.rxy = 2.8;                 % In-plane undersampling
 
@@ -82,10 +82,10 @@ gz_fs = mr.makeTrapezoid('z',lims,'delay',mr.calcDuration(rf_fs),'Area',1/1e-4);
 gzReph = mr.makeTrapezoid('z',lims,'Area',-gz.area/2);
 
 %% Preparing readout elements
-[spiral_grad_shape,adcSamples,adcDwell,rf_phase_offset,adc_phase_offset,gz_blips_waveform] = prepare_spirals_rf_grad_adc(params,lims);
+[spiral_grad_shape,adcSamples,adcDwell,rf_phase_offset,adc_phase_offset] = prepare_spirals_rf_grad_adc(params,lims);
 if params.gen.ro_type == 's'
     % Prepare Spirals
-    [spiral_grad_shape,adcSamples,adcDwell,rf_phase_offset,adc_phase_offset,gz_blips_waveform] = prepare_spirals_rf_grad_adc(params,lims);
+    [spiral_grad_shape,adcSamples,adcDwell,rf_phase_offset,adc_phase_offset] = prepare_spirals_rf_grad_adc(params,lims);
     for i=1:params.spi.interl
         % Readout gradients
         gx(i) = mr.makeArbitraryGrad('x',spiral_grad_shape(1,:,i), lims);
@@ -316,12 +316,12 @@ params.gen.t_vector = julia_time;
 % Check if folder exist, if no it creates it
 if exist(sprintf('./data/%s',folder_name)) == 0
     tmp = sprintf('./data/%s',folder_name);
-    system(sprintf('mkdir %s',tmp))
-    system(sprintf('mkdir %s/acq',tmp))
-    system(sprintf('mkdir %s/ismrmd',tmp))
-    system(sprintf('mkdir %s/raw',tmp))
-    system(sprintf('mkdir %s/recon',tmp))
-    system(sprintf('mkdir %s/tmp',tmp))
+    system(sprintf('mkdir %s',tmp));
+    system(sprintf('mkdir %s/acq',tmp));
+    system(sprintf('mkdir %s/ismrmd',tmp));
+    system(sprintf('mkdir %s/raw',tmp));
+    system(sprintf('mkdir %s/recon',tmp));
+    system(sprintf('mkdir %s/tmp',tmp));
 end
 
 namestr = strcat('./data/',folder_name,'/acq/',seq_name);
