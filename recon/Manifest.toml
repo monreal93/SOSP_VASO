@@ -785,9 +785,7 @@ version = "0.4.12"
 
 [[deps.MRIReco]]
 deps = ["CUDA", "CuNFFT", "Distributed", "Distributions", "FFTW", "FileIO", "Graphics", "HDF5", "ImageUtils", "Infiltrator", "LightXML", "LinearAlgebra", "LinearOperators", "LowRankApprox", "NFFT", "NFFTTools", "NIfTI", "Polyester", "ProgressMeter", "Random", "Reexport", "RegularizedLeastSquares", "SparsityOperators", "StatsBase", "ThreadPools", "Unitful", "Wavelets"]
-git-tree-sha1 = "81fe5aaff756eee8b16266e5f5e8e1594b8e2b4c"
-repo-rev = "master"
-repo-url = "https://github.com/monreal93/MRIReco.jl.git"
+path = "/root/.julia/dev/MRIReco"
 uuid = "bdf86e05-2d2b-5731-a332-f3fe1f9e047f"
 version = "0.4.2"
 
