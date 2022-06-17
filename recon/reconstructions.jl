@@ -45,7 +45,7 @@ params[:sl] = Int(mtx_s[3]);                                 # number of slices
 params[:nCoils] = Int(twix_params["ch"]);                    # number of receiver coils
 params[:repetitions]  = Int(twix_params["repetitions"]);     # Number of repetitions
 # params[:dt] = twix_params["dwell"]                      # acquisition dwell time [s]
-params[:dt] = 1e-6;                      		 # acquisition dwell time [s]
+params[:dt] = 2e-6;                      		 # acquisition dwell time [s]
 params[:TE] = pulseq_params["gen"]["TE"]; 
 # params[:sl_reco] = Int(twix_params["sl_to_recon"]);                          # slice to reconstruct if is2d = true
 params[:times] = pulseq_params["gen"]["t_vector"];		# Times vector for B0 correction

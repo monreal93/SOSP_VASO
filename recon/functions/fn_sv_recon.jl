@@ -118,22 +118,24 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
                 n_samples = acqData.traj[1].numSamplingPerProfile/params_sv[:sl];
             end
 
-            # adjust TE and TAQ after read-in, create times vector for one readout
+            # # adjust TE and TAQ after read-in, create times vector for one readout
             # tAQ = (n_samples-1) * params_sv[:dt];
             # acqData.traj[1].AQ = tAQ;                   # Lars: important for B0 correction
             # acqData.traj[1].TE = params_sv[:TE];
             # times = params_sv[:TE] .+ collect(0:params_sv[:dt]:tAQ);
-            
+
             times = params_sv[:times];
+
+            # @infiltrate
 
             # if its 3D, repeat the times vector for each slice
             if !params_sv[:is2d]
                 times = repeat(times,params_sv[:sl]);
             end
 
-
             acqData.traj[1].times = vec(times);
             acqData.traj[1].TE = params_sv[:TE];
+            acqData.traj[1].AQ = maximum(times);
             
             ######## Reconstruction ###################
             params = merge(defaultRecoParams(), params);
