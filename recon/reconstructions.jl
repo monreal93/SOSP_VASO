@@ -9,7 +9,7 @@ include("./functions/fn_save_nii.jl")
 params = Dict{Symbol, Any}()
 
 params[:plt] = false;
-params[:do_b0_corr] = true;
+params[:do_b0_corr] = false;
 params[:b0_type] = "romeo";                     # B0 map from: "romeo" , "gilad", "skope"               
 params[:is2d] = true;
 params[:multiRepetitions] = false;              # Reconstruct multiple repetitions, if false = 2nd rep will be reconstructed
