@@ -126,7 +126,7 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
 
             times = params_sv[:times];
 
-            # @infiltrate
+            @infiltrate
 
             # if its 3D, repeat the times vector for each slice
             if !params_sv[:is2d]
