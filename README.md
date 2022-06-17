@@ -1,6 +1,10 @@
 # SOSP_VASO
 Stack of Spirals SS-SI-VASO
 
+Prerequisits:
+
+Install Docker Engine (https://docs.docker.com/engine/install/ubuntu/)
+
 To perform the SOSP reconstruction:
 
   1. Clone this repository
