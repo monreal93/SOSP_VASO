@@ -18,7 +18,7 @@ params[:multiRepetitions] = false;              # Reconstruct multiple repetitio
 params[:sl_reco] = 5;
 
 # Some parameters
-params[:scan] = "sv_02";                       # sv_#_b (scan # Bold) or sv_#_v (scan # Vaso)
+params[:scan] = "sv_04";                       # sv_#_b (scan # Bold) or sv_#_v (scan # Vaso)
 params[:directory] = "data/sv_05302022/"        # directory where the data is stored
 
 # Find out if script is running in laptop/dabeast/docker
