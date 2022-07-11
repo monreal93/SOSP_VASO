@@ -5,21 +5,22 @@ using Infiltrator
 
 include("./functions/fn_sv_recon.jl")
 include("./functions/fn_save_nii.jl")
+include("./functions/fn_ismrmd.jl")
 
 params = Dict{Symbol, Any}()
 
 params[:plt] = false;
 params[:do_b0_corr] = false;
-params[:b0_type] = "romeo";                     # B0 map from: "romeo" , "gilad", "skope"               
-params[:is2d] = true;
+params[:b0_type] = "gilad";                     # B0 map from: "romeo" , "gilad", "skope"               
+params[:is2d] = false;
 params[:multiRepetitions] = false;              # Reconstruct multiple repetitions, if false = 2nd rep will be reconstructed
 
 # AMM: Temp: For now I set this param for 2d Recon manually, I should take it from create_ismrmd_cs_b0_v1.m 
 params[:sl_reco] = 5;
 
 # Some parameters
-params[:scan] = "sv_04";                       # sv_#_b (scan # Bold) or sv_#_v (scan # Vaso)
-params[:directory] = "data/sv_05302022/"        # directory where the data is stored
+params[:scan] = "sv_01";                       # sv_#_b (scan # Bold) or sv_#_v (scan # Vaso)
+params[:directory] = "data/abc_07082022/"        # directory where the data is stored
 
 # Find out if script is running in laptop/dabeast/docker
 path_tmp = pwd();
@@ -38,10 +39,10 @@ params[:path] = string(path_tmp,params[:directory]);
 twix_params = matread(string(params[:path],"acq/",params[:scan],"_twix_params.mat")); twix_params = twix_params["twix_params_sv"];
 pulseq_params = matread(string(params[:path],"acq/",params[:scan][1:5],"_params.mat")); pulseq_params = pulseq_params["params"];
 
-mtx_s = twix_params["mtx_s"];  
+mtx_s = pulseq_params["gen"]["n"];  
 params[:nx] = Int(mtx_s[1]);                                 # sv1 = 112,112 sv9, 218,216
 params[:ny] = Int(mtx_s[2]);
-params[:sl] = Int(mtx_s[3]);                                 # number of slices
+params[:sl] = Int(mtx_s[3]*pulseq_params["gen"]["kz"]);                                 # number of slices
 params[:nCoils] = Int(twix_params["ch"]);                    # number of receiver coils
 params[:repetitions]  = Int(twix_params["repetitions"]);     # Number of repetitions
 # params[:dt] = twix_params["dwell"]                      # acquisition dwell time [s]
@@ -49,6 +50,7 @@ params[:dt] = 2e-6;                      		 # acquisition dwell time [s]
 params[:TE] = pulseq_params["gen"]["TE"]; 
 # params[:sl_reco] = Int(twix_params["sl_to_recon"]);                          # slice to reconstruct if is2d = true
 params[:times] = pulseq_params["gen"]["t_vector"];		# Times vector for B0 correction
+
 
 if params[:plt]
     using Plots, ImageView
@@ -60,4 +62,8 @@ else
     params[:id] = "3d";
 end
 
+# Load ISMRMD file and reshape it
+# fn_ismrmd(params)
+
+# Reconstruction
 fn_sv_recon(params)

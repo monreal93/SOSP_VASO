@@ -31,17 +31,21 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
     if params_sv[:do_b0_corr]   
         if params_sv[:b0_type] == "romeo"
             b0 = niread(string(params_sv[:path],"acq/romeo/",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"/B0_masked_sm.nii")); # From Romeo
-            # b0 = niread(string(params_sv[:path],"acq/romeo/",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"/B0.nii")); # From Romeo
+            # b0 = niread(string(params_sv[:path],"acq/romeo/",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"/b0_app2.nii")); # From Romeo
             b0 = b0.raw;
             replace!(b0, NaN=>0);
             b0 = b0.*2π;
         elseif params_sv[:b0_type] == "gilad"
-            b0 = niread(string(params_sv[:path],"acq/b0_",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"_gilad.nii")); # From Gilad's
+            b0 = niread(string(params_sv[:path],"acq/gilad/b0_",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"_gilad.nii")); # From Gilad's
             b0 = b0.raw;
             b0 = b0.*2π;
+            # AMM: Temp: Trying to scale
+            b0 = b0.*π;
         elseif params_sv[:b0_type] == "skope"
-            b0 = niread(string(params_sv[:path],"acq/b0_",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"_skope.nii")); # From Skope-i
+            b0 = niread(string(params_sv[:path],"acq/skope-i/b0_",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"_skope.nii")); # From Skope-i
             b0 = b0.raw;
+            # AMM: Temp: Trying to scale
+            b0 = b0.*π;
         end
         # Temp: Do I really want to shift it??? Shifting B0 slices to make match the gre to the spiral acq
         # b0 = circshift(b0, (0,0,-1));
@@ -126,7 +130,7 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
 
             times = params_sv[:times];
 
-            @infiltrate
+            # @infiltrate
 
             # if its 3D, repeat the times vector for each slice
             if !params_sv[:is2d]
