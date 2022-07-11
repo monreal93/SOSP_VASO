@@ -14,25 +14,27 @@ elseif contains(path_tmp,"/mnt/")
     cd /mnt/5T3/Alejandro/
     addpath(genpath('/mnt/5T3/Alejandro/tools/ismrmrd'))
     addpath(genpath('/mnt/5T3/Alejandro/tools/matlab/functions/general'))
-    addpath(genpath('/mnt/5T3/Alejandro/tools/matlab/functions/spiral_VASO'))
+    addpath(genpath('/mnt/5T3/Alejandro/sosp_vaso/ismrmd_cs_b0/functions'))
     addpath(genpath('/mnt/5T3/Alejandro/tools/bart'))
     addpath(genpath('/mnt/5T3/Alejandro/tools/mapvbvd-master'))
     setenv('TOOLBOX_PATH','/mnt/5T3/Alejandro/tools/bart')
 end
 
-folder = 'sv_05302022';
+folder = 'sv_07062022';
 cs_b0_file = 'b0_1_6';
 scan = 'sv_04';
+repetitions = 30;         % AMM: ToDo: find a way to get this param from somewhere
 
+cd ./sosp_vaso
 % Reading some parameters from Pulseq
 load(sprintf('./data/%s/acq/%s_params.mat',folder,scan));
 
 %% Some parameters
-params.is2d = 1;                   % 1 if 3D dataset saved as 2D
+params.is2d = 0;                   % 1 if 3D dataset saved as 2D
 params.slice_to_save = 5;          % Slice to save if using 3D data set as 2D
 params.traj = 1;                   % Trajectory input: 1 (matlab simulation), 2 (poet), 3 (skope)
 params.plot = 0;                   % Plot stuff
-params.ncc = 0;              % Coil compression coils... 0 for no compression
+params.ncc = 0;              	   % Coil compression coils... 0 for no compression
 
 %% Adding extra parameters from Pulseq
 params.slices = params.gen.n(3);
@@ -41,16 +43,10 @@ params.nx = params.spi.ro_samples;
 params.ny = 1; 
 params.rz = params.gen.kz;
 params.pf = params.gen.pf;
-params.repetitions = 4;         % AMM: ToDo: find a way to get this param from somewhere
+params.repetitions = repetitions;         % AMM: ToDo: find a way to get this param from somewhere
 params.fov = params.gen.fov;  % in mm
 params.mtx_s = params.gen.n;
 params.res = params.gen.res;
-
-% Making the mtx size even
-if any( mod(params.mtx_s,2) == 1)
-    tmp = logical(mod(params.mtx_s,2));
-    params.mtx_s(tmp) = params.mtx_s(tmp)+1;
-end
 
 %% Read b0_map .dat file
 [~,twix_params_b0] = fn_read_twix(folder,cs_b0_file,params);
@@ -85,6 +81,8 @@ fn_coil_sensitivities(folder,scan,cs_b0_file,params);
 
 %%  Generate B0 map
 fn_get_b0_romeo(folder,scan,cs_b0_file,params);
+
+cd ..
 
 %% Final message
 fprintf('--------------------------------------------------------------\n');
