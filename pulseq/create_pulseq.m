@@ -4,13 +4,17 @@ cd /home/amonreal/Documents/PhD/PhD_2022/sosp_vaso/
 addpath(genpath("./pulseq/functions"))
 % Add path to pulseq installation folder
 addpath(genpath("/home/amonreal/Documents/PhD/tools/pulseq/"))
+addpath(genpath("/home/amonreal/Documents/PhD/tools/tOptGrad_V0.2/minTimeGradient/mex_interface/"))
+addpath(genpath("/home/amonreal/Documents/PhD/PhD_2022/BSc_students/"))
 
 %% ToDo
 % - Check exactly how the saturation pulse should be, what spoliers I need?
-% - Check why rfDeadtime in VM has to be at least 150
 % - How am I gonna take into account the gradient delays (trajectory,adc
 % and time vector)
-% - Check if I need a delay for the skope trigger
+% - ABC: implement partition encoding direction center-out and then segment
+% interleaved (Viktor's email)
+% - Make sure external trigger is in right place
+% - check values of duration, timeBwProduct rf0
 
 %% Define parameters
 % Set system limits (MaxGrad=70, MaxSlew = 200);
@@ -18,8 +22,9 @@ lims = mr.opts('MaxGrad',65,'GradUnit','mT/m',...
     'MaxSlew',190,'SlewUnit','T/m/s',...
     'rfRingdownTime', 30e-6,'rfDeadtime', 180e-6,'adcDeadTime', 10e-6);  % To read it in VM I need rfDeadtime = 180e-6
 
-folder_name = 'sv_06142022';            % Day I am scanning
-seq_name = 'sample';                      % use sv_n (n for the diff scans at each day)
+folder_name = 'abc_07132022';            % Day I am scanning
+seq_name = 'sample';                     % use sv_n (n for the diff scans at each day)
+params.gen.seq = 2;                      % 1-VASO 2-ABC
 
 % General parameters
 params.gen.fov = [200 200 24].*1e-3;
@@ -29,42 +34,57 @@ params.gen.te = 0e-3;
 params.gen.ro_type = 's';           % 's'-Spiral, 'c'-Cartesian
 params.gen.kz = 1;                  % Acceleration in Kz
 params.gen.pf = 1;                  % Partial fourier
-params.gen.fat_sat = 1;             % Fat saturation (1=yes,0=no)
-params.gen.skope = 1;               % Add skope sync scan and triggers
-
+params.gen.fat_sat = 0;             % Fat saturation (1=yes,0=no)
+params.gen.skope = 0;               % Add skope sync scan and triggers
+         
 % Spiral parameters
 params.spi.type = 0;                % spiral type (for now only spiral out)
 params.spi.rotate = 'none';         % Spiral ro0.tation (for now only none)
 params.spi.increment = 'linear';    % Spiral increment mode (for now only linear)
-params.spi.max_grad  = 65;    % 65     % Peak gradient amplitude for spiral   
-params.spi.max_sr = 165;      %165      % Max gradient slew rate for spiral
-params.spi.interl = 2;              % Spiral interleaves (for now odata1nly 1)
+params.spi.max_grad  = 55;    % 55     % Peak gradient amplitude for spiral (mT/m)  
+params.spi.max_sr = 155;      % 155      % Max gradient slew rate for spiral (mT/m/ms)
+params.spi.interl = 1;              % Spiral interleaves
 params.spi.vd = 1.6;                % Variability density
-params.spi.rxy = 2.8;                 % In-plane undersampling
+params.spi.rxy = 3;                 % In-plane undersampling
+
+% MT pulse parameters
+params.mt.mt = 1;                   %Add MT pulse, 0 for reference scan without MT
+params.mt.alpha = 225;
+params.mt.delta = 650;     % for Pulseq approach should be 650 to match Viktors phase
+params.mt.trf = 0.004;
 
 % EPI parameters
 params.epi.ry = 2;
 
 % VASO parameters
-params.vaso.foci = 1;               % FOCI inversion?
+params.vaso.foci = 0;               % FOCI inversion?
 params.vaso.tr = 4500e-3;           % volume TR
 params.vaso.ti1 = 1800e-3;          % VASO TI1, 
 params.vaso.ti2 = params.vaso.ti1+(params.vaso.tr/2);
-params.vaso.f_v_delay = 900e-3;     % FOCI-VASO delay
+params.vaso.f_v_delay = 0;%900e-3;     % FOCI-VASO delay
 params.vaso.v_b_delay = 0e-3;       % VASO-BOLD delay
 params.vaso.b_f_delay = 100e-3;       % BOLD-FOCI delay
 
 % Some calculations
 params.gen.del_k = (1./params.gen.fov)*params.gen.kz;
 params.gen.n = round(params.gen.fov./params.gen.res);
-params.gen.n(3) = params.gen.n(3)/params.gen.kz;
 idx = mod(params.gen.n,2)==1;
 params.gen.n(idx) = params.gen.n(idx)+1;
+params.gen.n(3) = params.gen.n(3)/params.gen.kz/params.gen.pf;
 
 %% Create blocks (I will get this into functions)
 % TR-FOCI 
 [B1_foci,phase,rf_complex,Gz_foci] = tr_foci(3.32,10410e-6);  % Here not sure where this values come from, should I hard code them?
 rf_foci = mr.makeArbitraryRf(rf_complex,6.4322, 'system', lims);%, 'Delay',2e-4);
+
+% MT pulse
+if params.gen.seq == 2
+%     % Using Viktor's code
+%     vpulse = VPF_gaussian_pulse_4_Maastricht(params.mt.alpha,params.mt.delta,params.mt.trf);
+%     MT = mr.makeArbitraryRf(vpulse.b1,params.mt.alpha*pi/180, 'system', lims);%, 'Delay',2e-4);
+    % Using Pulseq
+    MT = mr.makeGaussPulse(params.mt.alpha*pi/180,lims,'Duration',params.mt.trf,'FreqOffset',params.mt.delta);
+end
 
 % Fat sat:
 % AMM: ToDo: how to properly desing the fat-sat pulse
@@ -75,7 +95,6 @@ rf_fs = mr.makeGaussPulse(90*pi/180,'system',lims,'Duration',8e-3,...
     'bandwidth',abs(sat_freq),'freqOffset',sat_freq);
 gz_fs = mr.makeTrapezoid('z',lims,'delay',mr.calcDuration(rf_fs),'Area',1/1e-4); % spoil up to 0.1mm
 
-% Slice Selective RF gradient 
 % ToDo: check values of duration, timeBwProduct
 [rf0, gz] = mr.makeSincPulse(params.gen.fa*pi/180,'system',lims,'Duration',2.6e-3,...
     'SliceThickness',params.gen.fov(3),'apodization',0.5,'timeBwProduct',25);
@@ -145,7 +164,7 @@ if params.gen.skope == 1
     sk_min_tr_delay = mr.makeDelay(120e-3-sk_min_tr_delay);                         % Here I take Skope minTR = 110ms
     skope_trig = mr.makeDigitalOutputPulse('osc0','duration',10e-6,'system',lims);  % Skope trigger
 end
-ext_trig = mr.makeDigitalOutputPulse('ext1','duration',10e-6,'system',lims);                        % External trigger
+ext_trig = mr.makeDigitalOutputPulse('ext1','duration',10e-6,'system',lims);        % External trigger
 dummy_delay = mr.makeDelay(10e-3);           % AMM: Temp: Delay to use as dummy anywhere
 
 %% Add blocks to Skope seq
@@ -186,10 +205,14 @@ end
 
 %% Actual scan
 seq = mr.Sequence();
-if params.vaso.foci; seq.addBlock(rf_foci); end                                          % FOCI
-if params.vaso.f_v_delay > 0; seq.addBlock(f_v_delay); end   % FOCI-VASO del%MrProt.private.l_additionalslice+MrProt.sliceGroupList(1).sliceperslabay
-if params.gen.fat_sat; seq.addBlock(rf_fs,gz_fs);   end      % fat-sat  
-    % VASO
+
+%%%%% SS-SI-VASO:
+if params.gen.seq == 1
+    if params.vaso.foci; seq.addBlock(rf_foci); end              % FOCI
+    if params.vaso.f_v_delay > 0; seq.addBlock(f_v_delay); end   % FOCI-VASO del%MrProt.private.l_additionalslice+MrProt.sliceGroupList(1).sliceperslabay
+    if params.gen.fat_sat; seq.addBlock(rf_fs,gz_fs);   end      % fat-sat
+    seq.addBlock(ext_trig);                                      % External trigger
+    % VASO readout
     for i=1:params.gen.n(3)
         for j=1:params.spi.interl
             rf = rf0;
@@ -219,7 +242,7 @@ if params.gen.fat_sat; seq.addBlock(rf_fs,gz_fs);   end      % fat-sat
         end
     end
     if params.vaso.v_b_delay > 0; seq.addBlock(v_b_delay); end   % VASO-BOLD delay
-    % BOLD
+    % BOLD readout
     for i=1:params.gen.n(3)
         for j=1:params.spi.interl
             rf = rf0;
@@ -249,6 +272,52 @@ if params.gen.fat_sat; seq.addBlock(rf_fs,gz_fs);   end      % fat-sat
         end
     end
     if params.vaso.b_f_delay > 0; seq.addBlock(b_f_delay); end   % BOLD-FOCI delay
+%%%%%%  ABC
+elseif params.gen.seq == 2
+    if params.mt.mt == 1
+        seq.addBlock(MT);                                           % MT pulse 
+        seq.addBlock(gz_spoil);
+    end
+    if params.gen.fat_sat; seq.addBlock(rf_fs,gz_fs);   end      % fat-sat
+    seq.addBlock(ext_trig);                                      % External trigger
+    % ABC readout
+    dur0 = 0;
+    for i=1:params.gen.n(3)
+        for j=1:params.spi.interl
+            rf = rf0;
+            rf.phaseOffset = rf_phase_offset(i);
+            adc.phaseOffset = adc_phase_offset(i);
+            seq.addBlock(rf,gz);
+            seq.addBlock(gzReph);
+            if params.gen.te > 0; seq.addBlock(te_delay); end       % TE delay
+            if i < (params.gen.n(3)/2)+1
+                    seq.addBlock(gz_blips(i));
+            elseif i > (params.gen.n(3)/2)+1
+                    seq.addBlock(gz_blips(i-1)); 
+            end
+            if params.gen.ro_type == 's'
+                seq.addBlock(gx(j),gy(j),adc);
+                seq.addBlock(gx_ramp(j),gy_ramp(j),gz_spoil);
+            elseif params.gen.ro_type == 'c'
+                seq.addBlock(gx_pre,gy_pre)
+                for k = 1:params.gen.n(2)/params.epi.ry
+                    seq.addBlock(gx,adc)
+                    gx.amplitude = -gx.amplitude;
+                    seq.addBlock(gy_blip)
+                end
+                seq.addBlock(gz_spoil);
+            end
+            % Adding MT pulse every ~180ms
+            dur1 = seq.duration();
+            if dur1-dur0 > 180e-3 && j == params.spi.interl
+                seq.addBlock(MT);                                           % MT pulse 
+                seq.addBlock(gz_spoil);
+                dur0 = dur1;
+            end
+    %         seq.addBlock(dummy_delay);          % AMM: Temp: Adding a delay to let mag recover
+        end
+    end
+end
 
 %% check whether the timing of the sequence is correct
 [ok, error_report]=seq.checkTiming;
@@ -263,13 +332,7 @@ end
 
 %% Getting k-space trajectories
 [ktraj_adc, t_adc, ktraj, t_ktraj, t_excitation, t_refocusing, slicepos, t_slicepos] = seq.calculateKspacePP();
-% [ktraj_adc, ktraj, t_excitation, t_refocusing] = seq.calculateKspace();
-% if params.gen.skope
-%     j=adc.numSamples*params.gen.n(3)+1;
-% else
-    j = 1;
-% end
-
+j = 1;
 if params.gen.ro_type == 's'
     plane_samples = adc.numSamples*params.spi.interl;
 elseif params.gen.ro_type == 'c'

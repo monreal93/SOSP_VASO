@@ -66,13 +66,36 @@ function  [spiral_grad_shape,adcSamples,adcDwell,rf_phase_offset,adc_phase_offse
         
         % Spiral segments
         for i=1:params.spi.interl
+            % Getting k-space trajectory
             tmp = (2*pi/params.spi.interl)*i;
             kaa = ka.*exp(1i*tmp);
             kaa=[real(kaa); imag(kaa)];
+
+%             %%%%% Calculating Gradients with Lustig approach %%%%%%%
+%             rv = 16; T = 4e-3; ds = -1;
+%             g_max = params.spi.max_grad*10/100;  % convert mT/m -> G/cm
+%             sr_max = params.spi.max_sr*10/100; % convert mT/m/ms -> G/cm/ms   
+%             C = [squeeze(kaa(1,:)).', squeeze(kaa(2,:)).']./100; % times 100 to make it 1/cm
+%             [C,time,g,s,k] = minTimeGradient(C,rv, 0, 0, g_max, sr_max,T,ds,0);
+%             % Interpolating to the initial size of kaa
+% %             tmp = 0:length(g)-1
+%             tmp = linspace(0,time,length(g));
+%             tmp1 = (time*1e-3)./2e-6.*lims.adcRasterTime;
+%             for j=1:3
+%                 g_new(j,:) = interp1(tmp,g(:,j).',linspace(0,time,length(kaa)));
+%             end
+% 
+%             % Trying to get grad to correct units
+%             g_new = g_new*42.58e6/100;    % convert from G/cm -> Hz/m
+%             g_new = rmmissing(g_new,2);
+%             spiral_grad_shape(:,:,i) = g_new;
+%             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+             
+            %%%% Calculating Gradients with Pulseq approach %%%%%%%
             [ga, sa]=mr.traj2grad(kaa);
             
-%             % AMM: Trying to ramp-up for the gradient, now I am just
-%             padding some zeros
+            % AMM: Trying to ramp-up for the gradient, now I am just
+            % padding some zeros
             tmp = 190;
             rmp_up = [linspace(0,ga(1,1),tmp); linspace(0,ga(2,1),tmp)];
             ga = [rmp_up ga];
@@ -80,11 +103,11 @@ function  [spiral_grad_shape,adcSamples,adcDwell,rf_phase_offset,adc_phase_offse
             kaa = [zeros(2,tmp) kaa];
             
             
-            % Limit analysis
-            % Using the max limits and a safety_margin
+%             Limit analysis
+%             Using the max limits and a safety_margin
             safety_magrin=0.9; % we need that  otherwise we just about violate the slew rate due to the rounding errors
-    %         dt_gabs=abs(ga(1,:)+1i*ga(2,:))/(lims.maxGrad*safety_magrin)*lims.gradRasterTime;
-    %         dt_sabs=sqrt(abs(sa(1,:)+1i*sa(2,:))/(lims.maxSlew*safety_magrin))*lims.gradRasterTime;
+            dt_gabs=abs(ga(1,:)+1i*ga(2,:))/(lims.maxGrad*safety_magrin)*lims.gradRasterTime;
+            dt_sabs=sqrt(abs(sa(1,:)+1i*sa(2,:))/(lims.maxSlew*safety_magrin))*lims.gradRasterTime;
             dt_gabs=abs(ga(1,:)+1i*ga(2,:))/(params.spi.max_grad*lims.gamma*safety_magrin)*lims.gradRasterTime;
             dt_sabs=sqrt(abs(sa(1,:)+1i*sa(2,:))/(params.spi.max_sr*lims.gamma*safety_magrin))*lims.gradRasterTime;
             dt_smooth=max([dt_gabs;dt_sabs]);
@@ -94,32 +117,28 @@ function  [spiral_grad_shape,adcSamples,adcDwell,rf_phase_offset,adc_phase_offse
             kopt_smooth=interp1(t_smooth, kaa', (0:floor(t_smooth(end)/lims.gradRasterTime))*lims.gradRasterTime)';
             [gos, sos]=mr.traj2grad(kopt_smooth);
             kopt_traj(:,:,i) = kopt_smooth;
-            
-%             r_samples = ceil((gos(1,1)./lims.gamma)/params.spi.max_sr./lims.gradRasterTime);
-%             rmp_up = [linspace(0,gos(1,1),r_samples); linspace(0,gos(2,1),r_samples)];
-%             rmp_up = [linspace(0,gos(1,1),1); linspace(0,gos(2,1),1)];
-%             gos = [rmp_up gos];
-            
+
             spiral_grad_shape(:,:,i) = gos;
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+           
         end
-        
-%         ka=[real(kaa); imag(kaa)];
-%         [ga, sa]=mr.traj2grad(ka);
 
         % AMM: I am padding some zeros so the gradient shape starts from 0
-            tmp = ceil((size(spiral_grad_shape,2)/2)./100)*2*100;
-            if tmp == size(spiral_grad_shape,2)
-                tmp = size(spiral_grad_shape,2)+100;
-            end
-    %         tmp = ceil((size(spiral_grad_shape,2)/1024)./10)*1024*10;
-            spiral_grad_shape = padarray(spiral_grad_shape,[0 tmp-size(spiral_grad_shape,2) 0],'pre'); 
-    %         spiral_grad_shape = padarray(spiral_grad_shape,[0 2 0],'pre'); 
-        
+        % Only needed for Pulseq approach...
+        tmp = ceil((size(spiral_grad_shape,2)/2)./100)*2*100;
+        if tmp == size(spiral_grad_shape,2)
+            tmp = size(spiral_grad_shape,2)+100;
+        end
+        spiral_grad_shape = padarray(spiral_grad_shape,[0 tmp-size(spiral_grad_shape,2) 0],'pre'); 
+        % AMM: Here I am just padding some zeros, so grad starts from 0
+%         spiral_grad_shape = padarray(spiral_grad_shape,[0 10 0],'pre'); 
+
         % figure; plot(kopt_smooth(1,:),kopt_smooth(2,:))
         % figure; plot(spiral_grad_shape(1,:))
 
         %% ADC
         adcDwell=2e-6; 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Pulseq approach
         % calculate ADC
         % round-down dwell time to 10 ns
         adcTime = lims.gradRasterTime*size(spiral_grad_shape,2);
@@ -145,6 +164,11 @@ function  [spiral_grad_shape,adcSamples,adcDwell,rf_phase_offset,adc_phase_offse
 %         % AMM: Another way to get adc Samples
 % %         adcSamples = ceil(round(adcTime./adcDwell)/10)*10;
         adcSamples = round(adcTime./adcDwell);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% %%%%% Lusing approach %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%         adcSamples = round(time*1e-3./adcDwell);
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         % AMM: Compensating for the 6 zeros I padded before
 %         adcSamples = adcSamples-6;
