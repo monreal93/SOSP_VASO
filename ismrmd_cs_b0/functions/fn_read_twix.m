@@ -38,7 +38,8 @@ function [twix_params_sv,twix_params_b0] = fn_read_twix(folder,scan,params)
         elseif tmp == 'y'
             r = params.rz;
             pf = params.pf;
-            sl = floor(params.slices/r*pf);
+%             sl = floor(params.slices/r*pf);
+            sl = params.slices;
             dyn = (params.repetitions)*2;       % Here I do *2 because I have VASO-BOLD
             ro = params.nx;
             ch = params.ch;
@@ -152,7 +153,7 @@ function [twix_params_sv,twix_params_b0] = fn_read_twix(folder,scan,params)
                     ks_bold(:,i:i+(sl-1),:) = dd(:,j:j+(sl-1),:);
                     j = j+(sl*2);
                 end
-	
+		
                     % Extracting the dynamics
                     ks_vaso = permute(ks_vaso,[1,3,2]);
                     ks_vaso = reshape(ks_vaso,[ro*interl ch sl dyn/2]);

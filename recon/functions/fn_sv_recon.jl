@@ -31,17 +31,21 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
     if params_sv[:do_b0_corr]   
         if params_sv[:b0_type] == "romeo"
             b0 = niread(string(params_sv[:path],"acq/romeo/",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"/B0_masked_sm.nii")); # From Romeo
-            # b0 = niread(string(params_sv[:path],"acq/romeo/",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"/B0.nii")); # From Romeo
+            # b0 = niread(string(params_sv[:path],"acq/romeo/",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"/b0_app2.nii")); # From Romeo
             b0 = b0.raw;
             replace!(b0, NaN=>0);
             b0 = b0.*2π;
         elseif params_sv[:b0_type] == "gilad"
-            b0 = niread(string(params_sv[:path],"acq/b0_",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"_gilad.nii")); # From Gilad's
+            b0 = niread(string(params_sv[:path],"acq/gilad/b0_",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"_gilad.nii")); # From Gilad's
             b0 = b0.raw;
             b0 = b0.*2π;
+            # AMM: Temp: Trying to scale
+            b0 = b0.*π;
         elseif params_sv[:b0_type] == "skope"
-            b0 = niread(string(params_sv[:path],"acq/b0_",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"_skope.nii")); # From Skope-i
+            b0 = niread(string(params_sv[:path],"acq/skope-i/b0_",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"_skope.nii")); # From Skope-i
             b0 = b0.raw;
+            # AMM: Temp: Trying to scale
+            b0 = b0.*π;
         end
         # Temp: Do I really want to shift it??? Shifting B0 slices to make match the gre to the spiral acq
         # b0 = circshift(b0, (0,0,-1));
@@ -79,6 +83,8 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
     # reco parameters directory
     params = Dict{Symbol, Any}()
     params[:reco] = "multiCoil";
+
+    @infiltrate
     # set reconstruction size
     if params_sv[:is2d]
         params[:reconSize] = (params_sv[:nx],params_sv[:ny]);
@@ -118,22 +124,24 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
                 n_samples = acqData.traj[1].numSamplingPerProfile/params_sv[:sl];
             end
 
-            # adjust TE and TAQ after read-in, create times vector for one readout
+            # # adjust TE and TAQ after read-in, create times vector for one readout
             # tAQ = (n_samples-1) * params_sv[:dt];
             # acqData.traj[1].AQ = tAQ;                   # Lars: important for B0 correction
             # acqData.traj[1].TE = params_sv[:TE];
             # times = params_sv[:TE] .+ collect(0:params_sv[:dt]:tAQ);
-            
+
             times = params_sv[:times];
+
+            # @infiltrate
 
             # if its 3D, repeat the times vector for each slice
             if !params_sv[:is2d]
                 times = repeat(times,params_sv[:sl]);
             end
 
-
             acqData.traj[1].times = vec(times);
             acqData.traj[1].TE = params_sv[:TE];
+            acqData.traj[1].AQ = maximum(times);
             
             ######## Reconstruction ###################
             params = merge(defaultRecoParams(), params);

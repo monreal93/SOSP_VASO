@@ -45,9 +45,9 @@ function fn_create_ismrmd(folder,scan,params)
     if params.traj == 3
         load(['./data/' folder '/acq/' scan '_ks_traj_sk.mat']);
         % C1: Not sure about this, need to check with Skope data
-        ks_traj.kx = ks_traj.kx.*-1;
+        % ks_traj.kx = ks_traj.kx.*-1;
         ks_traj.ky = ks_traj.ky.*-1;
-        ks_traj.kz = ks_traj.kz.*-1;
+        % ks_traj.kz = ks_traj.kz.*-1;
     elseif params.traj == 1
         load(['./data/' folder '/acq/' scan '_ks_traj_nom.mat']);
         ks_traj.ky = ks_traj.ky.*-1;        % Swaping nominal trajectory to match scaner one
