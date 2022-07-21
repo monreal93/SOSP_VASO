@@ -189,4 +189,5 @@ function  [spiral_grad_shape,adcSamples,adcDwell,rf_phase_offset,adc_phase_offse
 %             gz_blips1(i).blip(:) = gz_blips(i).blip(:).*gz_blips(i).amp;
 %         end
 
+
 end
