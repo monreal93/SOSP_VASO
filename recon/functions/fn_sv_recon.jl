@@ -84,7 +84,6 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
     params = Dict{Symbol, Any}()
     params[:reco] = "multiCoil";
 
-    @infiltrate
     # set reconstruction size
     if params_sv[:is2d]
         params[:reconSize] = (params_sv[:nx],params_sv[:ny]);

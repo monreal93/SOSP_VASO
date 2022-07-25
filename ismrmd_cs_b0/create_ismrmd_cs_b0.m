@@ -22,17 +22,17 @@ end
 
 folder = 'sv_07062022';
 cs_b0_file = 'b0_1_6';
-scan = 'sv_04';
-repetitions = 30;         % AMM: ToDo: find a way to get this param from somewhere
+scan = 'sv_01';
+repetitions = 6;         % AMM: ToDo: find a way to get this param from somewhere
 
 cd ./sosp_vaso
 % Reading some parameters from Pulseq
 load(sprintf('./data/%s/acq/%s_params.mat',folder,scan));
 
 %% Some parameters
-params.is2d = 0;                   % 1 if 3D dataset saved as 2D
+params.is2d = 1;                   % 1 if 3D dataset saved as 2D
 params.slice_to_save = 5;          % Slice to save if using 3D data set as 2D
-params.traj = 1;                   % Trajectory input: 1 (matlab simulation), 2 (poet), 3 (skope)
+params.traj = 3;                   % Trajectory input: 1 (matlab simulation), 2 (poet), 3 (skope)
 params.plot = 0;                   % Plot stuff
 params.ncc = 0;              	   % Coil compression coils... 0 for no compression
 
