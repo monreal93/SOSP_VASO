@@ -35,6 +35,8 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
             b0 = b0.raw;
             replace!(b0, NaN=>0);
             b0 = b0.*2π;
+            # AMM: Temp: Trying to scale
+            b0 = b0.*π;
         elseif params_sv[:b0_type] == "gilad"
             b0 = niread(string(params_sv[:path],"acq/gilad/b0_",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"_gilad.nii")); # From Gilad's
             b0 = b0.raw;
@@ -101,7 +103,8 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
     end
 
     # Loop for vaso and bold, also for each echo..
-    contrasts = ["v","b"];
+    # contrasts = ["v","b"];
+    contrasts = params_sv[:contrasts];
     # if only want to recon 1 rep (it will do rep 2)
     if params_sv[:multiRepetitions] == false
         params_sv[:repetitions] = 2;
@@ -109,10 +112,13 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
     else
         f_rep = 1;
     end
+    # AMM: Infiltrate
+    @infiltrate
 
     for i=f_rep:params_sv[:repetitions]
-        for j=1:2
-           
+        for j=1:length(contrasts) 
+            # AMM: Infiltrate
+            @infiltrate
             file=ISMRMRDFile(string(params_sv[:path],"ismrmd/",params_sv[:scan],"_",contrasts[j],"_r",i,"_",params_sv[:id],".h5"));
             acqData = AcquisitionData(file);
 
@@ -135,7 +141,7 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
 
             # if its 3D, repeat the times vector for each slice
             if !params_sv[:is2d]
-                times = repeat(times,params_sv[:sl]);
+                times = repeat(times,params_sv[:sl])';
             end
 
             acqData.traj[1].times = vec(times);
@@ -168,6 +174,9 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
             niwrite(save_name,Ireco_nii);
 
             @info string("Done reconstructing ", contrasts[j], " repetition",i)
+
+            # AMM: Infiltrate
+            @infiltrate
         end
     end
 

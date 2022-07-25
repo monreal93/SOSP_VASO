@@ -10,17 +10,18 @@ include("./functions/fn_ismrmd.jl")
 params = Dict{Symbol, Any}()
 
 params[:plt] = false;
-params[:do_b0_corr] = true;
-params[:b0_type] = "gilad";                     # B0 map from: "romeo" , "gilad", "skope"               
-params[:is2d] = true;
+params[:do_b0_corr] = false;
+params[:b0_type] = "romeo";                     # B0 map from: "romeo" , "gilad", "skope"               
+params[:is2d] = false;
 params[:multiRepetitions] = false;              # Reconstruct multiple repetitions, if false = 2nd rep will be reconstructed
+params[:contrasts] = ["b"];                # Contrasts to recon v,b or both 
 
 # AMM: Temp: For now I set this param for 2d Recon manually, I should take it from create_ismrmd_cs_b0_v1.m 
-params[:sl_reco] = 5;
+params[:sl_reco] = 10;
 
 # Some parameters
-params[:scan] = "sv_01";                       # sv_#_b (scan # Bold) or sv_#_v (scan # Vaso)
-params[:directory] = "data/sv_07062022/"        # directory where the data is stored
+params[:scan] = "sv_05";                       # sv_#_b (scan # Bold) or sv_#_v (scan # Vaso)
+params[:directory] = "data/sv_07212022/"        # directory where the data is stored
 
 # Find out if script is running in laptop/dabeast/docker
 path_tmp = pwd();
@@ -42,8 +43,9 @@ pulseq_params = matread(string(params[:path],"acq/",params[:scan][1:5],"_params.
 mtx_s = pulseq_params["gen"]["n"];  
 params[:nx] = Int(mtx_s[1]);                                 # sv1 = 112,112 sv9, 218,216
 params[:ny] = Int(mtx_s[2]);
-params[:sl] = Int(mtx_s[3]*pulseq_params["gen"]["kz"]);                                 # number of slices
+params[:sl] = Int(mtx_s[3]); #*pulseq_params["gen"]["kz"]);   # number of slices
 params[:nCoils] = Int(twix_params["ch"]);                    # number of receiver coils
+params[:kz] = Int(pulseq_params["gen"]["kz"]);
 params[:repetitions]  = Int(twix_params["repetitions"]);     # Number of repetitions
 # params[:dt] = twix_params["dwell"]                      # acquisition dwell time [s]
 params[:dt] = 2e-6;                      		 # acquisition dwell time [s]

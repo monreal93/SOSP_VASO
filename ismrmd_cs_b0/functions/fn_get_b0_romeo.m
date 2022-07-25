@@ -31,34 +31,36 @@ function fn_get_b0_romeo(folder,scan,file,params)
         ech = sz(4);
         ch = sz(5);
         
-       % Changing resolution of B0 for Sensitivities
-            if cs_mtx(1) > x
-                var=FFT_1D(var,'kspace',3);
-                if mod(size(var,3),2)>0
-                    var=padarray(var,[(cs_mtx(1)-x)/2,(cs_mtx(2)-y)/2,0],'both');
-                    var=padarray(var,[0,0,floor((cs_mtx(3)-z)/2)],'pre');
-                    var=padarray(var,[0,0,(floor((cs_mtx(3)-z)/2))+1],'post');
-                else
-                    var=padarray(var,[(cs_mtx(1)-x)/2,(cs_mtx(2)-y)/2,(cs_mtx(3)-z)/2],'both');
-                end
-                var=FFT_1D(var,'image',3);
-            else
-                var = FFT_1D(var,'kspace',3);
-                if mod(size(var,3),2)>0
-                    var=padarray(var,[0,0,floor((cs_mtx(3)-z)/2)],'pre');
-                    var=padarray(var,[0,0,(floor((cs_mtx(3)-z)/2))+1],'post');
-                else
-                    var = padarray(var,[0,0,ceil((cs_mtx(3)-z)/2),0],'both');
-                end
-                var = FFT_1D(var,'image',3);
-                var = FFT_2D(var,'image',1,2);
-                var = imresize(var,[cs_mtx(1) cs_mtx(2)]);
-                var = FFT_2D(var,'kspace',1,2);
-        %         var = bart(sprintf('resize -c 0 %i 1 %i',cs_mtx(1),cs_mtx(2)),var);
-            end
+%        % Changing resolution of B0 for Sensitivities
+%             if cs_mtx(1) > x
+%                 var=FFT_1D(var,'kspace',3);
+%                 if mod(size(var,3),2)>0
+%                     var=padarray(var,[(cs_mtx(1)-x)/2,(cs_mtx(2)-y)/2,0],'both');
+%                     var=padarray(var,[0,0,floor((cs_mtx(3)-z)/2)],'pre');
+%                     var=padarray(var,[0,0,(floor((cs_mtx(3)-z)/2))+1],'post');
+%                 else
+%                     var=padarray(var,[(cs_mtx(1)-x)/2,(cs_mtx(2)-y)/2,(cs_mtx(3)-z)/2],'both');
+%                 end
+%                 var=FFT_1D(var,'image',3);
+%             else
+%                 var = FFT_1D(var,'kspace',3);
+%                 if mod(size(var,3),2)>0
+%                     var=padarray(var,[0,0,floor((cs_mtx(3)-z)/2)],'pre');
+%                     var=padarray(var,[0,0,(floor((cs_mtx(3)-z)/2))+1],'post');
+%                 else
+%                     var = padarray(var,[0,0,ceil((cs_mtx(3)-z)/2),0],'both');
+%                 end
+%                 var = FFT_1D(var,'image',3);
+%                 var = FFT_2D(var,'image',1,2);
+%                 var = imresize(var,[cs_mtx(1) cs_mtx(2)]);
+%                 var = FFT_2D(var,'kspace',1,2);
+%         %         var = bart(sprintf('resize -c 0 %i 1 %i',cs_mtx(1),cs_mtx(2)),var);
+%             end
             
 
         img = FFT_2D(var,'image',1,2);
+        % Shifting slices, not sure if always needed
+        img = circshift(img,-1,3);
 
         % Creating romeo Directory
         path_read = sprintf('./data/%s/acq/romeo',folder);
@@ -94,11 +96,37 @@ function fn_get_b0_romeo(folder,scan,file,params)
 
         % Masking
         b0 = niftiread(sprintf('%s/B0.nii',path_save));
-        msk = rssq(img,5); msk = msk(:,:,:,1);
+        msk = rssq(img_mag,5); msk = msk(:,:,:,1);
         msk(msk>1e-4) = 1;
         msk(msk<1e-4) = 0;
-        b0 = msk.*b0;
+        b0 = msk.*real(b0);
         b0(isnan(b0)) = 0;
+        
+       % Changing resolution of B0 for Sensitivities
+        if cs_mtx(1) > x
+            b0=FFT_3D(b0,'kspace');
+            if mod(size(b0,3),2)>0
+                b0=padarray(b0,[(cs_mtx(1)-x)/2,(cs_mtx(2)-y)/2,0],'both');
+                b0=padarray(b0,[0,0,floor((cs_mtx(3)-z)/2)],'pre');
+                b0=padarray(b0,[0,0,(floor((cs_mtx(3)-z)/2))+1],'post');
+            else
+                b0=padarray(b0,[(cs_mtx(1)-x)/2,(cs_mtx(2)-y)/2,(cs_mtx(3)-z)/2],'both');
+            end
+            b0=FFT_3D(b0,'image');
+        else
+            b0 = FFT_1D(b0,'kspace',3);
+            if mod(size(b0,3),2)>0
+                b0=padarray(b0,[0,0,floor((cs_mtx(3)-z)/2)],'pre');
+                b0=padarray(b0,[0,0,(floor((cs_mtx(3)-z)/2))+1],'post');
+            else
+                b0 = padarray(b0,[0,0,ceil((cs_mtx(3)-z)/2),0],'both');
+            end
+            b0 = FFT_1D(b0,'image',3);
+%             b0 = FFT_2D(b0,'image',1,2);
+%             b0 = imresize(b0,[cs_mtx(1) cs_mtx(2)]);
+        end
+        b0 = imresize(b0,[cs_mtx(1) cs_mtx(2)]);
+        b0 = real(b0);
         
         % Saving masked map
         niftiwrite(b0,sprintf('%s/B0_masked.nii',path_save));
@@ -108,5 +136,8 @@ function fn_get_b0_romeo(folder,scan,file,params)
 
         % Saving masked smoothed map
         niftiwrite(b0,sprintf('%s/B0_masked_sm.nii',path_save));
+
+        % Saving mask
+        niftiwrite(msk,sprintf('%s/mask.nii',path_save));
     end
 end
