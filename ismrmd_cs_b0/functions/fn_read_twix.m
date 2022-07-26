@@ -38,8 +38,8 @@ function [twix_params_sv,twix_params_b0] = fn_read_twix(folder,scan,params)
         elseif tmp == 'y'
             r = params.rz;
             pf = params.pf;
-%             sl = floor(params.slices/r*pf);
-            sl = params.slices;
+            sl = floor(params.slices/r*pf);
+%             sl = params.slices;
             dyn = (params.repetitions)*2;       % Here I do *2 because I have VASO-BOLD
             ro = params.nx;
             ch = params.ch;
