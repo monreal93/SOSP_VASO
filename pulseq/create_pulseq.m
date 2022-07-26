@@ -21,7 +21,6 @@ addpath(genpath("/home/amonreal/Documents/PhD/PhD_2022/BSc_students/"))
 % - Fix TE calculation for Cartesian
 % - Allow segmentation of EPI train...
 
-
 %% Define parameters
 % Set system limits (MaxGrad=70, MaxSlew = 200);
 lims = mr.opts('MaxGrad',65,'GradUnit','mT/m',...
@@ -38,7 +37,7 @@ params.gen.res = [0.8 0.8 0.8].*1e-3;
 params.gen.fa = 17;
 params.gen.te = 0e-3;
 params.gen.ro_type = 's';           % 's'-Spiral, 'c'-Cartesian
-params.gen.kz = 2;                  % Acceleration in Kz
+params.gen.kz = 1;                  % Acceleration in Kz
 params.gen.pf = 1;                  % Partial fourier in Kz
 params.gen.fat_sat = 1;             % Fat saturation (1=yes,0=no)
 params.gen.skope = 0;               % Add skope sync scan and triggers
@@ -413,7 +412,7 @@ if params.gen.ro_type == 's'
 elseif params.gen.ro_type == 'c'
     plane_samples = adc.numSamples*round(params.gen.n(2)/params.epi.ry*params.gen.pf);
 end
-for i=1:params.gen.n(3)*params.gen.kz
+for i=1:params.gen.n(3)
         ks_traj.kx(:,i) = ktraj_adc(1,j:j+plane_samples-1);
         ks_traj.ky(:,i) = ktraj_adc(2,j:j+plane_samples-1);
         ks_traj.kz(:,i) = ktraj_adc(3,j:j+plane_samples-1);
