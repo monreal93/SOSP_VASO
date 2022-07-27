@@ -14,7 +14,6 @@ function fn_create_ismrmd(folder,scan,params)
         params.slices = 1;
     end
     
-    warning('off')
     if contains(scan,'sv')
         if params.is2d == 1
             filename_v = sprintf('./data/%s/ismrmd/%s_v_r%i_2d.h5',folder,scan,params.rep_to_save);
@@ -23,28 +22,32 @@ function fn_create_ismrmd(folder,scan,params)
             filename_v = sprintf('./data/%s/ismrmd/%s_v_r%i_3d.h5',folder,scan,params.rep_to_save);
             filename_b = sprintf('./data/%s/ismrmd/%s_b_r%i_3d.h5',folder,scan,params.rep_to_save);
         end
-        delete(filename_v);
-        delete(filename_b);
     elseif contains(scan,'abc')
         if params.is2d == 1
             filename = sprintf('./data/%s/ismrmd/%s_r%i_2d.h5',folder,scan,params.rep_to_save);
         else
             filename = sprintf('./data/%s/ismrmd/%s_r%i_3d.h5',folder,scan,params.rep_to_save);
         end
-        delete(filename);
     end
+    
+    % Here I always delete the ismrmd files, should be done better
+    warning('off')
+        delete(filename_v);
+        delete(filename_b);
+        delete(filename);
     warning('on')
     
-%     % Create an empty ismrmrd dataset
-%     if exist(filename_v,'file')
-%         error(['File ' filename_v ' already exists.  Please remove first'])
-%     end
+    % Create an empty ismrmrd dataset
+    if exist(filename_v,'file')
+        error(['File ' filename_v ' already exists.  Please remove first'])
+    end
 %     dset_v = ismrmrd.Dataset(filename_v);
 %     dset_b = ismrmrd.Dataset(filename_b);
     acqData = ismrmrd.Acquisition(1);
 
     %% Load Data
     % Load Kdata
+    
     if contains(scan,'sv')
         dset_v = ismrmrd.Dataset(filename_v);
         dset_b = ismrmrd.Dataset(filename_b);
@@ -53,7 +56,7 @@ function fn_create_ismrmd(folder,scan,params)
         load(['./data/' folder '/raw/' scan '_ks_bold.mat']);
         ks_bold = squeeze(ks_bold(:,:,params.rep_to_save,:));
     elseif contains(scan,'abc')
-        dset_abc = ismrmrd.Dataset(filename);
+        dset = ismrmrd.Dataset(filename);
         load(['./data/' folder '/raw/' scan '_ks_abc.mat']);
         ks_abc = squeeze(ks_abc(:,:,params.rep_to_save,:));
     end
@@ -119,8 +122,8 @@ function fn_create_ismrmd(folder,scan,params)
             ks_bold = FFT_1D(ks_bold,'image',2);
             ks_bold = ks_bold(:,params.slice_to_save,:,:);
         elseif contains(scan,'abc')
-            ks_abc = FFT_1D(ks_abc,'image',2);
-            ks_abc = ks_abc(:,params.slice_to_save,:,:);
+            ks_abc = FFT_1D(ks_bold,'image',2);
+            ks_bold = ks_bold(:,params.slice_to_save,:,:);
         end
     end
 
@@ -158,7 +161,7 @@ function fn_create_ismrmd(folder,scan,params)
     acqData.head.read_dir  = repmat([1 0 0]',[1 params.ny]);
     acqData.head.phase_dir = repmat([0 1 0]',[1 params.ny]);
     acqData.head.slice_dir = repmat([0 0 1]',[1 params.ny]);
-%     acqData.head.sample_time_us = (1.535/2);  % In seconds (should be in seconds for MRIReco)
+    acqData.head.sample_time_us = (1.535/2);  % In seconds (should be in seconds for MRIReco)
 
     % AMM:
     if params.is2d == 1
@@ -218,7 +221,7 @@ function fn_create_ismrmd(folder,scan,params)
         acqData.traj{1} = tmp_traj;
         dset_b.appendAcquisition(acqData);
     elseif contains(scan,'abc')
-        ks_abc = double(ks_abc);
+        ks_vaso = double(ks_vaso);
       
         % ABC
         for i=1:floor(params.slices/params.rz*params.pf)
@@ -241,7 +244,7 @@ function fn_create_ismrmd(folder,scan,params)
         end
         acqData.data{1} = tmp_data;
         acqData.traj{1} = tmp_traj;
-        dset_abc.appendAcquisition(acqData);
+        dset.appendAcquisition(acqData);
         
     end
 
@@ -257,8 +260,8 @@ function fn_create_ismrmd(folder,scan,params)
     header.experimentalConditions.H1resonanceFrequency_Hz = 298000000; % 7T
 
     % Acquisition System Information (Optional)
-    header.acquisitionSystemInformation.systemVendor = 'Scannexus';
-%     header.acquisitionSystemInformation.systemModel = 'Virtual Scanner';
+    header.acquisitionSystemInformation.systemVendor = 'ISMRMRD Labs';
+    header.acquisitionSystemInformation.systemModel = 'Virtual Scanner';
     header.acquisitionSystemInformation.receiverChannels = params.ch;
 
     % The Encoding (Required)
@@ -291,17 +294,11 @@ function fn_create_ismrmd(folder,scan,params)
 
     %% Serialize and write to the data set
     xmlstring = ismrmrd.xml.serialize(header);
-    
-    if contains(scan,'sv')
-        dset_v.writexml(xmlstring);
-        dset_b.writexml(xmlstring);
+    dset_v.writexml(xmlstring);
+    dset_b.writexml(xmlstring);
 
-        dset_v.close();
-        dset_b.close();
-    elseif contains(scan,'abc')
-        dset_abc.writexml(xmlstring);
-        dset_abc.close();  
-    end
+    dset_v.close();
+    dset_b.close();
     
     fprintf('ISMRMD file repetition %i saved in path %s/ismrmd/ \n',params.rep_to_save, folder);
 

@@ -22,7 +22,7 @@ function [twix_params,twix_params_b0] = fn_read_twix(folder,scan,params)
     elseif contains(scan,'b0')
         save_file = sprintf('./data/%s/raw/%s.mat',folder,scan);
     elseif contains(scan,'abc')
-        save_file = sprintf('./data/%s/raw/%s_ks_abc.mat',folder,scan);
+        save_file = sprintf('./data/%s/raw/%s_ks.mat',folder,scan);
     end
     
     if contains(scan,'sv')
@@ -172,7 +172,7 @@ function [twix_params,twix_params_b0] = fn_read_twix(folder,scan,params)
             if  contains(scan,'sv')
                 save(save_file_vaso,'ks_vaso','-v7.3')
                 save(save_file_bold,'ks_bold','-v7.3')
-                save(sprintf('./data/%s/acq/%s_twix_params.mat',folder,scan),'twix_params');
+                save(sprintf('./data/%s/acq/%s_twix_params.mat',folder,scan),'twix_params_sv');
                 fprintf('Spiral Vaso data saved in path %s/raw/ \n',folder);
             elseif contains(scan,'b0')
                 save(save_file,'b0','-v7.3')
@@ -180,8 +180,8 @@ function [twix_params,twix_params_b0] = fn_read_twix(folder,scan,params)
                 fprintf('B0 scan saved in path %s/raw/ \n',folder);
             elseif contains(scan,'abc')
                 save(save_file,'ks_abc','-v7.3')
-                save(sprintf('./data/%s/acq/%s_twix_params.mat',folder,scan),'twix_params');
-                fprintf('ABC scan saved in path %s/raw/ \n',folder);
+                save(sprintf('./data/%s/acq/twix_params_b0.mat',folder),'twix_params_b0');
+                fprintf('B0 scan saved in path %s/raw/ \n',folder);
             end
         end 
 end

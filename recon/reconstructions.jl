@@ -1,17 +1,17 @@
 
 using MRIReco, MAT, NIfTI, MriResearchTools
 using Revise
-using Infiltrator
+# using Infiltrator
 
 include("./functions/fn_sv_recon.jl")
 include("./functions/fn_save_nii.jl")
-include("./functions/fn_ismrmd.jl")
+# include("./functions/fn_ismrmd.jl")
 
 params = Dict{Symbol, Any}()
 
 params[:plt] = false;
 params[:do_b0_corr] = false;
-params[:b0_type] = "romeo";                     # B0 map from: "romeo" , "gilad", "skope"               
+params[:b0_type] = "gilad";                     # B0 map from: "romeo" , "gilad", "skope"               
 params[:is2d] = false;
 params[:multiRepetitions] = false;              # Reconstruct multiple repetitions, if false = 2nd rep will be reconstructed
 params[:contrasts] = ["b"];                # Contrasts to recon v,b or both 
@@ -21,7 +21,7 @@ params[:sl_reco] = 10;
 
 # Some parameters
 params[:scan] = "sv_05";                       # sv_#_b (scan # Bold) or sv_#_v (scan # Vaso)
-params[:directory] = "data/sv_07212022/"        # directory where the data is stored
+params[:directory] = "data/07272022/"        # directory where the data is stored
 
 # Find out if script is running in laptop/dabeast/docker
 path_tmp = pwd();

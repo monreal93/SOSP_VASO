@@ -42,7 +42,7 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
             b0 = b0.raw;
             b0 = b0.*2π;
             # AMM: Temp: Trying to scale
-            b0 = b0.*π;
+            # b0 = b0.*π;
         elseif params_sv[:b0_type] == "skope"
             b0 = niread(string(params_sv[:path],"acq/skope-i/b0_",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"_skope.nii")); # From Skope-i
             b0 = b0.raw;
@@ -113,12 +113,10 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
         f_rep = 1;
     end
     # AMM: Infiltrate
-    @infiltrate
+    # @infiltrate
 
     for i=f_rep:params_sv[:repetitions]
-        for j=1:length(contrasts) 
-            # AMM: Infiltrate
-            @infiltrate
+        for j=1:length(contrasts)
             file=ISMRMRDFile(string(params_sv[:path],"ismrmd/",params_sv[:scan],"_",contrasts[j],"_r",i,"_",params_sv[:id],".h5"));
             acqData = AcquisitionData(file);
 
@@ -175,8 +173,6 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
 
             @info string("Done reconstructing ", contrasts[j], " repetition",i)
 
-            # AMM: Infiltrate
-            @infiltrate
         end
     end
 

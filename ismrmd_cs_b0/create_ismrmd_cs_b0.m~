@@ -83,7 +83,6 @@ fn_coil_sensitivities(folder,scan,cs_b0_file,params);
 %%  Generate B0 map
 fn_get_b0_romeo(folder,scan,cs_b0_file,params);
 
-
 cd ..
 
 %% Final message
