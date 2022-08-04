@@ -39,9 +39,9 @@ function fn_coil_sensitivities(folder,scan,file,params)
             var = squeeze(var(:,:,:,1,:));
             
             % Shifting slices, not sure if always needed
-            var = FFT_2D(var,'image',1,2);
-            var = circshift(var,-1,3);
-            var = FFT_2D(var,'kspace',1,2);
+            % var = FFT_2D(var,'image',1,2);
+            % var = circshift(var,-1,3);
+            % var = FFT_2D(var,'kspace',1,2);
 
             % Changing resolution of B0 for Sensitivities
             if cs_mtx(1) > x
@@ -78,6 +78,8 @@ function fn_coil_sensitivities(folder,scan,file,params)
             % ks = FFT_2D(var,'kspace',1,2);
             ks=var;
             sensemaps = zeros(size(ks));
+            img = FFT_2D(ks,'image',1,2);
+            img = rssq(img,4);
 
             if ncc > 0
                 espiritmaps = zeros(size(var,1),size(var,2),size(var,3),ncc);
@@ -124,6 +126,7 @@ function fn_coil_sensitivities(folder,scan,file,params)
                 save(save_file,'coil_sens','-v7.3')
             else
                 save(save_file,'coil_sens','-v7.3')
+                save(sprintf('./data/%s/tmp/gre_%i_%i_%i.mat',folder,cs_mtx(1),cs_mtx(2),cs_mtx(3)),'img','-v7.3')
             end
 
             fprintf('Coil Sensitivities saved in path %s/acq/ \n',folder);  

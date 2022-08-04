@@ -18,6 +18,7 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
     # cs = tmp+(itmp*im);
     # Shifting CS slices to make match the gre to the spiral acq
     # cs = circshift(cs, (0,0,-1,0));
+    # cs = circshift(cs, (1,0,0,0));
 
     if params_sv[:is2d]
         cs = cs[:,:,params_sv[:sl_reco],:];
@@ -36,13 +37,16 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
             replace!(b0, NaN=>0);
             b0 = b0.*2π;
             # AMM: Temp: Trying to scale
-            b0 = b0.*π;
+            # b0 = b0.*1.2;
+            b0 = reverse(b0,dims = 1);
         elseif params_sv[:b0_type] == "gilad"
             b0 = niread(string(params_sv[:path],"acq/gilad/b0_",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"_gilad.nii")); # From Gilad's
             b0 = b0.raw;
             b0 = b0.*2π;
             # AMM: Temp: Trying to scale
-            b0 = b0.*π;
+            # b0 = b0.*π;
+            b0 = b0.*0.8;
+            b0 = reverse(b0,dims = 2);
         elseif params_sv[:b0_type] == "skope"
             b0 = niread(string(params_sv[:path],"acq/skope-i/b0_",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"_skope.nii")); # From Skope-i
             b0 = b0.raw;
@@ -50,16 +54,20 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
             b0 = b0.*π;
         end
         # Temp: Do I really want to shift it??? Shifting B0 slices to make match the gre to the spiral acq
-        # b0 = circshift(b0, (0,0,-1));
+        # b0 = circshift(b0, (0,0,1));
+
+        b0 = 1im.*b0;
+        b0 = convert(Array{ComplexF32,3},b0);
+        # b0 = reverse(b0,dims = 1);			# AMM: it looks like I need to reverse the dim, not sure if always
+        # b0 = circshift(b0, (1,0,0));
+
         if params_sv[:is2d]
             b0 = b0[:,:,params_sv[:sl_reco]];
             b0 = reshape(b0,(params_sv[:nx],params_sv[:ny],1));
         end
-        b0 = 1im.*b0;
-        b0 = convert(Array{ComplexF32,3},b0);
-        b0 = reverse(b0,dims =1 );			# AMM: it looks like I need to reverse the dim, not sure if always
+
         # AMM: Infiltrate
-        # @infiltrate
+        @infiltrate
     end
 
     # # get the number of samples per readout, if its 3d, need to divide by # of slices
@@ -113,13 +121,17 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
         f_rep = 1;
     end
     # AMM: Infiltrate
-    @infiltrate
+    # @infiltrate
 
     for i=f_rep:params_sv[:repetitions]
-        for j=1:length(contrasts) 
-            # AMM: Infiltrate
-            @infiltrate
-            file=ISMRMRDFile(string(params_sv[:path],"ismrmd/",params_sv[:scan],"_",contrasts[j],"_r",i,"_",params_sv[:id],".h5"));
+        for j=1:length(contrasts)
+
+            if params_sv[:seq] == 2
+                file=ISMRMRDFile(string(params_sv[:path],"ismrmd/",params_sv[:scan],"_r",i,"_",params_sv[:id],".h5"));
+            else
+                file=ISMRMRDFile(string(params_sv[:path],"ismrmd/",params_sv[:scan],"_",contrasts[j],"_r",i,"_",params_sv[:id],".h5"));
+            end
+            
             acqData = AcquisitionData(file);
 
             # get the number of samples per readout, if its 3d, need to divide by # of slices
@@ -137,11 +149,11 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
 
             times = params_sv[:times];
 
-            # @infiltrate
+            @infiltrate
 
             # if its 3D, repeat the times vector for each slice
             if !params_sv[:is2d]
-                times = repeat(times,params_sv[:sl])';
+                times = repeat(times,Int(params_sv[:sl]/params_sv[:kz]))';
             end
 
             acqData.traj[1].times = vec(times);
@@ -150,7 +162,7 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
             
             ######## Reconstruction ###################
             params = merge(defaultRecoParams(), params);
-            Ireco = reconstruction(acqData, params);
+            @time Ireco = reconstruction(acqData, params);
             Ireco = Ireco.*1e6;
 
             if params_sv[:plt]
@@ -175,8 +187,6 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
 
             @info string("Done reconstructing ", contrasts[j], " repetition",i)
 
-            # AMM: Infiltrate
-            @infiltrate
         end
     end
 

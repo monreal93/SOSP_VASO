@@ -13,33 +13,50 @@ function fn_create_ismrmd(folder,scan,params)
         params.fov = [params.fov(1) params.fov(2) params.fov(3)/params.slices];
         params.slices = 1;
     end
-
-    if params.is2d == 1
-        filename_v = sprintf('./data/%s/ismrmd/%s_v_r%i_2d.h5',folder,scan,params.rep_to_save);
-        filename_b = sprintf('./data/%s/ismrmd/%s_b_r%i_2d.h5',folder,scan,params.rep_to_save);
-    else
-        filename_v = sprintf('./data/%s/ismrmd/%s_v_r%i_3d.h5',folder,scan,params.rep_to_save);
-        filename_b = sprintf('./data/%s/ismrmd/%s_b_r%i_3d.h5',folder,scan,params.rep_to_save);
-    end
+    
     warning('off')
+    if contains(scan,'sv')
+        if params.is2d == 1
+            filename_v = sprintf('./data/%s/ismrmd/%s_v_r%i_2d.h5',folder,scan,params.rep_to_save);
+            filename_b = sprintf('./data/%s/ismrmd/%s_b_r%i_2d.h5',folder,scan,params.rep_to_save);
+        else
+            filename_v = sprintf('./data/%s/ismrmd/%s_v_r%i_3d.h5',folder,scan,params.rep_to_save);
+            filename_b = sprintf('./data/%s/ismrmd/%s_b_r%i_3d.h5',folder,scan,params.rep_to_save);
+        end
         delete(filename_v);
         delete(filename_b);
+    elseif contains(scan,'abc')
+        if params.is2d == 1
+            filename = sprintf('./data/%s/ismrmd/%s_r%i_2d.h5',folder,scan,params.rep_to_save);
+        else
+            filename = sprintf('./data/%s/ismrmd/%s_r%i_3d.h5',folder,scan,params.rep_to_save);
+        end
+        delete(filename);
+    end
     warning('on')
     
-    % Create an empty ismrmrd dataset
-    if exist(filename_v,'file')
-        error(['File ' filename_v ' already exists.  Please remove first'])
-    end
-    dset_v = ismrmrd.Dataset(filename_v);
-    dset_b = ismrmrd.Dataset(filename_b);
+%     % Create an empty ismrmrd dataset
+%     if exist(filename_v,'file')
+%         error(['File ' filename_v ' already exists.  Please remove first'])
+%     end
+%     dset_v = ismrmrd.Dataset(filename_v);
+%     dset_b = ismrmrd.Dataset(filename_b);
     acqData = ismrmrd.Acquisition(1);
 
     %% Load Data
     % Load Kdata
-    load(['./data/' folder '/raw/' scan '_ks_vaso.mat']);
-    ks_vaso = squeeze(ks_vaso(:,:,params.rep_to_save,:));
-    load(['./data/' folder '/raw/' scan '_ks_bold.mat']);
-    ks_bold = squeeze(ks_bold(:,:,params.rep_to_save,:));
+    if contains(scan,'sv')
+        dset_v = ismrmrd.Dataset(filename_v);
+        dset_b = ismrmrd.Dataset(filename_b);
+        load(['./data/' folder '/raw/' scan '_ks_vaso.mat']);
+        ks_vaso = squeeze(ks_vaso(:,:,params.rep_to_save,:));
+        load(['./data/' folder '/raw/' scan '_ks_bold.mat']);
+        ks_bold = squeeze(ks_bold(:,:,params.rep_to_save,:));
+    elseif contains(scan,'abc')
+        dset_abc = ismrmrd.Dataset(filename);
+        load(['./data/' folder '/raw/' scan '_ks_abc.mat']);
+        ks_abc = squeeze(ks_abc(:,:,params.rep_to_save,:));
+    end
 
     % Load Trajectory
     if params.traj == 3
@@ -95,11 +112,16 @@ function fn_create_ismrmd(folder,scan,params)
             ks_traj.ky = ks_traj.ky(:,params.slice_to_save);
             ks_traj.kz = ks_traj.kz(:,params.slice_to_save);
         end
-        % AMM: Here I don't know why for sv_1 ks_vaso, I need to do FFT..
-        ks_vaso = FFT_1D(ks_vaso,'image',2);
-        ks_vaso = ks_vaso(:,params.slice_to_save,:,:);
-        ks_bold = FFT_1D(ks_bold,'image',2);
-        ks_bold = ks_bold(:,params.slice_to_save,:,:);
+        if contains(scan,'sv')
+            % AMM: Here I don't know why for sv_1 ks_vaso, I need to do FFT..
+            ks_vaso = FFT_1D(ks_vaso,'image',2);
+            ks_vaso = ks_vaso(:,params.slice_to_save,:,:);
+            ks_bold = FFT_1D(ks_bold,'image',2);
+            ks_bold = ks_bold(:,params.slice_to_save,:,:);
+        elseif contains(scan,'abc')
+            ks_abc = FFT_1D(ks_abc,'image',2);
+            ks_abc = ks_abc(:,params.slice_to_save,:,:);
+        end
     end
 
     % Permuting to make diemnsions compatible with ISMRM reader in Julia
@@ -146,54 +168,82 @@ function fn_create_ismrmd(folder,scan,params)
     end
 
     %% Adding new data
-    ks_vaso = double(ks_vaso);
-    ks_bold = double(ks_bold);
+    if contains(scan,'sv')
+        ks_vaso = double(ks_vaso);
+        ks_bold = double(ks_bold);
 
-    % VASO
-    for i=1:floor(params.slices/params.rz*params.pf)
-        if params.is2d == 1
-            traj = [squeeze(ks_traj.kx(1,i,:)) squeeze(ks_traj.ky(1,i,:))];
-        else
-            traj = [squeeze(ks_traj.kx(1,i,:)) squeeze(ks_traj.ky(1,i,:)) squeeze(ks_traj.kz(1,i,:))];
-        end
-        data = squeeze(ks_vaso(:,i,:));
+        % VASO
+        for i=1:floor(params.slices/params.rz*params.pf)
+            if params.is2d == 1
+                traj = [squeeze(ks_traj.kx(1,i,:)) squeeze(ks_traj.ky(1,i,:))];
+            else
+                traj = [squeeze(ks_traj.kx(1,i,:)) squeeze(ks_traj.ky(1,i,:)) squeeze(ks_traj.kz(1,i,:))];
+            end
+            data = squeeze(ks_vaso(:,i,:));
 
-        if i == 1
-            tmp_data = data;
-            tmp_traj = traj';
-        else
-            tmp_data = cat(1,tmp_data,data);
-            tmp_traj = cat(2,tmp_traj,traj');
+            if i == 1
+                tmp_data = data;
+                tmp_traj = traj';
+            else
+                tmp_data = cat(1,tmp_data,data);
+                tmp_traj = cat(2,tmp_traj,traj');
+            end
+        %     acqData.data{i} = data;
+        %     acqData.traj{i} = traj';
         end
-    %     acqData.data{i} = data;
-    %     acqData.traj{i} = traj';
+        acqData.data{1} = tmp_data;
+        acqData.traj{1} = tmp_traj;
+        dset_v.appendAcquisition(acqData);
+
+        % BOLD
+        for i=1:floor(params.slices/params.rz*params.pf)
+            if params.is2d == 1
+                traj = [squeeze(ks_traj.kx(1,i,:)) squeeze(ks_traj.ky(1,i,:))];
+            else
+                traj = [squeeze(ks_traj.kx(1,i,:)) squeeze(ks_traj.ky(1,i,:)) squeeze(ks_traj.kz(1,i,:))];
+            end
+            data = squeeze(ks_bold(:,i,:));
+
+            if i == 1
+                tmp_data = data;
+                tmp_traj = traj';
+            else
+                tmp_data = cat(1,tmp_data,data);
+                tmp_traj = cat(2,tmp_traj,traj');
+            end
+        %     acqData.data{i} = data;
+        %     acqData.traj{i} = traj';
+        end
+        acqData.data{1} = tmp_data;
+        acqData.traj{1} = tmp_traj;
+        dset_b.appendAcquisition(acqData);
+    elseif contains(scan,'abc')
+        ks_abc = double(ks_abc);
+      
+        % ABC
+        for i=1:floor(params.slices/params.rz*params.pf)
+            if params.is2d == 1
+                traj = [squeeze(ks_traj.kx(1,i,:)) squeeze(ks_traj.ky(1,i,:))];
+            else
+                traj = [squeeze(ks_traj.kx(1,i,:)) squeeze(ks_traj.ky(1,i,:)) squeeze(ks_traj.kz(1,i,:))];
+            end
+            data = squeeze(ks_abc(:,i,:));
+
+            if i == 1
+                tmp_data = data;
+                tmp_traj = traj';
+            else
+                tmp_data = cat(1,tmp_data,data);
+                tmp_traj = cat(2,tmp_traj,traj');
+            end
+        %     acqData.data{i} = data;
+        %     acqData.traj{i} = traj';
+        end
+        acqData.data{1} = tmp_data;
+        acqData.traj{1} = tmp_traj;
+        dset_abc.appendAcquisition(acqData);
+        
     end
-    acqData.data{1} = tmp_data;
-    acqData.traj{1} = tmp_traj;
-    dset_v.appendAcquisition(acqData);
-
-    % BOLD
-    for i=1:floor(params.slices/params.rz*params.pf)
-        if params.is2d == 1
-            traj = [squeeze(ks_traj.kx(1,i,:)) squeeze(ks_traj.ky(1,i,:))];
-        else
-            traj = [squeeze(ks_traj.kx(1,i,:)) squeeze(ks_traj.ky(1,i,:)) squeeze(ks_traj.kz(1,i,:))];
-        end
-        data = squeeze(ks_bold(:,i,:));
-
-        if i == 1
-            tmp_data = data;
-            tmp_traj = traj';
-        else
-            tmp_data = cat(1,tmp_data,data);
-            tmp_traj = cat(2,tmp_traj,traj');
-        end
-    %     acqData.data{i} = data;
-    %     acqData.traj{i} = traj';
-    end
-    acqData.data{1} = tmp_data;
-    acqData.traj{1} = tmp_traj;
-    dset_b.appendAcquisition(acqData);
 
     %%%%%%%%%%%%%%%%%%%%%%%%
     %% Fill the xml header %
@@ -207,8 +257,8 @@ function fn_create_ismrmd(folder,scan,params)
     header.experimentalConditions.H1resonanceFrequency_Hz = 298000000; % 7T
 
     % Acquisition System Information (Optional)
-    header.acquisitionSystemInformation.systemVendor = 'ISMRMRD Labs';
-    header.acquisitionSystemInformation.systemModel = 'Virtual Scanner';
+    header.acquisitionSystemInformation.systemVendor = 'Scannexus';
+%     header.acquisitionSystemInformation.systemModel = 'Virtual Scanner';
     header.acquisitionSystemInformation.receiverChannels = params.ch;
 
     % The Encoding (Required)
@@ -241,11 +291,17 @@ function fn_create_ismrmd(folder,scan,params)
 
     %% Serialize and write to the data set
     xmlstring = ismrmrd.xml.serialize(header);
-    dset_v.writexml(xmlstring);
-    dset_b.writexml(xmlstring);
+    
+    if contains(scan,'sv')
+        dset_v.writexml(xmlstring);
+        dset_b.writexml(xmlstring);
 
-    dset_v.close();
-    dset_b.close();
+        dset_v.close();
+        dset_b.close();
+    elseif contains(scan,'abc')
+        dset_abc.writexml(xmlstring);
+        dset_abc.close();  
+    end
     
     fprintf('ISMRMD file repetition %i saved in path %s/ismrmd/ \n',params.rep_to_save, folder);
 

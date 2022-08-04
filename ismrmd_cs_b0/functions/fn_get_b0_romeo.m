@@ -60,7 +60,7 @@ function fn_get_b0_romeo(folder,scan,file,params)
 
         img = FFT_2D(var,'image',1,2);
         % Shifting slices, not sure if always needed
-        img = circshift(img,-1,3);
+        % img = circshift(img,-1,3);
 
         % Creating romeo Directory
         path_read = sprintf('./data/%s/acq/romeo',folder);

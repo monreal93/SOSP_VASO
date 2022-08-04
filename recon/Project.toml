@@ -1,6 +1,7 @@
 [deps]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 Debugger = "31a5f54b-26ea-5ae9-a837-f05ce5417438"
+ImageView = "86fae568-95e7-573e-a6b2-d8a6b900c9ef"
 Infiltrator = "5903a43b-9cc3-4c30-8d17-598619ec4e9b"
 MAT = "23992714-dd62-5051-b70f-ba57cb901cac"
 MRIReco = "bdf86e05-2d2b-5731-a332-f3fe1f9e047f"

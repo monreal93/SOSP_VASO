@@ -27,8 +27,4 @@ function fn_ismrmd(params_sv::Dict{Symbol,Any})
         tmp = vcat(tmp,rawData.profiles[i].data)
     end
 
-
-
-    @infiltrate
-
 end

@@ -20,8 +20,8 @@ elseif contains(path_tmp,"/mnt/")
     setenv('TOOLBOX_PATH','/mnt/5T3/Alejandro/tools/bart')
 end
 
-folder = 'sv_07212022';
-cs_b0_file = 'b0_1_6';
+folder = '08032022';
+cs_b0_file = 'b0_1_6_1_6_1_F';
 scan = 'sv_01';
 repetitions = 4; %4,6        % AMM: ToDo: find a way to get this param from somewhere
 
@@ -31,7 +31,7 @@ load(sprintf('./data/%s/acq/%s_params.mat',folder,scan));
 
 %% Some parameters
 params.is2d = 0;                   % 1 if 3D dataset saved as 2D
-params.slice_to_save = 10;          % Slice to save if using 3D data set as 2D
+params.slice_to_save = 7;          % Slice to save if using 3D data set as 2D
 params.traj = 1;                   % Trajectory input: 1 (matlab simulation), 2 (poet), 3 (skope)
 params.plot = 0;                   % Plot stuff
 params.ncc = 0;              	   % Coil compression coils... 0 for no compression
@@ -61,7 +61,7 @@ end
 params.twix_params_b0 = twix_params_b0;
 
 %% Read other scans
-[twix_params_sv,~] =  fn_read_twix(folder,scan,params);
+[twix_params,~] =  fn_read_twix(folder,scan,params);
 % Getting B0 twix parametersfrom previous save
 if exist(sprintf('./data/%s/acq/%s_twix_params.mat',folder,scan))
     load(sprintf('./data/%s/acq/%s_twix_params.mat',folder,scan));
@@ -69,7 +69,7 @@ else
     fprintf('--- SV twix parameters havent been read, please run script again and select Yes to read the data \n');
     return
 end
-params.twix_params_sv = twix_params_sv;
+params.twix_params = twix_params;
 
 %% Create ISMRMD files, one per each repetition/dynamic
 for i=1:params.repetitions
@@ -82,6 +82,7 @@ fn_coil_sensitivities(folder,scan,cs_b0_file,params);
 
 %%  Generate B0 map
 fn_get_b0_romeo(folder,scan,cs_b0_file,params);
+
 
 cd ..
 
