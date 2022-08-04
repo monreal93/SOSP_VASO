@@ -158,7 +158,7 @@ function fn_create_ismrmd(folder,scan,params)
     acqData.head.read_dir  = repmat([1 0 0]',[1 params.ny]);
     acqData.head.phase_dir = repmat([0 1 0]',[1 params.ny]);
     acqData.head.slice_dir = repmat([0 0 1]',[1 params.ny]);
-%     acqData.head.sample_time_us = (1.535/2);  % In seconds (should be in seconds for MRIReco)
+    acqData.head.sample_time_us = (1.535/2);  % In seconds (should be in seconds for MRIReco)
 
     % AMM:
     if params.is2d == 1

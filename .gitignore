@@ -19,6 +19,8 @@ docs/site/
 
 # AMM:
 data/
+analysis/renzo_example/
+tmp/
 # OSX / *nix default autosave extension
 *.m~
 

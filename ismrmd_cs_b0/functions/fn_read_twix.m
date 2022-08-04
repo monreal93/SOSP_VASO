@@ -66,6 +66,10 @@ function [twix_params,twix_params_b0] = fn_read_twix(folder,scan,params)
                 twix_params_b0.scan_time = twix.hdr.Phoenix.lScanTimeSec;
                 twix_params_b0.ph_fov = twix.hdr.Meas.PeFOV;
                 twix_params_b0.dwell = twix.hdr.Meas.alDwellTime;
+                % Calculating the scan resolution
+                twix_params_b0.res = [twix.hdr.Meas.RoFOV/twix.hdr.Meas.BaseResolution ...
+                    twix.hdr.Meas.PhaseFoV/twix.hdr.Meas.PhaseEncodingLines ...
+                    twix.hdr.Meas.dSliceResolution].*1e-3;
             else
                 % Here I can save more twix parameters as needed...
                 twix_params.TE = twix.hdr.Meas.alTE(1).*1e-6;
@@ -108,7 +112,10 @@ function [twix_params,twix_params_b0] = fn_read_twix(folder,scan,params)
             %      bb=padarray(bb,[52,64,6],'both');
             %      bb=FFT_1D(bb,'image',3);
                  b0=bb;
-                %  aa=FFT_2D(aa,'image',1,2);
+                 % AMM: Not sure if this is right.. Double check...
+                % Here I do FFT Shift to try to make it in the isocenter
+                shx = (twix_params_b0.shift*1e-4)./twix_params_b0.res(1);
+                b0 = fft_shift_2D(b0,1,shx,1,0);
             elseif contains(scan,'sv')
                 dyn = (params.repetitions)*2;       % Here I do *2 because I have VASO-BOLD
                 image_data = twix.image();
