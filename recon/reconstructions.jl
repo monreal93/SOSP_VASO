@@ -12,11 +12,11 @@ params = Dict{Symbol, Any}()
 # @info string("Reconstructing scan ", ARGS[1], ", contrast ", ARGS[2])
 
 params[:plt] = false;
-params[:do_b0_corr] = true;
+params[:do_b0_corr] = false;
 params[:b0_type] = "romeo";                     # B0 map from: "romeo" , "gilad", "skope"               
 params[:is2d] = false;
-params[:multiRepetitions] = false;              # Reconstruct multiple repetitions, if false = 2nd rep will be reconstructed
-params[:contrasts] = ["v"];                # Contrasts to recon v,b or both 
+params[:multiRepetitions] = true;              # Reconstruct multiple repetitions, if false = 2nd rep will be reconstructed
+params[:contrasts] = ["v","b"];                # Contrasts to recon v,b or both 
 # contrasts = ["b","v"];
 # params[:contrasts] = ARGS[2];
 
@@ -25,10 +25,9 @@ params[:sl_reco] = 7;
 
 # Some parameters
 # params[:scan] = "sv_01";                       # sv_#_b (scan # Bold) or sv_#_v (scan # Vaso)
-# scans = ["sv_01","sv_02","sv_03","sv_04","sv_05","sv_06"];
-scans = ["sv_04"];#,"sv_02","sv_03","sv_04","sv_05"];
+scans = ["sv_01"];#,"sv_02","sv_03","sv_04","sv_05"];
 # params[:scan] = ARGS[1];
-params[:directory] = "data/08032022/"        # directory where the data is stored
+params[:directory] = "data/08052022_sv_abc/"        # directory where the data is stored
 
 # Find out if script is running in laptop/dabeast/docker
 path_tmp = pwd();

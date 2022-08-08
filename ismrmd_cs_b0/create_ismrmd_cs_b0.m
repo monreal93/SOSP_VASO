@@ -20,10 +20,10 @@ elseif contains(path_tmp,"/mnt/")
     setenv('TOOLBOX_PATH','/mnt/5T3/Alejandro/tools/bart')
 end
 
-folder = '08032022';
+folder = '08052022_sv_abc';
 cs_b0_file = 'b0_1_6_1_6_1_F';
 scan = 'sv_01';
-repetitions = 4; %4,6        % AMM: ToDo: find a way to get this param from somewhere
+repetitions = 120; %4,6        % AMM: ToDo: find a way to get this param from somewhere
 
 cd ./sosp_vaso
 % Reading some parameters from Pulseq
@@ -72,17 +72,16 @@ end
 params.twix_params = twix_params;
 
 %% Create ISMRMD files, one per each repetition/dynamic
-for i=1:params.repetitions
-    params.rep_to_save = i;
+% for i=1:params.repetitions
+%    params.rep_to_save = i;
     fn_create_ismrmd(folder,scan,params);
-end
+% end
 
 %% Generate Coil Sensitivities
 fn_coil_sensitivities(folder,scan,cs_b0_file,params);
 
 %%  Generate B0 map
 fn_get_b0_romeo(folder,scan,cs_b0_file,params);
-
 
 cd ..
 

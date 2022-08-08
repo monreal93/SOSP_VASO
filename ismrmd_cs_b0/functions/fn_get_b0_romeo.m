@@ -77,6 +77,15 @@ function fn_get_b0_romeo(folder,scan,file,params)
         img_mag = abs(img);
         niftiwrite(img_mag,sprintf('%s/%s_mag.nii',path_save,file))
         niftiwrite(img_ph,sprintf('%s/%s_ph.nii',path_save,file))
+        
+        % Writing resized Ech1 and Ech9 for future refererence
+        tmp = rssq(img_mag,5);
+        tmp = imresize(tmp,[params.gen.n(1) params.gen.n(2)]);
+        % I am flipping dim 1 just to match recon:
+        ech1 = flip(tmp(:,:,:,1),1);
+        ech9 = flip(tmp(:,:,:,9),1);
+        niftiwrite(ech1,sprintf('%s/gre_%i_%i_%i_ech1.nii',path_save,params.gen.n(1),params.gen.n(2),params.gen.n(3)))
+        niftiwrite(ech9,sprintf('%s/gre_%i_%i_%i_ech9.nii',path_save,params.gen.n(1),params.gen.n(2),params.gen.n(3)))
 
         % Calling ROMEO
         % tmp = '[8.14,17.11,23,25.01,27.02,32.11,55,60,65]';  % This has to be read from the .dat file and saved in a variable

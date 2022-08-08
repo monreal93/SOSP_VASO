@@ -37,7 +37,7 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
             replace!(b0, NaN=>0);
             b0 = b0.*2π;
             # AMM: Temp: Trying to scale
-            # b0 = b0.*1.2;
+            b0 = b0.*1;
             b0 = reverse(b0,dims = 1);
         elseif params_sv[:b0_type] == "gilad"
             b0 = niread(string(params_sv[:path],"acq/gilad/b0_",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"_gilad.nii")); # From Gilad's
@@ -148,8 +148,6 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
             # times = params_sv[:TE] .+ collect(0:params_sv[:dt]:tAQ);
 
             times = params_sv[:times];
-
-            @infiltrate
 
             # if its 3D, repeat the times vector for each slice
             if !params_sv[:is2d]

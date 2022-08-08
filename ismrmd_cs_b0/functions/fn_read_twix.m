@@ -114,8 +114,8 @@ function [twix_params,twix_params_b0] = fn_read_twix(folder,scan,params)
                  b0=bb;
                  % AMM: Not sure if this is right.. Double check...
                 % Here I do FFT Shift to try to make it in the isocenter
-                shx = (twix_params_b0.shift*1e-4)./twix_params_b0.res(1);
-                b0 = fft_shift_2D(b0,1,shx,1,0);
+%                 shx = (twix_params_b0.shift*1e-4)./twix_params_b0.res(1);
+%                 b0 = fft_shift_2D(b0,1,shx,1,0);
             elseif contains(scan,'sv')
                 dyn = (params.repetitions)*2;       % Here I do *2 because I have VASO-BOLD
                 image_data = twix.image();
