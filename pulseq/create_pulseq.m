@@ -13,33 +13,38 @@ addpath(genpath("/home/amonreal/Documents/PhD/PhD_2022/BSc_students/"))
 % and time vector)
 % - ABC: implement partition encoding direction center-out and then segment
 % interleaved (Viktor's email)
-% - Make sure external trigger is in right place
 % - check values of duration, timeBwProduct rf0
 % - make params.gen.pf work...
 % - Include epi.pf in volTR estimation for Cartesian
 % - Include Gauss pulse in volTR for ABC seq
 % - Fix TE calculation for Cartesian
 % - Allow segmentation of EPI train...
+% - Check that volTR takes into acount kz
+% - Check update of n/res with 'c' and 'pf' seems wrong, slices gets 22
+% - Properly define adcDwell time for gx in 'c' (now I use 2.2ms) 'FlatTime'
+% - check values of duration, timeBwProduct, rf0
 
 %% Define parameters
 % Set system limits (MaxGrad=70, MaxSlew = 200);
 lims = mr.opts('MaxGrad',65,'GradUnit','mT/m',...
     'MaxSlew',190,'SlewUnit','T/m/s',...
-    'rfRingdownTime', 30e-6,'rfDeadtime', 180e-6,'adcDeadTime', 10e-6);  % To read it in VM I need rfDeadtime = 180e-6
+    'rfRingdownTime', 30e-6,'rfDeadtime', 180e-6,'adcDeadTime', 10e-6, 'B0',7);  % To read it in VM I need rfDeadtime = 180e-6
+lims_cart = mr.opts('MaxGrad',55,'GradUnit','mT/m',...
+    'MaxSlew',160,'SlewUnit','T/m/s','B0',7);
 
-folder_name = 'sv_07212022';            % Day I am scanning
+folder_name = '08032022';            % Day I am scanning
 seq_name = 'sample';                     % use sv_n (n for the diff scans at each day)
 params.gen.seq = 1;                      % 1-VASO 2-ABC 3-Fieldmap
 
 % General parameters
 params.gen.fov = [200 200 24].*1e-3;
-params.gen.res = [0.8 0.8 0.8].*1e-3;
+params.gen.res = [0.8 0.8 1].*1e-3;
 params.gen.fa = 17;
 params.gen.te = 0e-3;
 params.gen.ro_type = 's';           % 's'-Spiral, 'c'-Cartesian
 params.gen.kz = 1;                  % Acceleration in Kz
 params.gen.pf = 1;                  % Partial fourier in Kz
-params.gen.fat_sat = 1;             % Fat saturation (1=yes,0=no)
+params.gen.fat_sat = 0;             % Fat saturation (1=yes,0=no)
 params.gen.skope = 0;               % Add skope sync scan and triggers
          
 % Spiral parameters
@@ -54,15 +59,16 @@ params.spi.rxy = 3;                 % In-plane undersampling
 
 % MT pulse parameters
 params.mt.mt = 1;                   %Add MT pulse, 0 for reference scan without MT
-params.mt.alpha = 225;
-params.mt.delta = 650;     % for Pulseq approach should be 650 to match Viktors phase
+params.mt.alpha = 200;  %225
+params.mt.delta = 650;              % for Pulseq approach should be 650 to match Viktors phase
 params.mt.trf = 0.004;
 
 % EPI parameters
 params.epi.ry = 3;
-params.epi.pf = 6/8;
-params.epi.te = [33.6 36.6 38.6 40]*1e-3; % Echo times for field map
+params.epi.pf = 1;
+params.epi.te = [33.6 36.6 38.6 40]*1e-3+0.022; % Echo times for field map
 params.epi.seg = 1;                       % EPI Segments
+params.epi.tr_delay = 20e-3;              % Delay after each TR
 
 % VASO parameters
 params.vaso.foci = 1;               % FOCI inversion?
@@ -71,7 +77,7 @@ params.vaso.ti1 = 1800e-3;          % VASO TI1,
 params.vaso.ti2 = params.vaso.ti1+(params.vaso.tr/2);
 params.vaso.f_v_delay = 900e-3;     % FOCI-VASO delay
 params.vaso.v_b_delay = 0e-3;       % VASO-BOLD delay
-params.vaso.b_f_delay = 100e-3;       % BOLD-FOCI delay
+params.vaso.b_f_delay = 0e-3;     % BOLD-FOCI delay
 
 % Some calculations, restrictions in seq...
 params.gen.del_k = (1./params.gen.fov)*params.gen.kz;
@@ -110,8 +116,13 @@ rf_fs = mr.makeGaussPulse(90*pi/180,'system',lims,'Duration',8e-3,...
 gz_fs = mr.makeTrapezoid('z',lims,'delay',mr.calcDuration(rf_fs),'Area',1/1e-4); % spoil up to 0.1mm
 
 % ToDo: check values of duration, timeBwProduct
-[rf0, gz] = mr.makeSincPulse(params.gen.fa*pi/180,'system',lims,'Duration',2.6e-3,...
-    'SliceThickness',params.gen.fov(3),'apodization',0.5,'timeBwProduct',25);
+if params.gen.ro_type == 2
+    [rf0, gz] = mr.makeSincPulse(params.gen.fa*pi/180,'system',lims,'Duration',1e-3,...
+        'SliceThickness',params.gen.fov(3),'apodization',0.5);
+else
+    [rf0, gz] = mr.makeSincPulse(params.gen.fa*pi/180,'system',lims,'Duration',2.6e-3,...
+        'SliceThickness',params.gen.fov(3),'apodization',0.5,'timeBwProduct',25);
+end
 gzReph = mr.makeTrapezoid('z',lims,'Area',-gz.area/2);
 
 %% Preparing readout elements
@@ -135,16 +146,16 @@ if params.gen.ro_type == 's'
 elseif params.gen.ro_type == 'c'
     % Prepare EPI
     % AMM: Need to properly define the dwell time, now I have 2e-6
+    adcDwell = 2.2e-6;   % AMM: Here i use 2e-6 need to properly define it
 %     gx = mr.makeTrapezoid('x',lims,'riseTime',1e-4,'system',lims,'flatArea',params.gen.n(1)*params.gen.del_k(1),'FlatTime',params.gen.n(1)*2e-6); % Dwell time 2e-6
-    gx = mr.makeTrapezoid('x',lims,'flatArea',params.gen.n(1)*params.gen.del_k(1),'FlatTime',params.gen.n(1)*2e-6); % Dwell time 2e-6
-    gx_pre = mr.makeTrapezoid('x',lims,'Area',-gx.area/2);
-    gy_pre = mr.makeTrapezoid('y',lims,'Area',-(params.gen.del_k(2)*params.gen.n(2)/2)*(params.epi.pf)...
+    gx = mr.makeTrapezoid('x',lims_cart,'flatArea',params.gen.n(1)*params.gen.del_k(1),'FlatTime',params.gen.n(1)*adcDwell); % Dwell time 2.2e-6
+    gx_pre = mr.makeTrapezoid('x',lims_cart,'Area',-gx.area/2);
+    gy_pre = mr.makeTrapezoid('y',lims_cart,'Area',-(params.gen.del_k(2)*params.gen.n(2)/2)*(params.epi.pf)...
         +(params.gen.del_k(2)*params.gen.n(2)/2)-(params.gen.del_k(2)*params.gen.n(2)/2)*(params.epi.pf));
-    gy_blip = mr.makeTrapezoid('y',lims,'Area',params.gen.del_k(2).*params.epi.ry);
+    gy_blip = mr.makeTrapezoid('y',lims_cart,'Area',params.gen.del_k(2).*params.epi.ry);
     
     % ADC
     adcSamples = params.gen.n(1);
-    adcDwell = 2e-6;   % AMM: Here i use 2e-6 need to properly define it
     adc = mr.makeAdc(adcSamples,'Dwell',adcDwell,'Delay',gx.riseTime); 
 end
 
@@ -177,6 +188,7 @@ if params.gen.te > 0; te_delay = mr.makeDelay(round(params.gen.te-(max(rf0.t)-mi
 if params.vaso.f_v_delay > 0; f_v_delay = mr.makeDelay(params.vaso.f_v_delay);          end         % FOCI-VASO delay
 if params.vaso.v_b_delay > 0; v_b_delay = mr.makeDelay(params.vaso.v_b_delay);          end         % VASO-BOLD delay
 if params.vaso.b_f_delay > 0; b_f_delay = mr.makeDelay(params.vaso.b_f_delay);          end         % BOLD-FOCI delay
+if params.gen.ro_type == 'c'; tr_delay = mr.makeDelay(params.epi.tr_delay);             end         % TR delay for Cartesian, to avoid PNS
 if params.gen.skope == 1
     % AMM: Todo Need to confirm the times of this delays
     sk_pre_delay    = mr.makeDelay(1.84);
@@ -231,6 +243,7 @@ if params.gen.skope == 1
                 end
                 gx.amplitude = -gx.amplitude;
                 seq_sk.addBlock(gz_spoil);
+                seq.addBlock(tr_delay);
             end
             seq_sk.addBlock(sk_min_tr_delay); 
         end
@@ -273,6 +286,7 @@ if params.gen.seq == 1
                 end
                 gx.amplitude = -gx.amplitude;
                 seq.addBlock(gz_spoil);
+                seq.addBlock(tr_delay);
             end
     %         seq.addBlock(dummy_delay);          % AMM: Temp: Adding a delay to let mag recover
         end
@@ -304,6 +318,7 @@ if params.gen.seq == 1
                 end
                 gx.amplitude = -gx.amplitude;
                 seq.addBlock(gz_spoil);
+                seq.addBlock(tr_delay);
             end
     %         seq.addBlock(dummy_delay);          % AMM: Temp: Adding a delay to let mag recover
         end
@@ -343,6 +358,7 @@ elseif params.gen.seq == 2
                     seq.addBlock(gy_blip)
                 end
                 seq.addBlock(gz_spoil);
+                seq.addBlock(tr_delay);
             end
             % Adding MT pulse every ~180ms
             dur1 = seq.duration();
@@ -351,7 +367,7 @@ elseif params.gen.seq == 2
                 seq.addBlock(gz_spoil);
                 dur0 = dur1;
             end
-    %         seq.addBlock(dummy_delay);          % AMM: Temp: Adding a delay to let mag recover
+            seq.addBlock(dummy_delay);          % AMM: Temp: Adding a delay to let mag recover
         end
     end
 %%%%%%  Fieldmap
@@ -385,6 +401,7 @@ elseif params.gen.seq == 3
                     end
                     gx.amplitude = -gx.amplitude;
                     seq.addBlock(gz_spoil);
+                    seq.addBlock(tr_delay);
                 end
         %         seq.addBlock(dummy_delay);          % AMM: Temp: Adding a delay to let mag recover
             end
@@ -438,8 +455,9 @@ end
 rz = 1./(abs(max(ks_traj.kz(:,1)))+abs(min(ks_traj.kz(:,1))));
 params.gen.res = [rx,ry,rz];
 params.gen.n = round(params.gen.fov./params.gen.res);
-tmp = mod(params.gen.n,2); params.gen.n = params.gen.n-tmp;
-% Adding ro_samples, acqTR,volTR, pairTR, TE
+tmp = mod(params.gen.n,2); params.gen.n = params.gen.n+tmp;
+
+%% Adding ro_samples, acqTR,volTR, pairTR, TE
 params.spi.ro_samples = adc.numSamples;
 if params.gen.ro_type == 's'
     params.gen.acqTR = rf.shape_dur+mr.calcDuration(gzReph) ...
