@@ -32,7 +32,7 @@ lims = mr.opts('MaxGrad',65,'GradUnit','mT/m',...
 lims_cart = mr.opts('MaxGrad',55,'GradUnit','mT/m',...
     'MaxSlew',160,'SlewUnit','T/m/s','B0',7);
 
-folder_name = '08032022';            % Day I am scanning
+folder_name = '08052022_sv_abc';            % Day I am scanning
 seq_name = 'sample';                     % use sv_n (n for the diff scans at each day)
 params.gen.seq = 1;                      % 1-VASO 2-ABC 3-Fieldmap
 
@@ -44,7 +44,7 @@ params.gen.te = 0e-3;
 params.gen.ro_type = 's';           % 's'-Spiral, 'c'-Cartesian
 params.gen.kz = 1;                  % Acceleration in Kz
 params.gen.pf = 1;                  % Partial fourier in Kz
-params.gen.fat_sat = 0;             % Fat saturation (1=yes,0=no)
+params.gen.fat_sat = 1;             % Fat saturation (1=yes,0=no)
 params.gen.skope = 0;               % Add skope sync scan and triggers
          
 % Spiral parameters
@@ -58,7 +58,7 @@ params.spi.vd = 1.6;                % Variability density
 params.spi.rxy = 3;                 % In-plane undersampling
 
 % MT pulse parameters
-params.mt.mt = 1;                   %Add MT pulse, 0 for reference scan without MT
+params.mt.mt = 0;                   %Add MT pulse, 0 for reference scan without MT
 params.mt.alpha = 200;  %225
 params.mt.delta = 650;              % for Pulseq approach should be 650 to match Viktors phase
 params.mt.trf = 0.004;
@@ -68,13 +68,16 @@ params.epi.ry = 3;
 params.epi.pf = 1;
 params.epi.te = [33.6 36.6 38.6 40]*1e-3+0.022; % Echo times for field map
 params.epi.seg = 1;                       % EPI Segments
-params.epi.tr_delay = 20e-3;              % Delay after each TR
+params.epi.tr_delay = 20e-3;              % Delay after each TR, needed to reduce SAR
 
 % VASO parameters
 params.vaso.foci = 1;               % FOCI inversion?
 params.vaso.tr = 4500e-3;           % volume TR
 params.vaso.ti1 = 1800e-3;          % VASO TI1, 
 params.vaso.ti2 = params.vaso.ti1+(params.vaso.tr/2);
+params.vaso.foci_ampl = 140;   %110 % FOCI amplitude
+params.vaso.foci_dur = 10410e-6;    % FOCI duration
+params.vaso.foci_bw = 150;          % FOCI Bandwidth
 params.vaso.f_v_delay = 900e-3;     % FOCI-VASO delay
 params.vaso.v_b_delay = 0e-3;       % VASO-BOLD delay
 params.vaso.b_f_delay = 0e-3;     % BOLD-FOCI delay
@@ -93,9 +96,12 @@ elseif params.gen.ro_type == 's'
 end
 
 %% Create blocks (I will get this into functions)
-% TR-FOCI 
-[B1_foci,phase,rf_complex,Gz_foci] = tr_foci(3.32,10410e-6);  % Here not sure where this values come from, should I hard code them?
-rf_foci = mr.makeArbitraryRf(rf_complex,6.4322, 'system', lims);%, 'Delay',2e-4);
+% TR-FOCI
+[B1_foci,phase,rf_complex,Gz_foci,fa] = tr_foci(params);
+% Emily's implementation:
+% HSIR.m_dFlipAngle/HSIR.m_sFociData.FA_scale  240/0.6512
+% fa = 240/0.6512;
+rf_foci = mr.makeArbitraryRf(rf_complex,fa*pi/180, 'system', lims);%, 'Delay',2e-4);
 
 % MT pulse
 if params.gen.seq == 2
@@ -110,8 +116,9 @@ end
 % AMM: ToDo: how to properly desing the fat-sat pulse
 B0 = 6.98; % 1.5 2.89 3.0
 sat_ppm = -3.45;
+fs_angle = 110;
 sat_freq = sat_ppm*1e-6*B0*lims.gamma;
-rf_fs = mr.makeGaussPulse(90*pi/180,'system',lims,'Duration',8e-3,...
+rf_fs = mr.makeGaussPulse(fs_angle*pi/180,'system',lims,'Duration',8e-3,...
     'bandwidth',abs(sat_freq),'freqOffset',sat_freq);
 gz_fs = mr.makeTrapezoid('z',lims,'delay',mr.calcDuration(rf_fs),'Area',1/1e-4); % spoil up to 0.1mm
 
@@ -485,8 +492,11 @@ if exist(sprintf('./data/%s',folder_name)) == 0
     tmp = sprintf('./data/%s',folder_name);
     system(sprintf('mkdir %s',tmp));
     system(sprintf('mkdir %s/acq',tmp));
+    system(sprintf('mkdir %s/acq/romeo',tmp));
+    system(sprintf('mkdir %s/analysis',tmp));
     system(sprintf('mkdir %s/ismrmd',tmp));
     system(sprintf('mkdir %s/raw',tmp));
+    system(sprintf('mkdir %s/raw/twix',tmp));
     system(sprintf('mkdir %s/recon',tmp));
     system(sprintf('mkdir %s/tmp',tmp));
 end

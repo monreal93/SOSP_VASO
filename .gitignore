@@ -21,6 +21,9 @@ docs/site/
 data/
 analysis/renzo_example/
 tmp/
+*.jpg
+*.nii
+
 # OSX / *nix default autosave extension
 *.m~
 *.asv

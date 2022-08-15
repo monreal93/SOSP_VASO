@@ -1,14 +1,17 @@
-function [B1,phase,rf_complex,Gz] = tr_foci(Amax,rf_dur)
+function [B1,phase,rf_complex,Gz,fa] = tr_foci(params)
     % Some parameters
     rf_ampl = 2.1865;
     larmor_freq = 4.2576e+04;
+    rf_dur = params.vaso.foci_dur;
 
 % RF Slab-Selective
     Gs=1;
-%     Amax = 3.32;
+    Amax = 3.32;
     B1max =  0.327152;
     w = 0.30; r1=0.64; r2=0.27; r3=0.59; r4=0.00; r5=1.00;
-    mu=7.71*(300/100); % 7.71* BW in percentage
+    % AMM: For ASL, use 300, for VASO 150
+%     mu=7.71*(300/100); % 7.71* BW in percentage
+    mu = 7.71*(params.vaso.foci_bw/100);
     beta=3.90; t1=0.25; t2=0.40;
 
     c=Amax*(1-r1);
@@ -127,5 +130,11 @@ function [B1,phase,rf_complex,Gz] = tr_foci(Amax,rf_dur)
 %    rf_complex = padarray(rf_complex,[0 90],'both');
    
    % Generating z gradient
+
+   % Here I want to calculate the FA taking into account the amplitude
+   m_dBW_kHz = 1.0E-3 * mu * beta* Amax / pi()* 1/(1.0E-6 *length(t));
+   ampl = 2*pi*m_dBW_kHz/(267522209. * params.vaso.foci_ampl);
+   fa = (2*pi)/(ampl*360*(larmor_freq*1e3*2*pi)*trapz(0:1e-6:params.vaso.foci_dur-1e-6,abs(rf_complex)));
+   fa = fa*180/pi;   % FA in degrees
    
 end
