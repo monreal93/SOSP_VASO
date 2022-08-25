@@ -26,19 +26,22 @@ addpath(genpath("/home/amonreal/Documents/PhD/PhD_2022/BSc_students/"))
 
 %% Define parameters
 % Set system limits (MaxGrad=70, MaxSlew = 200);
+% lims = mr.opts('MaxGrad',65,'GradUnit','mT/m',...
+%     'MaxSlew',190,'SlewUnit','T/m/s',...
+%     'rfRingdownTime', 30e-6,'rfDeadtime', 180e-6,'adcDeadTime', 10e-6, 'B0',7);  % To read it in VM I need rfDeadtime = 180e-6
 lims = mr.opts('MaxGrad',65,'GradUnit','mT/m',...
     'MaxSlew',190,'SlewUnit','T/m/s',...
     'rfRingdownTime', 30e-6,'rfDeadtime', 180e-6,'adcDeadTime', 10e-6, 'B0',7);  % To read it in VM I need rfDeadtime = 180e-6
-lims_cart = mr.opts('MaxGrad',55,'GradUnit','mT/m',...
-    'MaxSlew',160,'SlewUnit','T/m/s','B0',7);
+lims_cart = mr.opts('MaxGrad',60,'GradUnit','mT/m',...
+    'MaxSlew',130,'SlewUnit','T/m/s','B0',7);
 
-folder_name = '08052022_sv_abc';            % Day I am scanning
-seq_name = 'sample';                     % use sv_n (n for the diff scans at each day)
+folder_name = 'sample';            % Day I am scanning
+seq_name = 'sample_sv';                     % use sv_n (n for the diff scans at each day)
 params.gen.seq = 1;                      % 1-VASO 2-ABC 3-Fieldmap
 
 % General parameters
 params.gen.fov = [200 200 24].*1e-3;
-params.gen.res = [0.8 0.8 1].*1e-3;
+params.gen.res = [0.8 0.8 1].*1e-3;     % Target resoultion
 params.gen.fa = 17;
 params.gen.te = 0e-3;
 params.gen.ro_type = 's';           % 's'-Spiral, 'c'-Cartesian
@@ -85,12 +88,16 @@ params.vaso.b_f_delay = 0e-3;     % BOLD-FOCI delay
 % Some calculations, restrictions in seq...
 params.gen.del_k = (1./params.gen.fov)*params.gen.kz;
 params.gen.n = round(params.gen.fov./params.gen.res);
-idx = mod(params.gen.n,2)==1;
-params.gen.n(idx) = params.gen.n(idx)+1;
+
+% Trying to make n multiple of 4,update res
+tmp = mod(params.gen.n,4);
+params.gen.n(1:2) = params.gen.n(1:2)+tmp(1:2);
 params.gen.n(3) = params.gen.n(3)/params.gen.kz/params.gen.pf;
 if params.gen.seq == 3; params.gen.ro_type = 'c'; end   % if fieldmap, cartesian
+if params.gen.seq == 2; params.gen.ro_type = 's'; end   % if ABC, Spiral
 if params.gen.ro_type == 'c'
     params.gen.seg = params.epi.seg;
+    % Trying to make n a multiple of 
 elseif params.gen.ro_type == 's'
     params.gen.seg = params.spi.interl;
 end
@@ -153,17 +160,21 @@ if params.gen.ro_type == 's'
 elseif params.gen.ro_type == 'c'
     % Prepare EPI
     % AMM: Need to properly define the dwell time, now I have 2e-6
-    adcDwell = 2.2e-6;   % AMM: Here i use 2e-6 need to properly define it
+    adcDwell = 2e-6;   % AMM: Here i use 2e-6 need to properly define it
 %     gx = mr.makeTrapezoid('x',lims,'riseTime',1e-4,'system',lims,'flatArea',params.gen.n(1)*params.gen.del_k(1),'FlatTime',params.gen.n(1)*2e-6); % Dwell time 2e-6
-    gx = mr.makeTrapezoid('x',lims_cart,'flatArea',params.gen.n(1)*params.gen.del_k(1),'FlatTime',params.gen.n(1)*adcDwell); % Dwell time 2.2e-6
+    gx = mr.makeTrapezoid('x',lims_cart,'flatArea',params.gen.n(1)*params.gen.del_k(1),'FlatTime',round(params.gen.n(1)*adcDwell,4)); % Dwell time 2.2e-6
     gx_pre = mr.makeTrapezoid('x',lims_cart,'Area',-gx.area/2);
     gy_pre = mr.makeTrapezoid('y',lims_cart,'Area',-(params.gen.del_k(2)*params.gen.n(2)/2)*(params.epi.pf)...
         +(params.gen.del_k(2)*params.gen.n(2)/2)-(params.gen.del_k(2)*params.gen.n(2)/2)*(params.epi.pf));
     gy_blip = mr.makeTrapezoid('y',lims_cart,'Area',params.gen.del_k(2).*params.epi.ry);
-    
+    gx.amplitude = -gx.amplitude;
+    % gx_pre.amplitude = -gx_pre.amplitude;
+
     % ADC
+    tmp = params.gen.n(1)*adcDwell-round(params.gen.n(1)*adcDwell,4);
+    tmp = round(tmp,6);
     adcSamples = params.gen.n(1);
-    adc = mr.makeAdc(adcSamples,'Dwell',adcDwell,'Delay',gx.riseTime); 
+    adc = mr.makeAdc(adcSamples,'Dwell',adcDwell,'Delay',gx.riseTime-(tmp/2)); 
 end
 
 %% Prepare kz Blips:
@@ -242,14 +253,16 @@ if params.gen.skope == 1
                 seq_sk.addBlock(gx(j),gy(j),adc);
                 seq_sk.addBlock(gx_ramp(j),gy_ramp(j),gz_spoil);
             elseif params.gen.ro_type == 'c'
-                seq_sk.addBlock(gx_pre,gy_pre)
+                seq.addBlock(gx_pre,gy_pre)
                 for k = 1:round(params.gen.n(2)/params.epi.ry*(params.epi.pf))
-                    seq_sk.addBlock(gx,adc);
                     gx.amplitude = -gx.amplitude;
-                    seq_sk.addBlock(gy_blip);
+                    seq.addBlock(gx,adc);
+                    seq.addBlock(gy_blip);
                 end
-                gx.amplitude = -gx.amplitude;
-                seq_sk.addBlock(gz_spoil);
+                if gx.amplitude > 0
+                    gx.amplitude = -gx.amplitude;
+                end
+                seq.addBlock(gz_spoil);
                 seq.addBlock(tr_delay);
             end
             seq_sk.addBlock(sk_min_tr_delay); 
@@ -287,11 +300,13 @@ if params.gen.seq == 1
             elseif params.gen.ro_type == 'c'
                 seq.addBlock(gx_pre,gy_pre)
                 for k = 1:round(params.gen.n(2)/params.epi.ry*(params.epi.pf))
-                    seq.addBlock(gx,adc);
                     gx.amplitude = -gx.amplitude;
+                    seq.addBlock(gx,adc);
                     seq.addBlock(gy_blip);
                 end
-                gx.amplitude = -gx.amplitude;
+                if gx.amplitude > 0
+                    gx.amplitude = -gx.amplitude;
+                end
                 seq.addBlock(gz_spoil);
                 seq.addBlock(tr_delay);
             end
@@ -319,11 +334,13 @@ if params.gen.seq == 1
             elseif params.gen.ro_type == 'c'
                 seq.addBlock(gx_pre,gy_pre)
                 for k = 1:round(params.gen.n(2)/params.epi.ry*(params.epi.pf))
-                    seq.addBlock(gx,adc);
                     gx.amplitude = -gx.amplitude;
+                    seq.addBlock(gx,adc);
                     seq.addBlock(gy_blip);
                 end
-                gx.amplitude = -gx.amplitude;
+                if gx.amplitude > 0
+                    gx.amplitude = -gx.amplitude;
+                end
                 seq.addBlock(gz_spoil);
                 seq.addBlock(tr_delay);
             end
@@ -402,14 +419,17 @@ elseif params.gen.seq == 3
                 elseif params.gen.ro_type == 'c'
                     seq.addBlock(gx_pre,gy_pre)
                     for k = 1:round(params.gen.n(2)/params.epi.ry*(params.epi.pf))
-                        seq.addBlock(gx,adc);
                         gx.amplitude = -gx.amplitude;
+                        seq.addBlock(gx,adc);
                         seq.addBlock(gy_blip);
                     end
-                    gx.amplitude = -gx.amplitude;
-                    seq.addBlock(gz_spoil);
-                    seq.addBlock(tr_delay);
+                    if gx.amplitude > 0
+                        gx.amplitude = -gx.amplitude;
+                    end
+                        seq.addBlock(gz_spoil);
+                        seq.addBlock(tr_delay);
                 end
+                
         %         seq.addBlock(dummy_delay);          % AMM: Temp: Adding a delay to let mag recover
             end
         end
@@ -495,9 +515,13 @@ if exist(sprintf('./data/%s',folder_name)) == 0
     system(sprintf('mkdir %s/acq/romeo',tmp));
     system(sprintf('mkdir %s/analysis',tmp));
     system(sprintf('mkdir %s/ismrmd',tmp));
+    system(sprintf('mkdir %s/ismrmd/2d',tmp));
+    system(sprintf('mkdir %s/ismrmd/3d',tmp));
     system(sprintf('mkdir %s/raw',tmp));
     system(sprintf('mkdir %s/raw/twix',tmp));
     system(sprintf('mkdir %s/recon',tmp));
+    system(sprintf('mkdir %s/recon/2d',tmp));
+    system(sprintf('mkdir %s/recon/2d',tmp));
     system(sprintf('mkdir %s/tmp',tmp));
 end
 
