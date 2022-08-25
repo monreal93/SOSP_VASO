@@ -23,15 +23,15 @@ end
 folder = '08052022_sv_abc';
 cs_b0_file = 'b0_1_6_1_6_1_F';
 scan = 'sv_01';
-repetitions = 120; %4,6        % AMM: ToDo: find a way to get this param from somewhere
+repetitions = 120; %4,120        % AMM: ToDo: find a way to get this param from somewhere
 
 cd ./sosp_vaso
 % Reading some parameters from Pulseq
 load(sprintf('./data/%s/acq/%s_params.mat',folder,scan));
 
 %% Some parameters
-params.is2d = 0;                   % 1 if 3D dataset saved as 2D
-params.slice_to_save = 7;          % Slice to save if using 3D data set as 2D
+params.is2d = 1;                   % 1 if 3D dataset saved as 2D
+% params.slice_to_save = 7;          % Slice to save if using 3D data set as 2D
 params.traj = 1;                   % Trajectory input: 1 (matlab simulation), 2 (poet), 3 (skope)
 params.plot = 0;                   % Plot stuff
 params.ncc = 0;              	   % Coil compression coils... 0 for no compression
@@ -72,11 +72,14 @@ end
 params.twix_params = twix_params;
 
 %% Create ISMRMD files, one per each repetition/dynamic
-% for i=1:params.repetitions
-%    params.rep_to_save = i;
-    fn_create_ismrmd(folder,scan,params);
+% if params.is2d
+%     for i=1:params.slices
+%         params.slice_to_save = i;
+%         fn_create_ismrmd(folder,scan,params);
+%     end
+% else
+   fn_create_ismrmd(folder,scan,params); 
 % end
-
 %% Generate Coil Sensitivities
 fn_coil_sensitivities(folder,scan,cs_b0_file,params);
 

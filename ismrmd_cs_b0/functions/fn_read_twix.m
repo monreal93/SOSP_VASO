@@ -83,6 +83,8 @@ function [twix_params,twix_params_b0] = fn_read_twix(folder,scan,params)
                 twix_params.repetitions = params.repetitions;
 %                 twix_params_sv.sl_to_recon = params.slice_to_save;
                 twix_params.rz = params.rz;
+                twix_params.grad_delay = [twix.hdr.Dicom.lGradDelayTimeX, ...
+                    twix.hdr.Dicom.lGradDelayTimeY, twix.hdr.Dicom.lGradDelayTimeZ]*1e-6;
             end
 
             if contains(scan,'b0')
@@ -172,6 +174,47 @@ function [twix_params,twix_params_b0] = fn_read_twix(folder,scan,params)
                 ks_abc = permute(dd,[1,3,2]);
                 ks_abc = reshape(ks_abc,[ro*interl ch sl dyn]);
                 ks_abc = permute(ks_abc,[1,3,4,2]);
+                
+            elseif contains(scan,'cv')
+                dyn = (params.repetitions)*2;       % Here I do *2 because I have VASO-BOLD
+                image_data = twix.image();
+                % trying to reshare matrix, for Spiral acquisitions
+                aa=squeeze(image_data);
+                % AMM: This only applies if I use sync scan, now I don't
+                % have it so I dont need to remove skope sync scans.
+%                 if params.gen.skope
+%                     bb=aa(:,:,sl+1:end,:);  % Removing the skope sync readouts
+%                 else
+                    bb=aa;
+%                 end
+                cc=permute(bb,[3 1 2]); % Getting ch dim to the end and set to second
+                dd=reshape(cc,200,sl*dyn,ro,ch);  % Permuting first and second dim, Col and Set
+                dd = permute(dd,[1 3 2 4]);
+                
+                ks_vaso = zeros(params.gen.n(1),200,dyn/2*sl,ch);
+                % VASO contrast
+                j = 1;
+                for i=1:sl:(dyn/2)*sl %Number of dynamics/2
+                    ks_vaso(:,:,i:i+(sl-1),:) = dd(:,:,j:j+(sl-1),:);
+                    j = j+(sl*2);
+                end
+                
+                 ks_bold = zeros(params.gen.n(1),200,dyn/2*sl,ch);
+                % BOLD contrast
+                 j = sl+1;
+                for i=1:sl:(dyn/2)*sl %Number of dynamics/2
+                    ks_bold(:,:,i:i+(sl-1),:) = dd(:,:,j:j+(sl-1),:);
+                    j = j+(sl*2);
+                end
+		
+                    % Extracting the dynamics
+                    ks_vaso = permute(ks_vaso,[1,3,2,4]);
+                    ks_vaso = reshape(ks_vaso,[ro*interl ch sl dyn/2]);
+                    ks_vaso = permute(ks_vaso,[1,3,4,2]);
+
+                    ks_bold = permute(ks_bold,[1,3,2]);
+                    ks_bold = reshape(ks_bold,[ro*interl ch sl dyn/2]);
+                    ks_bold = permute(ks_bold,[1,3,4,2]);
 
             end
 
