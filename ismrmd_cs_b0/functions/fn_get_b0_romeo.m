@@ -67,7 +67,7 @@ function fn_get_b0_romeo(folder,scan,file,params)
         path_read = what(path_read); path_read = path_read.path;
         
         warning('off')
-        system(sprintf('mkdir %s',path_read));
+        % system(sprintf('mkdir %s',path_read));
         % Creating specific folder for mtx size
         system(sprintf('mkdir %s',path_save));
         warning('on')
