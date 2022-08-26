@@ -27,7 +27,7 @@ params[:contrasts] = ["v"];                # Contrasts to recon v,b or both
 # params[:scan] = "sv_01";                       # sv_#_b (scan # Bold) or sv_#_v (scan # Vaso)
 scans = ["sv_01"];#,"sv_02","sv_03","sv_04","sv_05"];
 # params[:scan] = ARGS[1];
-params[:directory] = "data/08162022_sv/"        # directory where the data is stored
+params[:directory] = "data/08052022_sv_abc/"        # directory where the data is stored
 
 # Find out if script is running in laptop/dabeast/docker
 path_tmp = pwd();

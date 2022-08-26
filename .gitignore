@@ -24,6 +24,12 @@ tmp/
 *.jpg
 *.nii
 
+# Files used to run in parallel (copies of the main file)
+*_1.jl
+*_2.jl
+*_1.m
+*_2.m
+
 # OSX / *nix default autosave extension
 *.m~
 *.asv
