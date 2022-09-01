@@ -9,6 +9,9 @@ cd /mnt/5T3/Alejandro/sosp_vaso/
 scan = 'sv_05';
 =======
 scan = 'sv_01';
+<<<<<<< HEAD
+>>>>>>> d1b9f9739bab3a219a09122f6f93aa12f439776b
+=======
 >>>>>>> d1b9f9739bab3a219a09122f6f93aa12f439776b
 folder = '08312022_sv';
 rep = 120;  % 120
