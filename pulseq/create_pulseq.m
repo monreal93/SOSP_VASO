@@ -35,8 +35,8 @@ lims = mr.opts('MaxGrad',65,'GradUnit','mT/m',...
 lims_cart = mr.opts('MaxGrad',60,'GradUnit','mT/m',...
     'MaxSlew',130,'SlewUnit','T/m/s','B0',7);
 
-folder_name = 'sample';            % Day I am scanning
-seq_name = 'sample_sv';                     % use sv_n (n for the diff scans at each day)
+folder_name = '08312022_sv';            % Day I am scanning
+seq_name = 'sample';                   % use sv_n (n for the diff scans at each day)
 params.gen.seq = 1;                      % 1-VASO 2-ABC 3-Fieldmap
 
 % General parameters
@@ -61,14 +61,14 @@ params.spi.vd = 1.6;                % Variability density
 params.spi.rxy = 3;                 % In-plane undersampling
 
 % MT pulse parameters
-params.mt.mt = 0;                   %Add MT pulse, 0 for reference scan without MT
+params.mt.mt = 1;                   % Add MT pulse, 0 for reference scan without MT
 params.mt.alpha = 200;  %225
 params.mt.delta = 650;              % for Pulseq approach should be 650 to match Viktors phase
 params.mt.trf = 0.004;
 
 % EPI parameters
 params.epi.ry = 3;
-params.epi.pf = 1;
+params.epi.pf = 6/8;
 params.epi.te = [33.6 36.6 38.6 40]*1e-3+0.022; % Echo times for field map
 params.epi.seg = 1;                       % EPI Segments
 params.epi.tr_delay = 20e-3;              % Delay after each TR, needed to reduce SAR
@@ -78,12 +78,12 @@ params.vaso.foci = 1;               % FOCI inversion?
 params.vaso.tr = 4500e-3;           % volume TR
 params.vaso.ti1 = 1800e-3;          % VASO TI1, 
 params.vaso.ti2 = params.vaso.ti1+(params.vaso.tr/2);
-params.vaso.foci_ampl = 140;   %110 % FOCI amplitude
+params.vaso.foci_ampl = 140;   %110 % FOCI amplitude (140)
 params.vaso.foci_dur = 10410e-6;    % FOCI duration
-params.vaso.foci_bw = 150;          % FOCI Bandwidth
+params.vaso.foci_bw = 150;          % FOCI Bandwidth (150)
 params.vaso.f_v_delay = 900e-3;     % FOCI-VASO delay
 params.vaso.v_b_delay = 0e-3;       % VASO-BOLD delay
-params.vaso.b_f_delay = 0e-3;     % BOLD-FOCI delay
+params.vaso.b_f_delay = 0e-3;       % BOLD-FOCI delay
 
 % Some calculations, restrictions in seq...
 params.gen.del_k = (1./params.gen.fov)*params.gen.kz;
@@ -147,7 +147,7 @@ if params.gen.ro_type == 's'
     for i=1:params.spi.interl
         % Readout gradients
         gx(i) = mr.makeArbitraryGrad('x',spiral_grad_shape(1,:,i), lims);
-        gy(i) = mr.makeArbitraryGrad('y',spiral_grad_shape(2,:,i), lims);
+        gy(i) =   mr.makeArbitraryGrad('y',spiral_grad_shape(2,:,i), lims);
 
         % ADC
         adc = mr.makeAdc(adcSamples,'Dwell',adcDwell);%,'Delay',lims.adcDeadTime);
@@ -521,7 +521,7 @@ if exist(sprintf('./data/%s',folder_name)) == 0
     system(sprintf('mkdir %s/raw/twix',tmp));
     system(sprintf('mkdir %s/recon',tmp));
     system(sprintf('mkdir %s/recon/2d',tmp));
-    system(sprintf('mkdir %s/recon/2d',tmp));
+    system(sprintf('mkdir %s/recon/3d',tmp));
     system(sprintf('mkdir %s/tmp',tmp));
 end
 
