@@ -5,7 +5,11 @@ clear
 
 cd /mnt/5T3/Alejandro/sosp_vaso/
 
+<<<<<<< HEAD
 scan = 'sv_05';
+=======
+scan = 'sv_01';
+>>>>>>> d1b9f9739bab3a219a09122f6f93aa12f439776b
 folder = '08312022_sv';
 rep = 120;  % 120
 
