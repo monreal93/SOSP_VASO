@@ -5,8 +5,8 @@ clear
 
 cd /mnt/5T3/Alejandro/sosp_vaso/
 
-scan = 'sv_01';
-folder = '08052022_sv_abc';
+scan = 'sv_05';
+folder = '08312022_sv';
 rep = 120;  % 120
 
 % tmp = sprintf('./data/%s/recon/*%s*',folder,scan);
@@ -30,11 +30,11 @@ for i=1:rep
 %     j = j+2;
 
     % This way I am doing B-V
-    tmp = sprintf('./data/%s/recon/%s_v_rep%i_3d_mrreco.nii',folder,scan,i);
+    tmp = sprintf('./data/%s/recon/3d/%s_v_rep%i_3d_mrreco.nii',folder,scan,i);
     v = niftiread(tmp);
     v_b(:,:,:,j+1) = v;
     
-    tmp = sprintf('./data/%s/recon/%s_b_rep%i_3d_mrreco.nii',folder,scan,i);
+    tmp = sprintf('./data/%s/recon/3d/%s_b_rep%i_3d_mrreco.nii',folder,scan,i);
     b = niftiread(tmp);
     v_b(:,:,:,j) = b;
     
@@ -49,7 +49,7 @@ end
 v_b = v_b.*1e4;
 
 % Adding nifti information
-info = niftiinfo(sprintf('./data/%s/recon/%s_v_rep%i_3d_mrreco.nii',folder,scan,1));
+info = niftiinfo(sprintf('./data/%s/recon/3d/%s_v_rep%i_3d_mrreco.nii',folder,scan,1));
 info.PixelDimensions = params.gen.res*1000;
 info.PixelDimensions(4) = params.gen.volTR;
 info.ImageSize = params.gen.n;

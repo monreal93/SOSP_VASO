@@ -61,6 +61,7 @@ function fn_create_ismrmd(folder,scan,params)
             last_partition = 1;
         else
             last_partition = floor(params.slices/params.rz*params.pf);
+            partitions = 1;
         end
         
         % Loop over repetitions
@@ -123,13 +124,30 @@ function fn_create_ismrmd(folder,scan,params)
                     ks_traj.ky = ks_traj.ky.*-1;        % Swaping nominal trajectory to match scaner one
                 end
 
-    %             % Correcting for gradient Delay
-    %             kx = interp1(params.gen.t_vector,ks_traj.kx,params.gen.t_vector+g_delay(1),'linear','extrap');
-    %             ky = interp1(params.gen.t_vector,ks_traj.ky,params.gen.t_vector+g_delay(2),'linear','extrap');
-    %             kz = interp1(params.gen.t_vector,ks_traj.kz,params.gen.t_vector+g_delay(3),'linear','extrap');
-    %             ks_traj.kx = kx;
-    %             ks_traj.ky = ky;
-    %             ks_traj.kz = kz;
+                %%% Temp: Discaring corrupted samples
+                st_crop = find(ks_traj.kx(:,1));
+                st_crop = st_crop(1); st_crop = floor(st_crop/10)*10+1;
+                ks_traj.kx = ks_traj.kx(st_crop:end,:);
+                ks_traj.ky = ks_traj.ky(st_crop:end,:);
+                ks_traj.kz = ks_traj.kz(st_crop:end,:);
+                ks_vaso = ks_vaso(st_crop:end,:,:);
+                ks_bold = ks_bold(st_crop:end,:,:);
+                % Updating params...
+                params.nx = length(ks_traj.kx);
+                params.gen.t_vector = params.gen.t_vector(st_crop:end);
+                params.spi.ro_samples = length(ks_traj.kx);
+                save(sprintf('./data/%s/acq/%s_params.mat',folder,scan),'params');
+                %%%%%
+                
+                
+%                 % Correcting for gradient Delay
+%                 g_delay = 89e-9;
+%                 kx = interp1(params.gen.t_vector,ks_traj.kx,params.gen.t_vector+g_delay,'linear','extrap');
+%                 ky = interp1(params.gen.t_vector,ks_traj.ky,params.gen.t_vector+g_delay,'linear','extrap');
+%                 kz = interp1(params.gen.t_vector,ks_traj.kz,params.gen.t_vector+g_delay,'linear','extrap');
+%                 ks_traj.kx = kx;
+%                 ks_traj.ky = ky;
+%                 ks_traj.kz = kz;
 
             %     % Cropping trajctory to center and edges of kspace, if its from Skope is
             %     % should be cropped manually before
@@ -158,9 +176,9 @@ function fn_create_ismrmd(folder,scan,params)
             %     ks_bold = tmp;
             %     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-                % FFT shift data
-                % ks_vaso = fft_shift_2D(ks_vaso,ks_traj.kx,0,ks_traj.ky,round(params.twix_params_b0.shift/params.res(2)./1000)); % 14,31
-                % ks_bold = fft_shift_2D(ks_bold,ks_traj.kx,0,ks_traj.ky,round(params.twix_params_b0.shift/params.res(2)./1000));
+                % Temp: FFT shift data
+                ks_vaso = fft_shift_2D(ks_vaso,ks_traj.kx,round(params.twix_params_b0.shift/params.res(2)./10000),ks_traj.ky,0); % 14,31
+                ks_bold = fft_shift_2D(ks_bold,ks_traj.kx,round(params.twix_params_b0.shift/params.res(2)./10000),ks_traj.ky,0);
 
                 % Subseting data if is 2d
                 if params.is2d==1 

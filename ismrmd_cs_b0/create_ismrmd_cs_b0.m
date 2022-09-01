@@ -20,9 +20,9 @@ elseif contains(path_tmp,"/mnt/")
     setenv('TOOLBOX_PATH','/mnt/5T3/Alejandro/tools/bart')
 end
 
-folder = '08052022_sv_abc';
+folder = '08312022_sv';
 cs_b0_file = 'b0_1_6_1_6_1_F';
-scan = 'sv_01';
+scan = 'sv_05';
 repetitions = 120; %4,120        % AMM: ToDo: find a way to get this param from somewhere
 
 cd ./sosp_vaso
