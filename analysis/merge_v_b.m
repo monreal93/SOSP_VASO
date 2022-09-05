@@ -5,7 +5,14 @@ clear
 
 cd /mnt/5T3/Alejandro/sosp_vaso/
 
+<<<<<<< HEAD
+scan = 'sv_05';
+=======
 scan = 'sv_01';
+<<<<<<< HEAD
+>>>>>>> d1b9f9739bab3a219a09122f6f93aa12f439776b
+=======
+>>>>>>> d1b9f9739bab3a219a09122f6f93aa12f439776b
 folder = '08312022_sv';
 rep = 120;  % 120
 
@@ -49,7 +56,7 @@ end
 v_b = v_b.*1e4;
 
 % Adding nifti information
-info = niftiinfo(sprintf('./data/%s/recon/%s_v_rep%i_3d_mrreco.nii',folder,scan,1));
+info = niftiinfo(sprintf('./data/%s/recon/3d/%s_v_rep%i_3d_mrreco.nii',folder,scan,1));
 info.PixelDimensions = params.gen.res*1000;
 info.PixelDimensions(4) = params.gen.volTR;
 info.ImageSize = params.gen.n;
