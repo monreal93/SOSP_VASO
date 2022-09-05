@@ -44,7 +44,7 @@ params.gen.fov = [200 200 24].*1e-3;
 params.gen.res = [0.8 0.8 1].*1e-3;     % Target resoultion
 params.gen.fa = 17;
 params.gen.te = 0e-3;
-params.gen.ro_type = 's';           % 's'-Spiral, 'c'-Cartesian
+params.gen.ro_type = 'c';           % 's'-Spiral, 'c'-Cartesian
 params.gen.kz = 1;                  % Acceleration in Kz
 params.gen.pf = 1;                  % Partial fourier in Kz
 params.gen.fat_sat = 1;             % Fat saturation (1=yes,0=no)
@@ -199,6 +199,8 @@ end
 
 % spoilers
 % AMM: Todo: Need to confirm the size (amplitude/area) of this spoiler
+gx_spoil=mr.makeTrapezoid('x',lims,'Area',params.gen.del_k(1)*params.gen.n(1)*4);
+gy_spoil=mr.makeTrapezoid('y',lims,'Area',params.gen.del_k(1)*params.gen.n(1)*4);
 gz_spoil=mr.makeTrapezoid('z',lims,'Area',params.gen.del_k(1)*params.gen.n(1)*4);
 
 % Delays, triggers
@@ -251,7 +253,8 @@ if params.gen.skope == 1
             end
             if params.gen.ro_type == 's'
                 seq_sk.addBlock(gx(j),gy(j),adc);
-                seq_sk.addBlock(gx_ramp(j),gy_ramp(j),gz_spoil);
+                seq_sk.addBlock(gx_ramp(j),gy_ramp(j));
+                seq_sk.adBlock(gx_spoil,gy_spoil,gz_spoil);
             elseif params.gen.ro_type == 'c'
                 seq.addBlock(gx_pre,gy_pre)
                 for k = 1:round(params.gen.n(2)/params.epi.ry*(params.epi.pf))
@@ -262,7 +265,7 @@ if params.gen.skope == 1
                 if gx.amplitude > 0
                     gx.amplitude = -gx.amplitude;
                 end
-                seq.addBlock(gz_spoil);
+                seq.addBlock(gx_spoil,gy_spoil,gz_spoil);
                 seq.addBlock(tr_delay);
             end
             seq_sk.addBlock(sk_min_tr_delay); 
@@ -276,6 +279,19 @@ seq = mr.Sequence();
 
 %%%%% SS-SI-VASO:
 if params.gen.seq == 1
+    % Calibration scan for EPI
+    if params.gen.ro_type == 'c'
+        seq.addBlock(gx_pre)
+        for k = 1:round(params.gen.n(2)/params.epi.ry*(params.epi.pf))
+            gx.amplitude = -gx.amplitude;
+            seq.addBlock(gx,adc);
+        end
+        if gx.amplitude > 0
+            gx.amplitude = -gx.amplitude;
+        end
+        seq.addBlock(gx_spoil,gy_spoil,gz_spoil);
+        seq.addBlock(tr_delay);
+    end
     if params.vaso.foci; seq.addBlock(rf_foci); end              % FOCI
     if params.vaso.f_v_delay > 0; seq.addBlock(f_v_delay); end   % FOCI-VASO del%MrProt.private.l_additionalslice+MrProt.sliceGroupList(1).sliceperslabay
     if params.gen.fat_sat; seq.addBlock(rf_fs,gz_fs);   end      % fat-sat
@@ -296,7 +312,8 @@ if params.gen.seq == 1
             end
             if params.gen.ro_type == 's'
                 seq.addBlock(gx(j),gy(j),adc);
-                seq.addBlock(gx_ramp(j),gy_ramp(j),gz_spoil);
+                seq.addBlock(gx_ramp(j),gy_ramp(j));
+                seq.addBlock(gx_spoil,gy_spoil,gz_spoil);
             elseif params.gen.ro_type == 'c'
                 seq.addBlock(gx_pre,gy_pre)
                 for k = 1:round(params.gen.n(2)/params.epi.ry*(params.epi.pf))
@@ -307,7 +324,7 @@ if params.gen.seq == 1
                 if gx.amplitude > 0
                     gx.amplitude = -gx.amplitude;
                 end
-                seq.addBlock(gz_spoil);
+                seq.addBlock(gx_spoil,gy_spoil,gz_spoil);
                 seq.addBlock(tr_delay);
             end
     %         seq.addBlock(dummy_delay);          % AMM: Temp: Adding a delay to let mag recover
@@ -330,7 +347,8 @@ if params.gen.seq == 1
             end
             if params.gen.ro_type == 's'
                 seq.addBlock(gx(j),gy(j),adc);
-                seq.addBlock(gx_ramp(j),gy_ramp(j),gz_spoil);
+                seq.addBlock(gx_ramp(j),gy_ramp(j));
+                seq.addBlock(gx_spoil,gy_spoil,gz_spoil);
             elseif params.gen.ro_type == 'c'
                 seq.addBlock(gx_pre,gy_pre)
                 for k = 1:round(params.gen.n(2)/params.epi.ry*(params.epi.pf))
@@ -341,7 +359,7 @@ if params.gen.seq == 1
                 if gx.amplitude > 0
                     gx.amplitude = -gx.amplitude;
                 end
-                seq.addBlock(gz_spoil);
+                seq.addBlock(gx_spoil,gy_spoil,gz_spoil);
                 seq.addBlock(tr_delay);
             end
     %         seq.addBlock(dummy_delay);          % AMM: Temp: Adding a delay to let mag recover
@@ -350,6 +368,20 @@ if params.gen.seq == 1
     if params.vaso.b_f_delay > 0; seq.addBlock(b_f_delay); end   % BOLD-FOCI delay
 %%%%%%  ABC
 elseif params.gen.seq == 2
+    % Calibration scan for EPI
+    if params.gen.ro_type == 'c'
+        seq.addBlock(gx_pre)
+        for k = 1:round(params.gen.n(2)/params.epi.ry*(params.epi.pf))
+            gx.amplitude = -gx.amplitude;
+            seq.addBlock(gx,adc);
+        end
+        if gx.amplitude > 0
+            gx.amplitude = -gx.amplitude;
+        end
+        seq.addBlock(gx_spoil,gy_spoil,gz_spoil);
+        seq.addBlock(tr_delay);
+    end
+    % MT pulse
     if params.mt.mt == 1
         seq.addBlock(MT);                                           % MT pulse 
         seq.addBlock(gz_spoil);
@@ -373,7 +405,8 @@ elseif params.gen.seq == 2
             end
             if params.gen.ro_type == 's'
                 seq.addBlock(gx(j),gy(j),adc);
-                seq.addBlock(gx_ramp(j),gy_ramp(j),gz_spoil);
+                seq.addBlock(gx_ramp(j),gy_ramp(j));
+                seq.addBlock(gx_spoil,gy_spoil,gz_spoil);
             elseif params.gen.ro_type == 'c'
                 seq.addBlock(gx_pre,gy_pre)
                 for k = 1:params.gen.n(2)/params.epi.ry
@@ -381,21 +414,36 @@ elseif params.gen.seq == 2
                     gx.amplitude = -gx.amplitude;
                     seq.addBlock(gy_blip)
                 end
-                seq.addBlock(gz_spoil);
+                seq.addBlock(gx_spoil,gy_spoil,gz_spoil);
                 seq.addBlock(tr_delay);
             end
             % Adding MT pulse every ~180ms
             dur1 = seq.duration();
-            if dur1-dur0 > 180e-3 && j == params.gen.seg
-                seq.addBlock(MT);                                           % MT pulse 
-                seq.addBlock(gz_spoil);
-                dur0 = dur1;
+            if params.mt.mt == 1
+                if dur1-dur0 > 180e-3 && j == params.gen.seg
+                    seq.addBlock(MT);                                           % MT pulse 
+                    seq.addBlock(gz_spoil);
+                    dur0 = dur1;
+                end
             end
             seq.addBlock(dummy_delay);          % AMM: Temp: Adding a delay to let mag recover
         end
     end
 %%%%%%  Fieldmap
 elseif params.gen.seq == 3
+    % Calibration scan for EPI
+    if params.gen.ro_type == 'c'
+        seq.addBlock(gx_pre)
+        for k = 1:round(params.gen.n(2)/params.epi.ry*(params.epi.pf))
+            gx.amplitude = -gx.amplitude;
+            seq.addBlock(gx,adc);
+        end
+        if gx.amplitude > 0
+            gx.amplitude = -gx.amplitude;
+        end
+        seq.addBlock(gx_spoil,gy_spoil,gz_spoil);
+        seq.addBlock(tr_delay);
+    end
     % TE loop
     for l = 1:length(params.epi.te)
         % Readout
@@ -415,7 +463,8 @@ elseif params.gen.seq == 3
                 end
                 if params.gen.ro_type == 's'
                     seq.addBlock(gx(j),gy(j),adc);
-                    seq.addBlock(gx_ramp(j),gy_ramp(j),gz_spoil);
+                    seq.addBlock(gx_ramp(j),gy_ramp(j));
+                    seq.addBlock(gx_spoil,gy_spoil,gz_spoil);
                 elseif params.gen.ro_type == 'c'
                     seq.addBlock(gx_pre,gy_pre)
                     for k = 1:round(params.gen.n(2)/params.epi.ry*(params.epi.pf))
@@ -426,7 +475,7 @@ elseif params.gen.seq == 3
                     if gx.amplitude > 0
                         gx.amplitude = -gx.amplitude;
                     end
-                        seq.addBlock(gz_spoil);
+                        seq.addBlock(gx_spoil,gy_spoil,gz_spoil);
                         seq.addBlock(tr_delay);
                 end
                 
@@ -455,6 +504,8 @@ if params.gen.ro_type == 's'
     plane_samples = adc.numSamples*params.spi.interl;
 elseif params.gen.ro_type == 'c'
     plane_samples = adc.numSamples*round(params.gen.n(2)/params.epi.ry*params.gen.pf);
+    % Discarding the EPI calibration scan samples
+    j = j+plane_samples;
 end
 for i=1:params.gen.n(3)
         ks_traj.kx(:,i) = ktraj_adc(1,j:j+plane_samples-1);

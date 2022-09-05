@@ -1,9 +1,9 @@
 #!/bin/bash
 
-cd /home/amonreal/Documents/PhD/PhD_2022/sosp_vaso/data/08052022_sv_abc/analysis/sv_01
+cd /home/amonreal/Documents/PhD/PhD_2022/sosp_vaso/data/08312022_sv/analysis/sv_05
 
 # cp Smagn.nii ./Basis_a.nii
-cp ./sv_01_v_b-b_v.nii ./Basis_a.nii
+cp ./sv_05_v_b.nii ./Basis_a.nii
 3dTcat -prefix Basis_a.nii Basis_a.nii'[4..7]' Basis_a.nii'[4..$]' -overwrite
 cp ./Basis_a.nii ./Basis_b.nii
 

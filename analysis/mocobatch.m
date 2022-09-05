@@ -2,7 +2,7 @@
 addpath(genpath('/home/amonreal/Documents/PhD/tools/spm12'))
 cd /home/amonreal/Documents/PhD/PhD_2022/sosp_vaso/analysis/renzo_example/EPI_analysis/
 
-cd /home/amonreal/Documents/PhD/PhD_2022/sosp_vaso/data/08052022_sv_abc/analysis/sv_01/
+cd /home/amonreal/Documents/PhD/PhD_2022/sosp_vaso/data/08312022_sv/analysis/sv_05/
 
 clear;
 fileID = fopen('NT.txt','r');
