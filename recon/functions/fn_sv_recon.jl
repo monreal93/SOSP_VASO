@@ -69,7 +69,7 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
         end
 
         # AMM: Infiltrate
-        @infiltrate
+        # @infiltrate
     end
 
     # # get the number of samples per readout, if its 3d, need to divide by # of slices
@@ -129,7 +129,7 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
         for j=1:length(contrasts)
 
             if params_sv[:seq] == 2
-                file=ISMRMRDFile(string(params_sv[:path],"ismrmd/",params_sv[:scan],"_r",i,"_",params_sv[:id],".h5"));
+                file=ISMRMRDFile(string(params_sv[:path],"ismrmd/3d/",params_sv[:scan],"_r",i,"_",params_sv[:id],".h5"));
             else
                 if params_sv[:id] == "2d"
                     file=ISMRMRDFile(string(params_sv[:path],"ismrmd/2d/",params_sv[:scan],"_",contrasts[j],"_r",i,"_sl",params_sv[:sl_reco],"_",params_sv[:id],".h5"));
@@ -141,7 +141,7 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
             acqData = AcquisitionData(file);
 
             # AMM:
-            @infiltrate
+            # @infiltrate
 
             # get the number of samples per readout, if its 3d, need to divide by # of slices
             if params_sv[:is2d]

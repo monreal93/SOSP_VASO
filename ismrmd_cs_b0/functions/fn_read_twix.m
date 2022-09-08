@@ -16,7 +16,7 @@ function [twix_params,twix_params_b0] = fn_read_twix(folder,scan,params)
     twix_params = [];
     
     % Here I need to list the different types of seq I will use
-    if  contains(scan,'sv')
+    if  contains(scan,'sv') ||  contains(scan,'cv')
         save_file_vaso = sprintf('./data/%s/raw/%s_ks_vaso.mat',folder,scan);
         save_file_bold = sprintf('./data/%s/raw/%s_ks_bold.mat',folder,scan);
     elseif contains(scan,'b0')
@@ -185,45 +185,55 @@ function [twix_params,twix_params_b0] = fn_read_twix(folder,scan,params)
 %                 if params.gen.skope
 %                     bb=aa(:,:,sl+1:end,:);  % Removing the skope sync readouts
 %                 else
-                    bb=aa;
+                    bb=permute(aa,[3 1 2]);
 %                 end
-                cc=permute(bb,[3 1 2]); % Getting ch dim to the end and set to second
-                dd=reshape(cc,200,sl*dyn,ro,ch);  % Permuting first and second dim, Col and Set
-                dd = permute(dd,[1 3 2 4]);
                 
-                ks_vaso = zeros(params.gen.n(1),200,dyn/2*sl,ch);
-                % VASO contrast
-                j = 1;
-                for i=1:sl:(dyn/2)*sl %Number of dynamics/2
-                    ks_vaso(:,:,i:i+(sl-1),:) = dd(:,:,j:j+(sl-1),:);
-                    j = j+(sl*2);
+                und_dim = size(bb,1)/params.repetitions/2/params.slices;
+                ks = zeros(size(bb,2),und_dim,params.slices*2,params.repetitions,params.ch);
+                
+                tmp = 0;
+                for i=1:params.repetitions
+                    for j=1:params.slices*2
+                        for k=1:und_dim
+                            tmp = tmp + 1;
+                            ks(:,k,j,i,:) = permute(bb(tmp,:,:),[2 1 4 5 3]);             
+                        end
+                        tmp = j*und_dim+1;
+                    end
+                    tmp = i*j*und_dim+1;
                 end
                 
-                 ks_bold = zeros(params.gen.n(1),200,dyn/2*sl,ch);
-                % BOLD contrast
-                 j = sl+1;
-                for i=1:sl:(dyn/2)*sl %Number of dynamics/2
-                    ks_bold(:,:,i:i+(sl-1),:) = dd(:,:,j:j+(sl-1),:);
-                    j = j+(sl*2);
-                end
-		
-                    % Extracting the dynamics
-                    ks_vaso = permute(ks_vaso,[1,3,2,4]);
-                    ks_vaso = reshape(ks_vaso,[ro*interl ch sl dyn/2]);
-                    ks_vaso = permute(ks_vaso,[1,3,4,2]);
-
-                    ks_bold = permute(ks_bold,[1,3,2]);
-                    ks_bold = reshape(ks_bold,[ro*interl ch sl dyn/2]);
-                    ks_bold = permute(ks_bold,[1,3,4,2]);
+                ks_new = ks;
+                
+%                 % Zero padding...
+%                 ks_new = zeros(size(ks));
+%                 ks_new = padarray(ks_new,[0 (und_dim*params.epi.ry-und_dim) 0 0 0],'pre');
+%                 ks_new(:,1:params.epi.ry:end,:,:,:) = ks;
+%                 ks_new = padarray(ks_new,[0 params.gen.n(2)-size(ks_new,2) 0 0 0],'pre'); 
+                
+%                 cc=permute(bb,[3 1 2]); % Getting ch dim to the end and set to second
+%                 
+%                 dd=reshape(cc,200,sl*dyn,ro,ch);  % Permuting first and second dim, Col and Set
+% %                 dd = permute(dd,[1 3 2 4]);
+%                 
+                ks_vaso = ks_new(:,:,1:2:end,:,:);
+                ks_bold = ks_new(:,:,2:2:end,:,:);
+                
+ 
 
             end
 
 
-            if  contains(scan,'sv')
+            if  contains(scan,'sv') ||  contains(scan,'cv')
                 save(save_file_vaso,'ks_vaso','-v7.3')
                 save(save_file_bold,'ks_bold','-v7.3')
                 save(sprintf('./data/%s/acq/%s_twix_params.mat',folder,scan),'twix_params');
-                fprintf('Spiral Vaso data saved in path %s/raw/ \n',folder);
+                fprintf('Spiral/Cartesian Vaso data saved in path %s/raw/ \n',folder);
+%             elseif  contains(scan,'cv')
+%                 save(save_file_vaso,'ks_vaso','-v7.3')
+%                 save(save_file_bold,'ks_bold','-v7.3')
+%                 save(sprintf('./data/%s/acq/%s_twix_params.mat',folder,scan),'twix_params');
+%                 fprintf('Spiral Vaso data saved in path %s/raw/ \n',folder);
             elseif contains(scan,'b0')
                 save(save_file,'b0','-v7.3')
                 save(sprintf('./data/%s/acq/twix_params_b0.mat',folder),'twix_params_b0');

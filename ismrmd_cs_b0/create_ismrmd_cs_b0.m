@@ -20,17 +20,17 @@ elseif contains(path_tmp,"/mnt/")
     setenv('TOOLBOX_PATH','/mnt/5T3/Alejandro/tools/bart')
 end
 
-folder = '08312022_sv';
+folder = '09072022_sv_abc';
 cs_b0_file = 'b0_1_6_1_6_1_F';
-scan = 'sv_05';
-repetitions = 120; %4,120        % AMM: ToDo: find a way to get this param from somewhere
+scan = 'abc_08';
+repetitions = 30; %4,120        % AMM: ToDo: find a way to get this param from somewhere
 
 cd ./sosp_vaso
 % Reading some parameters from Pulseq
 load(sprintf('./data/%s/acq/%s_params.mat',folder,scan));
 
 %% Some parameters
-params.is2d = 1;                   % 1 if 3D dataset saved as 2D
+params.is2d = 0;                   % 1 if 3D dataset saved as 2D
 % params.slice_to_save = 7;          % Slice to save if using 3D data set as 2D
 params.traj = 1;                   % Trajectory input: 1 (matlab simulation), 2 (poet), 3 (skope)
 params.plot = 0;                   % Plot stuff

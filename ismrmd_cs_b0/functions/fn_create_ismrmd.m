@@ -15,7 +15,7 @@ function fn_create_ismrmd(folder,scan,params)
     end
     
     % Checking if files exist, it checks for the first one only
-    if contains(scan,'sv')
+    if contains(scan,'sv') ||  contains(scan,'cv')
         if params.is2d == 1
             filename = sprintf('./data/%s/ismrmd/2d/%s_v_r1_sl1_2d.h5',folder,scan);
         else
@@ -44,7 +44,7 @@ function fn_create_ismrmd(folder,scan,params)
             return
     elseif tmp == 'y'
         % Load K-space data
-        if contains(scan,'sv')
+        if contains(scan,'sv')  ||  contains(scan,'cv')
             load(['./data/' folder '/raw/' scan '_ks_vaso.mat']);
             ks_vaso_all =ks_vaso;
             load(['./data/' folder '/raw/' scan '_ks_bold.mat']);
@@ -70,7 +70,7 @@ function fn_create_ismrmd(folder,scan,params)
                 % Loop over slices if 2D
                 params.rep_to_save = j;
                 warning('off')
-                if contains(scan,'sv')
+                if contains(scan,'sv')  ||  contains(scan,'cv')
                     if params.is2d == 1
                         filename_v = sprintf('./data/%s/ismrmd/2d/%s_v_r%i_sl%i_2d.h5',folder,scan,j,k);
                         filename_b = sprintf('./data/%s/ismrmd/2d/%s_b_r%i_sl%i_2d.h5',folder,scan,j,k);
@@ -98,7 +98,7 @@ function fn_create_ismrmd(folder,scan,params)
             %     dset_b = ismrmrd.Dataset(filename_b);
                 acqData = ismrmrd.Acquisition(1);
 
-                if contains(scan,'sv')
+                if contains(scan,'sv')  ||  contains(scan,'cv')
                     dset_v = ismrmrd.Dataset(filename_v);
                     dset_b = ismrmrd.Dataset(filename_b);
                     ks_vaso = squeeze(ks_vaso_all(:,:,params.rep_to_save,:));
@@ -130,8 +130,12 @@ function fn_create_ismrmd(folder,scan,params)
                 ks_traj.kx = ks_traj.kx(st_crop:end,:);
                 ks_traj.ky = ks_traj.ky(st_crop:end,:);
                 ks_traj.kz = ks_traj.kz(st_crop:end,:);
-                ks_vaso = ks_vaso(st_crop:end,:,:);
-                ks_bold = ks_bold(st_crop:end,:,:);
+                if params.gen.seq == 1
+                    ks_vaso = ks_vaso(st_crop:end,:,:);
+                    ks_bold = ks_bold(st_crop:end,:,:);
+                elseif params.gen.seq == 2
+                    ks_abc = ks_abc(st_crop:end,:,:);
+                end
                 % Updating params...
                 params.nx = length(ks_traj.kx);
                 params.gen.t_vector = params.gen.t_vector(st_crop:end);
@@ -176,10 +180,17 @@ function fn_create_ismrmd(folder,scan,params)
             %     ks_bold = tmp;
             %     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-                % Temp: FFT shift data
-                ks_vaso = fft_shift_2D(ks_vaso,ks_traj.kx,round(params.twix_params_b0.shift/params.res(2)./10000),ks_traj.ky,0); % 14,31
-                ks_bold = fft_shift_2D(ks_bold,ks_traj.kx,round(params.twix_params_b0.shift/params.res(2)./10000),ks_traj.ky,0);
-
+                % Temp: FFT shift data, for now only spiral, not sure if
+                % needed for cartesian
+                if params.gen.ro_type == 's'
+                    if params.gen.seq == 1
+                        ks_vaso = fft_shift_2D(ks_vaso,ks_traj.kx,round(params.twix_params_b0.shift/params.res(2)./10000),ks_traj.ky,0); % 14,31
+                        ks_bold = fft_shift_2D(ks_bold,ks_traj.kx,round(params.twix_params_b0.shift/params.res(2)./10000),ks_traj.ky,0);
+                    elseif params.gen.seq == 2
+                        ks_abc = fft_shift_2D(ks_abc,ks_traj.kx,round(params.twix_params_b0.shift/params.res(2)./10000),ks_traj.ky,0);
+                    end
+                end
+                
                 % Subseting data if is 2d
                 if params.is2d==1 
                     if params.traj== 1
@@ -187,7 +198,7 @@ function fn_create_ismrmd(folder,scan,params)
                         ks_traj.ky = ks_traj.ky(:,params.slice_to_save(k));
                         ks_traj.kz = ks_traj.kz(:,params.slice_to_save(k));
                     end
-                    if contains(scan,'sv')
+                    if contains(scan,'sv')  ||  contains(scan,'cv')
                         % AMM: Here I don't know why for sv_1 ks_vaso, I need to do FFT..
                         ks_vaso = FFT_1D(ks_vaso,'image',2);
                         ks_vaso = ks_vaso(:,params.slice_to_save(k),:,:);
@@ -243,7 +254,7 @@ function fn_create_ismrmd(folder,scan,params)
                 end
 
                 %% Adding new data
-                if contains(scan,'sv')
+                if contains(scan,'sv')  ||  contains(scan,'cv')
                     ks_vaso = double(ks_vaso);
                     ks_bold = double(ks_bold);
 
@@ -372,7 +383,7 @@ function fn_create_ismrmd(folder,scan,params)
                 %% Serialize and write to the data set
                 xmlstring = ismrmrd.xml.serialize(header);
 
-                if contains(scan,'sv')
+                if contains(scan,'sv')  ||  contains(scan,'cv')
                     dset_v.writexml(xmlstring);
                     dset_b.writexml(xmlstring);
 
