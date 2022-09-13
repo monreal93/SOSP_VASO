@@ -75,7 +75,8 @@ function [B1,phase,rf_complex,Gz,fa] = tr_foci(params)
     for i=1:length(tt1)
         dummy = dummy-((grad_A1(i)+(mu.*freq_A1(i)))./length(t));
 %         dummy = dummy-(grad_A1(i)+(freq_A1(i)));
-        phase1(i) = dummy- renzo_dummyphase;
+%         phase1(i) = dummy- renzo_dummyphase; 
+        phase1(i) = dummy; % AMM: Removing dummyphase..
     end
     
     % Segment 2
@@ -86,7 +87,8 @@ function [B1,phase,rf_complex,Gz,fa] = tr_foci(params)
     
     for i=1:length(tt2)
         dummy = dummy-((grad2_A1(i)+(mu.*freq2_A1(i)))./length(t));
-        phase2(i) = dummy- renzo_dummyphase;
+%         phase2(i) = dummy- renzo_dummyphase;
+        phase2(i) = dummy; % AMM: Removing dummyphase..
    end
     
     % Segment 3
@@ -107,7 +109,8 @@ function [B1,phase,rf_complex,Gz,fa] = tr_foci(params)
     
     for i=1:length(tt3)
         dummy = dummy-((grad3_A1(i)+(mu.*freq3_A1(i)))./length(t));
-        phase3(i) = dummy- renzo_dummyphase;
+%         phase3(i) = dummy- renzo_dummyphase;
+        phase3(i) = dummy; % AMM: Removing dummyphase..
     end
     
     A = [ampl_A1 ampl_A2 ampl_A3];

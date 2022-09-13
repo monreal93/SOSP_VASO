@@ -63,64 +63,75 @@ function  [spiral_grad_shape,adcSamples,adcDwell,rf_phase_offset,adc_phase_offse
 %         ka = ka.';
 %         ka = (tetha./(2*pi*fov_vd))*params.spi.rxy.*exp(1i.*tetha);
         % figure; hold on; plot(ka)
-        
-        % Spiral segments
-        for i=1:params.spi.interl
-            % Getting k-space trajectory
-            tmp = (2*pi/params.spi.interl)*i;
-            kaa = ka.*exp(1i*tmp);
-            kaa=[real(kaa); imag(kaa)];
 
-%             %%%%% Calculating Gradients with Lustig approach %%%%%%%
-%             rv = 16; T = 4e-3; ds = -1;
-%             g_max = params.spi.max_grad*10/100;  % convert mT/m -> G/cm
-%             sr_max = params.spi.max_sr*10/100; % convert mT/m/ms -> G/cm/ms   
-%             C = [squeeze(kaa(1,:)).', squeeze(kaa(2,:)).']./100; % times 100 to make it 1/cm
-%             [C,time,g,s,k] = minTimeGradient(C,rv, 0, 0, g_max, sr_max,T,ds,0);
-%             % Interpolating to the initial size of kaa
-% %             tmp = 0:length(g)-1
-%             tmp = linspace(0,time,length(g));
-%             tmp1 = (time*1e-3)./2e-6.*lims.adcRasterTime;
-%             for j=1:3
-%                 g_new(j,:) = interp1(tmp,g(:,j).',linspace(0,time,length(kaa)));
-%             end
-% 
-%             % Trying to get grad to correct units
-%             g_new = g_new*42.58e6/100;    % convert from G/cm -> Hz/m
-%             g_new = rmmissing(g_new,2);
-%             spiral_grad_shape(:,:,i) = g_new;
-%             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-             
-            %%%% Calculating Gradients with Pulseq approach %%%%%%%
-            [ga, sa]=mr.traj2grad(kaa);
-            
-            % AMM: Trying to ramp-up for the gradient, now I am just
-            % padding some zeros
-            tmp = 190;
-            rmp_up = [linspace(0,ga(1,1),tmp); linspace(0,ga(2,1),tmp)];
-            ga = [rmp_up ga];
-            sa = [rmp_up sa];
-            kaa = [zeros(2,tmp) kaa];
-            
-            
-%             Limit analysis
-%             Using the max limits and a safety_margin
-            safety_magrin=0.9; % we need that  otherwise we just about violate the slew rate due to the rounding errors
-            dt_gabs=abs(ga(1,:)+1i*ga(2,:))/(lims.maxGrad*safety_magrin)*lims.gradRasterTime;
-            dt_sabs=sqrt(abs(sa(1,:)+1i*sa(2,:))/(lims.maxSlew*safety_magrin))*lims.gradRasterTime;
-            dt_gabs=abs(ga(1,:)+1i*ga(2,:))/(params.spi.max_grad*lims.gamma*safety_magrin)*lims.gradRasterTime;
-            dt_sabs=sqrt(abs(sa(1,:)+1i*sa(2,:))/(params.spi.max_sr*lims.gamma*safety_magrin))*lims.gradRasterTime;
-            dt_smooth=max([dt_gabs;dt_sabs]);
-            dt_min=4*lims.gradRasterTime/kSamples; % we want at least 4 points per revolution
-            dt_smooth(dt_smooth<dt_min)=dt_min;
-            t_smooth=[0 cumsum(dt_smooth,2)];
-            kopt_smooth=interp1(t_smooth, kaa', (0:floor(t_smooth(end)/lims.gradRasterTime))*lims.gradRasterTime)';
-            [gos, sos]=mr.traj2grad(kopt_smooth);
-            kopt_traj(:,:,i) = kopt_smooth;
+        % Partitions loop
+        for j=1:params.gen.n(3)
+            % Spiral segments
+            for i=1:params.spi.interl
+                % Getting k-space trajectory
+                tmp = (2*pi/params.spi.interl)*i;
+                kaa = ka.*exp(1i*tmp);  % Interleave rotations
+                
+                if contains(params.spi.rotate,'golden')
+                    tmp1 = (10*pi/13)*(j-1);
+                    kaa = kaa.*exp(1i*tmp1); % Partition rotations
+                elseif contains(params.spi.rotate,'linear')
+                    tmp1 = 0;
+                    kaa = kaa.*exp(1i*tmp1); % Partition rotations
+                end
 
-            spiral_grad_shape(:,:,i) = gos;
-            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-           
+                kaa=[real(kaa); imag(kaa)];
+    
+    %             %%%%% Calculating Gradients with Lustig approach %%%%%%%
+    %             rv = 16; T = 4e-3; ds = -1;
+    %             g_max = params.spi.max_grad*10/100;  % convert mT/m -> G/cm
+    %             sr_max = params.spi.max_sr*10/100; % convert mT/m/ms -> G/cm/ms   
+    %             C = [squeeze(kaa(1,:)).', squeeze(kaa(2,:)).']./100; % times 100 to make it 1/cm
+    %             [C,time,g,s,k] = minTimeGradient(C,rv, 0, 0, g_max, sr_max,T,ds,0);
+    %             % Interpolating to the initial size of kaa
+    % %             tmp = 0:length(g)-1
+    %             tmp = linspace(0,time,length(g));
+    %             tmp1 = (time*1e-3)./2e-6.*lims.adcRasterTime;
+    %             for j=1:3
+    %                 g_new(j,:) = interp1(tmp,g(:,j).',linspace(0,time,length(kaa)));
+    %             end
+    % 
+    %             % Trying to get grad to correct units
+    %             g_new = g_new*42.58e6/100;    % convert from G/cm -> Hz/m
+    %             g_new = rmmissing(g_new,2);
+    %             spiral_grad_shape(:,:,i) = g_new;
+    %             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                 
+                %%%% Calculating Gradients with Pulseq approach %%%%%%%
+                [ga, sa]=mr.traj2grad(kaa);
+                
+                % AMM: Trying to ramp-up for the gradient, now I am just
+                % padding some zeros
+                tmp = 190;
+                rmp_up = [linspace(0,ga(1,1),tmp); linspace(0,ga(2,1),tmp)];
+                ga = [rmp_up ga];
+                sa = [rmp_up sa];
+                kaa = [zeros(2,tmp) kaa];
+                
+                
+    %             Limit analysis
+    %             Using the max limits and a safety_margin
+                safety_magrin=0.9; % we need that  otherwise we just about violate the slew rate due to the rounding errors
+                dt_gabs=abs(ga(1,:)+1i*ga(2,:))/(lims.maxGrad*safety_magrin)*lims.gradRasterTime;
+                dt_sabs=sqrt(abs(sa(1,:)+1i*sa(2,:))/(lims.maxSlew*safety_magrin))*lims.gradRasterTime;
+                dt_gabs=abs(ga(1,:)+1i*ga(2,:))/(params.spi.max_grad*lims.gamma*safety_magrin)*lims.gradRasterTime;
+                dt_sabs=sqrt(abs(sa(1,:)+1i*sa(2,:))/(params.spi.max_sr*lims.gamma*safety_magrin))*lims.gradRasterTime;
+                dt_smooth=max([dt_gabs;dt_sabs]);
+                dt_min=4*lims.gradRasterTime/kSamples; % we want at least 4 points per revolution
+                dt_smooth(dt_smooth<dt_min)=dt_min;
+                t_smooth=[0 cumsum(dt_smooth,2)];
+                kopt_smooth=interp1(t_smooth, kaa', (0:floor(t_smooth(end)/lims.gradRasterTime))*lims.gradRasterTime)';
+                [gos, sos]=mr.traj2grad(kopt_smooth);
+                kopt_traj(:,:,i) = kopt_smooth;
+    
+                spiral_grad_shape(:,:,i,j) = gos;
+                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            end    
         end
 
         % AMM: I am padding some zeros so the gradient shape starts from 0
@@ -176,7 +187,7 @@ function  [spiral_grad_shape,adcSamples,adcDwell,rf_phase_offset,adc_phase_offse
 
         % extend spiral_grad_shape by repeating the last sample
         % this is needed to accomodate for the ADC tuning delay
-        spiral_grad_shape = [spiral_grad_shape spiral_grad_shape(:,end,:)];
+        spiral_grad_shape = [spiral_grad_shape spiral_grad_shape(:,end,:,:)];
         
         % SOSP Blips
         nz_eff = params.gen.n(3);       % AMM: this should be changed for undersampling kz

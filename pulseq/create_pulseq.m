@@ -23,6 +23,7 @@ addpath(genpath("/home/amonreal/Documents/PhD/PhD_2022/BSc_students/"))
 % - Check update of n/res with 'c' and 'pf' seems wrong, slices gets 22
 % - Properly define adcDwell time for gx in 'c' (now I use 2.2ms) 'FlatTime'
 % - check values of duration, timeBwProduct, rf0
+% - Properly define golden angle in prepare_spirals_rf_grad_adc.m function
 
 %% Define parameters
 % Set system limits (MaxGrad=70, MaxSlew = 200);
@@ -32,10 +33,8 @@ addpath(genpath("/home/amonreal/Documents/PhD/PhD_2022/BSc_students/"))
 lims = mr.opts('MaxGrad',65,'GradUnit','mT/m',...
     'MaxSlew',190,'SlewUnit','T/m/s',...
     'rfRingdownTime', 30e-6,'rfDeadtime', 180e-6,'adcDeadTime', 10e-6, 'B0',7);  % To read it in VM I need rfDeadtime = 180e-6
-lims_cart = mr.opts('MaxGrad',60,'GradUnit','mT/m',...
-    'MaxSlew',130,'SlewUnit','T/m/s','B0',7);
 
-folder_name = '08312022_sv';            % Day I am scanning
+folder_name = '09072022_sv_abc';            % Day I am scanning
 seq_name = 'sample';                   % use sv_n (n for the diff scans at each day)
 params.gen.seq = 1;                      % 1-VASO 2-ABC 3-Fieldmap
 
@@ -47,12 +46,12 @@ params.gen.te = 0e-3;
 params.gen.ro_type = 'c';           % 's'-Spiral, 'c'-Cartesian
 params.gen.kz = 1;                  % Acceleration in Kz
 params.gen.pf = 1;                  % Partial fourier in Kz
-params.gen.fat_sat = 1;             % Fat saturation (1=yes,0=no)
+params.gen.fat_sat = 0;             % Fat saturation (1=yes,0=no)
 params.gen.skope = 0;               % Add skope sync scan and triggers
          
 % Spiral parameters
 params.spi.type = 0;                % spiral type (for now only spiral out)
-params.spi.rotate = 'none';         % Spiral ro0.tation (for now only none)
+params.spi.rotate = 'golden';       % Spiral rotation ('none','linear','golden'), linear not implemented
 params.spi.increment = 'linear';    % Spiral increment mode (for now only linear)
 params.spi.max_grad  = 55;    % 55  % Peak gradient amplitude for spiral (mT/m)  
 params.spi.max_sr = 155;      % 155 % Max gradient slew rate for spiral (mT/m/ms)
@@ -61,17 +60,18 @@ params.spi.vd = 1.6;                % Variability density
 params.spi.rxy = 3;                 % In-plane undersampling
 
 % MT pulse parameters
-params.mt.mt = 1;                   % Add MT pulse, 0 for reference scan without MT
+params.mt.mt = 0;                   % Add MT pulse, 0 for reference scan without MT
 params.mt.alpha = 200;  %225
-params.mt.delta = 650;              % for Pulseq approach should be 650 to match Viktors phase
+params.mt.delta = 1024;  %650            % for Pulseq approach should be 650 to match Viktors phase
 params.mt.trf = 0.004;
 
 % EPI parameters
-params.epi.ry = 3;
-params.epi.pf = 6/8;
+params.epi.ry = 4;
+params.epi.pf = 1;
 params.epi.te = [33.6 36.6 38.6 40]*1e-3+0.022; % Echo times for field map
 params.epi.seg = 1;                       % EPI Segments
 params.epi.tr_delay = 20e-3;              % Delay after each TR, needed to reduce SAR
+params.epi.bw = 50e3;                     % BW in Hz  
 
 % VASO parameters
 params.vaso.foci = 1;               % FOCI inversion?
@@ -82,8 +82,8 @@ params.vaso.foci_ampl = 140;   %110 % FOCI amplitude (140)
 params.vaso.foci_dur = 10410e-6;    % FOCI duration
 params.vaso.foci_bw = 150;          % FOCI Bandwidth (150)
 params.vaso.f_v_delay = 900e-3;     % FOCI-VASO delay
-params.vaso.v_b_delay = 0e-3;       % VASO-BOLD delay
-params.vaso.b_f_delay = 0e-3;       % BOLD-FOCI delay
+params.vaso.v_b_delay = 10e-3;       % VASO-BOLD delay
+params.vaso.b_f_delay = 5e-3;       % BOLD-FOCI delay
 
 % Some calculations, restrictions in seq...
 params.gen.del_k = (1./params.gen.fov)*params.gen.kz;
@@ -144,37 +144,49 @@ gzReph = mr.makeTrapezoid('z',lims,'Area',-gz.area/2);
 if params.gen.ro_type == 's'
     % Prepare Spirals
     [spiral_grad_shape,adcSamples,adcDwell,rf_phase_offset,adc_phase_offset] = prepare_spirals_rf_grad_adc(params,lims);
-    for i=1:params.spi.interl
-        % Readout gradients
-        gx(i) = mr.makeArbitraryGrad('x',spiral_grad_shape(1,:,i), lims);
-        gy(i) =   mr.makeArbitraryGrad('y',spiral_grad_shape(2,:,i), lims);
-
-        % ADC
-        adc = mr.makeAdc(adcSamples,'Dwell',adcDwell);%,'Delay',lims.adcDeadTime);
-
-        % Readout ramp down
-        % AMM: need to nicely define the time (0.001) of this ramp gradients
-        gx_ramp(i) = mr.makeExtendedTrapezoid('x','times',[0 0.001],'amplitudes',[spiral_grad_shape(1,end,i),0]);
-        gy_ramp(i) = mr.makeExtendedTrapezoid('y','times',[0 0.001],'amplitudes',[spiral_grad_shape(2,end,i),0]);
-    end
+        for j=1:params.gen.n(3)
+            for i=1:params.spi.interl
+                % Readout gradients
+                gx(j,i) = mr.makeArbitraryGrad('x',spiral_grad_shape(1,:,i,j), lims);
+                gy(j,i) =   mr.makeArbitraryGrad('y',spiral_grad_shape(2,:,i,j), lims);
+        
+                % ADC
+                adc = mr.makeAdc(adcSamples,'Dwell',adcDwell);%,'Delay',lims.adcDeadTime);
+        
+                % Readout ramp down
+                % AMM: need to nicely define the time (0.001) of this ramp gradients
+                gx_ramp(j,i) = mr.makeExtendedTrapezoid('x','times',[0 0.001],'amplitudes',[spiral_grad_shape(1,end,i,j),0]);
+                gy_ramp(j,i) = mr.makeExtendedTrapezoid('y','times',[0 0.001],'amplitudes',[spiral_grad_shape(2,end,i,j),0]);
+            end
+        end
 elseif params.gen.ro_type == 'c'
     % Prepare EPI
     % AMM: Need to properly define the dwell time, now I have 2e-6
-    adcDwell = 2e-6;   % AMM: Here i use 2e-6 need to properly define it
+    % adcDwell = 2e-6;   % AMM: Here i use 2e-6 need to properly define it
+    adcDwell = round(1/params.epi.bw,7);
 %     gx = mr.makeTrapezoid('x',lims,'riseTime',1e-4,'system',lims,'flatArea',params.gen.n(1)*params.gen.del_k(1),'FlatTime',params.gen.n(1)*2e-6); % Dwell time 2e-6
-    gx = mr.makeTrapezoid('x',lims_cart,'flatArea',params.gen.n(1)*params.gen.del_k(1),'FlatTime',round(params.gen.n(1)*adcDwell,4)); % Dwell time 2.2e-6
-    gx_pre = mr.makeTrapezoid('x',lims_cart,'Area',-gx.area/2);
-    gy_pre = mr.makeTrapezoid('y',lims_cart,'Area',-(params.gen.del_k(2)*params.gen.n(2)/2)*(params.epi.pf)...
+%     % No ramp sampling
+%     % gx = mr.makeTrapezoid('x',lims,'flatArea',params.gen.n(1)*params.gen.del_k(1),'FlatTime',round(params.gen.n(1)*adcDwell,4)); % Dwell time 2.2e-6
+    % Ramp sampling
+%     gx = mr.makeTrapezoid('x',lims,'Area',params.gen.n(1)*params.gen.del_k(1));%,'Duration',round(params.gen.n(1)*adcDwell,4)); % Dwell time 2.2e-6
+%     gx_pre = mr.makeTrapezoid('x',lims,'Area',-gx.area/2);
+%     gx.amplitude = -gx.amplitude;
+    gy_pre = mr.makeTrapezoid('y',lims,'Area',-(params.gen.del_k(2)*params.gen.n(2)/2)*(params.epi.pf)...
         +(params.gen.del_k(2)*params.gen.n(2)/2)-(params.gen.del_k(2)*params.gen.n(2)/2)*(params.epi.pf));
-    gy_blip = mr.makeTrapezoid('y',lims_cart,'Area',params.gen.del_k(2).*params.epi.ry);
-    gx.amplitude = -gx.amplitude;
+    gy_blip = mr.makeTrapezoid('y',lims,'Area',params.gen.del_k(2).*params.epi.ry);
+    
     % gx_pre.amplitude = -gx_pre.amplitude;
 
     % ADC
     tmp = params.gen.n(1)*adcDwell-round(params.gen.n(1)*adcDwell,4);
     tmp = round(tmp,6);
     adcSamples = params.gen.n(1);
-    adc = mr.makeAdc(adcSamples,'Dwell',adcDwell,'Delay',gx.riseTime-(tmp/2)); 
+%     adc = mr.makeAdc(adcSamples,'Dwell',adcDwell,'Delay',gx.riseTime-(tmp/2)); % No ramp sampling
+    adc = mr.makeAdc(adcSamples,'Dwell',adcDwell,'Delay',gy_blip.riseTime+gy_blip.flatTime+gy_blip.fallTime); % Ramp sampling
+
+    gx = mr.makeTrapezoid('x',lims,'Area',params.gen.n(1)*params.gen.del_k(1),'Duration',adc.duration+(adc.delay*2));%,'Duration',round(params.gen.n(1)*adcDwell,4)); % Dwell time 2.2e-6
+    gx_pre = mr.makeTrapezoid('x',lims,'Area',-gx.area/2);
+    gx.amplitude = -gx.amplitude;
 end
 
 %% Prepare kz Blips:
@@ -197,13 +209,15 @@ else
     gz_blips(round(params.gen.n(3)/2)+1) = [];    % Removing the empty blip...
 end
 
-% spoilers
+%% Prepare spoilers
 % AMM: Todo: Need to confirm the size (amplitude/area) of this spoiler
-gx_spoil=mr.makeTrapezoid('x',lims,'Area',params.gen.del_k(1)*params.gen.n(1)*4);
-gy_spoil=mr.makeTrapezoid('y',lims,'Area',params.gen.del_k(1)*params.gen.n(1)*4);
-gz_spoil=mr.makeTrapezoid('z',lims,'Area',params.gen.del_k(1)*params.gen.n(1)*4);
+mag_spoil = 26e-3;     % mT
+sr_spoil = 100;        % mT/m/s
+gx_spoil=mr.makeTrapezoid('x','maxGrad',mag_spoil*lims.gamma,'maxSlew',sr_spoil*lims.gamma,'Area',params.gen.del_k(1)*params.gen.n(1)*1.5);%,'delay',1e-3);
+gy_spoil=mr.makeTrapezoid('y','maxGrad',mag_spoil*lims.gamma,'maxSlew',sr_spoil*lims.gamma,'Area',params.gen.del_k(1)*params.gen.n(1)*1.5);%,'delay',1e-3);
+gz_spoil=mr.makeTrapezoid('z','maxGrad',mag_spoil*lims.gamma,'maxSlew',sr_spoil*lims.gamma,'Area',params.gen.del_k(1)*params.gen.n(1)*1.5);%,'delay',1e-3);
 
-% Delays, triggers
+%% Prepare Delays, triggers
 if params.gen.te > 0; te_delay = mr.makeDelay(round(params.gen.te-(max(rf0.t)-min(rf0.t))/2,4)); end         % TE delay
 if params.vaso.f_v_delay > 0; f_v_delay = mr.makeDelay(params.vaso.f_v_delay);          end         % FOCI-VASO delay
 if params.vaso.v_b_delay > 0; v_b_delay = mr.makeDelay(params.vaso.v_b_delay);          end         % VASO-BOLD delay
@@ -240,35 +254,44 @@ if params.gen.skope == 1
     % Partitions loop
     for i=1:params.gen.n(3)
         % Spiral/Cartesian Interleaves/segments loop
-        for j = 1:params.gen.seg
-            adc.phaseOffset = adc_phase_offset(i);
-            seq_sk.addBlock(gzReph);
-            if params.gen.te > 0; seq_sk.addBlock(te_delay); end % TE delay
-            seq_sk.addBlock(skope_trig);
-            seq_sk.addBlock(sk_int_delay);     % Gradient free interval
-            if i < floor((params.gen.n(3)/2)+1)
-                seq_sk.addBlock(gz_blips(i));
-            elseif i > floor((params.gen.n(3)/2)+1)
-                seq_sk.addBlock(gz_blips(i-1)); 
-            end
-            if params.gen.ro_type == 's'
-                seq_sk.addBlock(gx(j),gy(j),adc);
-                seq_sk.addBlock(gx_ramp(j),gy_ramp(j));
-                seq_sk.adBlock(gx_spoil,gy_spoil,gz_spoil);
-            elseif params.gen.ro_type == 'c'
-                seq.addBlock(gx_pre,gy_pre)
-                for k = 1:round(params.gen.n(2)/params.epi.ry*(params.epi.pf))
-                    gx.amplitude = -gx.amplitude;
-                    seq.addBlock(gx,adc);
-                    seq.addBlock(gy_blip);
+        for m=1:params.gen.n(3)
+            for j = 1:params.gen.seg
+                adc.phaseOffset = adc_phase_offset(i);
+                seq_sk.addBlock(gzReph);
+                if params.gen.te > 0; seq_sk.addBlock(te_delay); end % TE delay
+                % EPI navigators
+                if params.gen.ro_type == 'c'
+                    for i_nav = 1:3
+                        gx.amplitude = -gx.amplitude;
+                        seq.addBlock(gx,adc); 
+                    end
                 end
-                if gx.amplitude > 0
-                    gx.amplitude = -gx.amplitude;
+                seq_sk.addBlock(skope_trig);
+                seq_sk.addBlock(sk_int_delay);     % Gradient free interval
+                % Gz blip
+                if i < floor((params.gen.n(3)/2)+1)
+                    seq_sk.addBlock(gz_blips(i));
+                elseif i > floor((params.gen.n(3)/2)+1)
+                    seq_sk.addBlock(gz_blips(i-1)); 
                 end
-                seq.addBlock(gx_spoil,gy_spoil,gz_spoil);
-                seq.addBlock(tr_delay);
+                if params.gen.ro_type == 's'
+                    seq_sk.addBlock(gx(m,j),gy(m,j),adc);
+                    seq_sk.addBlock(gx_ramp(m,j),gy_ramp(m,j));
+                    seq_sk.adBlock(gx_spoil,gy_spoil,gz_spoil);
+                elseif params.gen.ro_type == 'c'
+                    seq.addBlock(gx_pre,gy_pre)
+                    for k = 1:round(params.gen.n(2)/params.epi.ry*(params.epi.pf))
+                        gx.amplitude = -gx.amplitude;
+                        seq.addBlock(gx,gy_blip,adc);
+                    end
+                    if gx.amplitude > 0
+                        gx.amplitude = -gx.amplitude;
+                    end
+                    seq.addBlock(gx_spoil,gy_spoil,gz_spoil);
+                    seq.addBlock(tr_delay);
+                end
+                seq_sk.addBlock(sk_min_tr_delay); 
             end
-            seq_sk.addBlock(sk_min_tr_delay); 
         end
     end
     seq_sk.addBlock(sk_post_delay);    % Skope post delay
@@ -279,19 +302,19 @@ seq = mr.Sequence();
 
 %%%%% SS-SI-VASO:
 if params.gen.seq == 1
-    % Calibration scan for EPI
-    if params.gen.ro_type == 'c'
-        seq.addBlock(gx_pre)
-        for k = 1:round(params.gen.n(2)/params.epi.ry*(params.epi.pf))
-            gx.amplitude = -gx.amplitude;
-            seq.addBlock(gx,adc);
-        end
-        if gx.amplitude > 0
-            gx.amplitude = -gx.amplitude;
-        end
-        seq.addBlock(gx_spoil,gy_spoil,gz_spoil);
-        seq.addBlock(tr_delay);
-    end
+% Calibration scan for EPI
+%     if params.gen.ro_type == 'c'
+%         seq.addBlock(gx_pre)
+%         for k = 1:round(params.gen.n(2)/params.epi.ry*(params.epi.pf))
+%             gx.amplitude = -gx.amplitude;
+%             seq.addBlock(gx,adc);
+%         end
+%         if gx.amplitude > 0
+%             gx.amplitude = -gx.amplitude;
+%         end
+%         seq.addBlock(gx_spoil,gy_spoil,gz_spoil);
+%         seq.addBlock(tr_delay);
+%     end
     if params.vaso.foci; seq.addBlock(rf_foci); end              % FOCI
     if params.vaso.f_v_delay > 0; seq.addBlock(f_v_delay); end   % FOCI-VASO del%MrProt.private.l_additionalslice+MrProt.sliceGroupList(1).sliceperslabay
     if params.gen.fat_sat; seq.addBlock(rf_fs,gz_fs);   end      % fat-sat
@@ -305,21 +328,28 @@ if params.gen.seq == 1
             seq.addBlock(rf,gz);
             seq.addBlock(gzReph);
             if params.gen.te > 0; seq.addBlock(te_delay); end       % TE delay
+            % EPI navigators
+            if params.gen.ro_type == 'c'
+                for i_nav = 1:3
+                    gx.amplitude = -gx.amplitude;
+                    seq.addBlock(gx,adc); 
+                end
+            end
+            % Gz blip
             if i < floor((params.gen.n(3)/2)+1)
                     seq.addBlock(gz_blips(i));
             elseif i > floor((params.gen.n(3)/2)+1)
                     seq.addBlock(gz_blips(i-1)); 
             end
             if params.gen.ro_type == 's'
-                seq.addBlock(gx(j),gy(j),adc);
-                seq.addBlock(gx_ramp(j),gy_ramp(j));
+                seq.addBlock(gx(i,j),gy(i,j),adc);
+                seq.addBlock(gx_ramp(i,j),gy_ramp(i,j));
                 seq.addBlock(gx_spoil,gy_spoil,gz_spoil);
             elseif params.gen.ro_type == 'c'
                 seq.addBlock(gx_pre,gy_pre)
                 for k = 1:round(params.gen.n(2)/params.epi.ry*(params.epi.pf))
                     gx.amplitude = -gx.amplitude;
-                    seq.addBlock(gx,adc);
-                    seq.addBlock(gy_blip);
+                    seq.addBlock(gx,gy_blip,adc);
                 end
                 if gx.amplitude > 0
                     gx.amplitude = -gx.amplitude;
@@ -340,21 +370,28 @@ if params.gen.seq == 1
             seq.addBlock(rf,gz);
             seq.addBlock(gzReph);
             if params.gen.te > 0; seq.addBlock(te_delay); end       % TE delay
+            % EPI navigators
+            if params.gen.ro_type == 'c'
+                for i_nav = 1:3
+                    gx.amplitude = -gx.amplitude;
+                    seq.addBlock(gx,adc); 
+                end
+            end
+            % Gz Blip
             if i < floor((params.gen.n(3)/2)+1)
                 seq.addBlock(gz_blips(i));
             elseif i > floor((params.gen.n(3)/2)+1)
                 seq.addBlock(gz_blips(i-1)); 
             end
             if params.gen.ro_type == 's'
-                seq.addBlock(gx(j),gy(j),adc);
-                seq.addBlock(gx_ramp(j),gy_ramp(j));
+                seq.addBlock(gx(i,j),gy(i,j),adc);
+                seq.addBlock(gx_ramp(i,j),gy_ramp(i,j));
                 seq.addBlock(gx_spoil,gy_spoil,gz_spoil);
             elseif params.gen.ro_type == 'c'
                 seq.addBlock(gx_pre,gy_pre)
                 for k = 1:round(params.gen.n(2)/params.epi.ry*(params.epi.pf))
                     gx.amplitude = -gx.amplitude;
-                    seq.addBlock(gx,adc);
-                    seq.addBlock(gy_blip);
+                    seq.addBlock(gx,gy_blip,adc);
                 end
                 if gx.amplitude > 0
                     gx.amplitude = -gx.amplitude;
@@ -398,21 +435,28 @@ elseif params.gen.seq == 2
             seq.addBlock(rf,gz);
             seq.addBlock(gzReph);
             if params.gen.te > 0; seq.addBlock(te_delay); end       % TE delay
+            % EPI navigators
+            if params.gen.ro_type == 'c'
+                for i_nav = 1:3
+                    gx.amplitude = -gx.amplitude;
+                    seq.addBlock(gx,adc); 
+                end
+            end
+            % Gz Blip
             if i < floor((params.gen.n(3)/2)+1)
                     seq.addBlock(gz_blips(i));
             elseif i > floor((params.gen.n(3)/2)+1)
                     seq.addBlock(gz_blips(i-1)); 
             end
             if params.gen.ro_type == 's'
-                seq.addBlock(gx(j),gy(j),adc);
-                seq.addBlock(gx_ramp(j),gy_ramp(j));
+                seq.addBlock(gx(i,j),gy(i,j),adc);
+                seq.addBlock(gx_ramp(i,j),gy_ramp(i,j));
                 seq.addBlock(gx_spoil,gy_spoil,gz_spoil);
             elseif params.gen.ro_type == 'c'
                 seq.addBlock(gx_pre,gy_pre)
                 for k = 1:params.gen.n(2)/params.epi.ry
-                    seq.addBlock(gx,adc)
+                    seq.addBlock(gx,gy_blip,adc)
                     gx.amplitude = -gx.amplitude;
-                    seq.addBlock(gy_blip)
                 end
                 seq.addBlock(gx_spoil,gy_spoil,gz_spoil);
                 seq.addBlock(tr_delay);
@@ -456,21 +500,28 @@ elseif params.gen.seq == 3
                 seq.addBlock(gzReph);
                 if params.epi.te > 0; seq.addBlock(fm_te_delay(l)); end
                 if params.gen.te > 0; seq.addBlock(te_delay); end       % TE delay
+                % EPI navigators
+                if params.gen.ro_type == 'c'
+                    for i_nav = 1:3
+                        gx.amplitude = -gx.amplitude;
+                        seq.addBlock(gx,adc); 
+                    end
+                end
+                % Gz Blip
                 if i < floor((params.gen.n(3)/2)+1)
                     seq.addBlock(gz_blips(i));
                 elseif i > floor((params.gen.n(3)/2)+1)
                     seq.addBlock(gz_blips(i-1)); 
                 end
                 if params.gen.ro_type == 's'
-                    seq.addBlock(gx(j),gy(j),adc);
-                    seq.addBlock(gx_ramp(j),gy_ramp(j));
+                    seq.addBlock(gx(i,j),gy(i,j),adc);
+                    seq.addBlock(gx_ramp(i,j),gy_ramp(i,j));
                     seq.addBlock(gx_spoil,gy_spoil,gz_spoil);
                 elseif params.gen.ro_type == 'c'
                     seq.addBlock(gx_pre,gy_pre)
                     for k = 1:round(params.gen.n(2)/params.epi.ry*(params.epi.pf))
                         gx.amplitude = -gx.amplitude;
-                        seq.addBlock(gx,adc);
-                        seq.addBlock(gy_blip);
+                        seq.addBlock(gx,gy_blip,adc);
                     end
                     if gx.amplitude > 0
                         gx.amplitude = -gx.amplitude;
@@ -504,18 +555,21 @@ if params.gen.ro_type == 's'
     plane_samples = adc.numSamples*params.spi.interl;
 elseif params.gen.ro_type == 'c'
     plane_samples = adc.numSamples*round(params.gen.n(2)/params.epi.ry*params.gen.pf);
-    % Discarding the EPI calibration scan samples
-    j = j+plane_samples;
+    % Discarding the EPI navigator samples, here I have 3
+    j = j+(params.gen.n(1)*3);
 end
 for i=1:params.gen.n(3)
         ks_traj.kx(:,i) = ktraj_adc(1,j:j+plane_samples-1);
         ks_traj.ky(:,i) = ktraj_adc(2,j:j+plane_samples-1);
         ks_traj.kz(:,i) = ktraj_adc(3,j:j+plane_samples-1);
         j = j+plane_samples;
+        if params.gen.ro_type == 'c'
+            j = j+(params.gen.n(1)*3);
+        end
 end
 
 % Plotting traj
-figure(17);
+figure(15);
 hold on
 plot3(ks_traj.kx(:),ks_traj.ky(:),ks_traj.kz(:)); title('3D K-space'); xlabel('Kx (1/m)'); ylabel('Ky (1/m)'); zlabel('Kz (1/m)'); 
 view(2)
