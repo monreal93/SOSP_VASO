@@ -1,7 +1,7 @@
 
 using MRIReco, MAT, NIfTI, MriResearchTools
 using Revise
-using Infiltrator
+# using Infiltrator
 
 include("./functions/fn_sv_recon.jl")
 include("./functions/fn_save_nii.jl")
@@ -25,9 +25,9 @@ params[:contrasts] = ["v","b"];                # Contrasts to recon v,b or both
 
 # Some parameters
 # params[:scan] = "sv_01";                       # sv_#_b (scan # Bold) or sv_#_v (scan # Vaso)
-scans = ["sv_05"];#,"sv_02","sv_03","sv_04","sv_05"];
+scans = ["abc_07","abc_08"];#,"sv_02","sv_03","sv_04","sv_05"];
 # params[:scan] = ARGS[1];
-params[:directory] = "data/08312022_sv/"        # directory where the data is stored
+params[:directory] = "data/09072022_sv_abc/"        # directory where the data is stored
 
 # Find out if script is running in laptop/dabeast/docker
 path_tmp = pwd();
