@@ -1,8 +1,10 @@
 %numRuns=length(dir('S*.nii'));
 addpath(genpath('/home/amonreal/Documents/PhD/tools/spm12'))
-cd /home/amonreal/Documents/PhD/PhD_2022/sosp_vaso/analysis/renzo_example/EPI_analysis/
+% cd /home/amonreal/Documents/PhD/PhD_2022/sosp_vaso/analysis/renzo_example/EPI_analysis/
 
-cd /home/amonreal/Documents/PhD/PhD_2022/sosp_vaso/data/09072022_sv_abc/analysis/sv_01/
+cd /home/amonreal/Documents/PhD/PhD_2022/sosp_vaso/data/09192022_sv/analysis/sv_09/
+
+% cd /mnt/ssh/var/www/dabeast/5T3/Alejandro/sosp_vaso/data/09192022_sv/analysis/sv_09/
 
 clear;
 fileID = fopen('NT.txt','r');

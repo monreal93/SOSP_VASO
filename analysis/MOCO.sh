@@ -1,9 +1,10 @@
 #!/bin/bash
 
-cd /home/amonreal/Documents/PhD/PhD_2022/sosp_vaso/data/09072022_sv_abc/analysis/sv_01/
+# cd /home/amonreal/Documents/PhD/PhD_2022/sosp_vaso/data/09192022_sv/analysis/sv_09/
+# cd /mnt/ssh/var/www/dabeast/5T3/Alejandro/sosp_vaso/data/09192022_sv/analysis/sv_09/
 
 # cp Smagn.nii ./Basis_a.nii
-cp ./sv_01_3d_mrreco.nii ./Basis_a.nii
+cp ./sv_09_2d3d_vb_b0_nom_romeo_mrreco.nii ./Basis_a.nii
 3dTcat -prefix Basis_a.nii Basis_a.nii'[4..7]' Basis_a.nii'[4..$]' -overwrite
 cp ./Basis_a.nii ./Basis_b.nii
 
@@ -23,4 +24,6 @@ matlab -nodesktop -nosplash
 
 gnuplot "gnuplot_moco.txt"
 
-rm ./Basis_*.nii
+rm ./Basis_*
+
+# rm ./Basis_*.nii
