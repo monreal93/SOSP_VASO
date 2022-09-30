@@ -20,10 +20,10 @@ elseif contains(path_tmp,"/mnt/")
     setenv('TOOLBOX_PATH','/mnt/5T3/Alejandro/tools/bart')
 end
 
-folder = '09072022_sv_abc';
+folder = '09302022_sv';
 cs_b0_file = 'b0_1_6_1_6_1_F';
-scan = 'abc_08';
-repetitions = 30; %4,120        % AMM: ToDo: find a way to get this param from somewhere
+scan = 'abc_01';
+repetitions = 6; %4,120        % AMM: ToDo: find a way to get this param from somewhere
 
 cd ./sosp_vaso
 % Reading some parameters from Pulseq
@@ -39,7 +39,7 @@ params.ncc = 0;              	   % Coil compression coils... 0 for no compressio
 %% Adding extra parameters from Pulseq
 params.slices = params.gen.n(3);
 params.ch = 32; 
-params.nx = params.spi.ro_samples;
+params.nx = params.gen.ro_samples;
 params.ny = 1; 
 params.rz = params.gen.kz;
 params.pf = params.gen.pf;

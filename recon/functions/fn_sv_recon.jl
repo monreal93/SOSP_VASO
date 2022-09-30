@@ -37,7 +37,7 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
             replace!(b0, NaN=>0);
             b0 = b0.*2π;
             # AMM: Temp: Trying to scale
-            b0 = b0.*-4; # (-2.5), it seems like I have to adjust this value "scale" each b0 differently...
+            b0 = b0.*-2.5; # (-2.5), it seems like I have to adjust this value "scale" each b0 differently...
             b0 = reverse(b0,dims = 1);
         elseif params_sv[:b0_type] == "gilad"
             b0 = niread(string(params_sv[:path],"acq/gilad/b0_",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"_gilad.nii")); # From Gilad's
@@ -51,9 +51,10 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
             b0 = niread(string(params_sv[:path],"acq/skope/b0_",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"_skope.nii")); # From Skope-i
             b0 = b0.raw;
             # AMM: Temp: Trying to scale
-            b0 = b0.*π;
-            b0 = b0.*-1;
-            b0 = reverse(b0,dims = 2);
+            # b0 = b0.*π;
+            # b0 = b0.*-1;
+            b0 = b0.*-0.75;
+            b0 = reverse(b0,dims = 1);
         end
         # Temp: Do I really want to shift it??? Shifting B0 slices to make match the gre to the spiral acq
         # b0 = circshift(b0, (0,0,1));
@@ -69,7 +70,7 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
         end
 
         # AMM: Infiltrate
-        # @infiltrate
+        @infiltrate
     end
 
     # # get the number of samples per readout, if its 3d, need to divide by # of slices
@@ -132,9 +133,9 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
                 file=ISMRMRDFile(string(params_sv[:path],"ismrmd/3d/",params_sv[:scan],"_r",i,"_",params_sv[:id],".h5"));
             else
                 if params_sv[:id] == "2d"
-                    file=ISMRMRDFile(string(params_sv[:path],"ismrmd/2d/",params_sv[:scan],"_",contrasts[j],"_r",i,"_sl",params_sv[:sl_reco],"_",params_sv[:id],".h5"));
+                    file=ISMRMRDFile(string(params_sv[:path],"ismrmd/2d/",params_sv[:scan],"_",contrasts[j],"_r",i,"_sl",params_sv[:sl_reco],"_",params_sv[:id],"_",params_sv[:traj_type] ,".h5"));
                 else
-                    file=ISMRMRDFile(string(params_sv[:path],"ismrmd/3d/",params_sv[:scan],"_",contrasts[j],"_r",i,"_",params_sv[:id],".h5"));
+                    file=ISMRMRDFile(string(params_sv[:path],"ismrmd/3d/",params_sv[:scan],"_",contrasts[j],"_r",i,"_",params_sv[:id],"_",params_sv[:traj_type] ,".h5"));
                 end
             end
             
@@ -183,12 +184,15 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
                 imshow(abs.(Ireco[:,:,:,1,1]));
             end
 
-            Ireco_nii = NIVolume(abs.(Ireco[:,:,:,1,1]));
+            #AMM: Infiltrate
+            # @infiltrate
+
+            Ireco_mag = NIVolume(abs.(Ireco[:,:,:,1,1]));
 
             if params_sv[:is2d]
-                save_name = string(params_sv[:path],"recon/2d/",params_sv[:scan],"_",contrasts[j],"_sl",params_sv[:sl_reco],"_rep",i,"_",params_sv[:id]);
+                save_name = string(params_sv[:path],"recon/2d/",params_sv[:scan],"_",contrasts[j],"_sl",params_sv[:sl_reco],"_rep",i,"_",params_sv[:id],"_",params_sv[:traj_type] );
             else
-                save_name = string(params_sv[:path],"recon/3d/",params_sv[:scan],"_",contrasts[j],"_rep",i,"_",params_sv[:id]);
+                save_name = string(params_sv[:path],"recon/3d/",params_sv[:scan],"_",contrasts[j],"_rep",i,"_",params_sv[:id],"_",params_sv[:traj_type] );
             end
 
             if params_sv[:do_b0_corr] 
@@ -197,7 +201,13 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
                 save_name = string(save_name,"_mrreco.nii")
             end
 
-            niwrite(save_name,Ireco_nii);
+            niwrite(save_name,Ireco_mag);
+
+            if params_sv[:save_ph] == 1
+                save_name = string(save_name[1:end-4],"_ph",".nii")
+                Ireco_ph = NIVolume(angle.(Ireco[:,:,:,1,1]))
+                niwrite(save_name,Ireco_ph)
+            end
             if params_sv[:is2d]
                 @info string("Done reconstructing scan ",params_sv[:scan],  " repetition ",i, " contrast ", contrasts[j], " slice ",params_sv[:sl_reco] )
             else
