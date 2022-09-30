@@ -14,18 +14,25 @@ function fn_create_ismrmd(folder,scan,params)
         % params.slices = 1;
     end
     
+    % Check trajectory type
+    if params.traj == 1
+        traj_name = 'nom';
+    elseif params.traj == 3
+        traj_name = 'sk';
+    end
+    
     % Checking if files exist, it checks for the first one only
     if contains(scan,'sv') ||  contains(scan,'cv')
         if params.is2d == 1
-            filename = sprintf('./data/%s/ismrmd/2d/%s_v_r1_sl1_2d.h5',folder,scan);
+            filename = sprintf('./data/%s/ismrmd/2d/%s_v_r1_sl1_2d_%s.h5',folder,scan,traj_name);
         else
-            filename = sprintf('./data/%s/ismrmd/3d/%s_v_r1_3d.h5',folder,scan);
+            filename = sprintf('./data/%s/ismrmd/3d/%s_v_r1_3d_%s.h5',folder,scan,traj_name);
         end
     elseif contains(scan,'abc')
         if params.is2d == 1
-            filename = sprintf('./data/%s/ismrmd/2d/%s_r1_sl1_2d.h5',folder,scan);
+            filename = sprintf('./data/%s/ismrmd/2d/%s_r1_sl1_2d_%s.h5',folder,scan,traj_name);
         else
-            filename = sprintf('./data/%s/ismrmd/3d/%s_r1_3d.h5',folder,scan);
+            filename = sprintf('./data/%s/ismrmd/3d/%s_r1_3d_%s.h5',folder,scan,traj_name);
         end
     end
     tmp = 'y';
@@ -72,19 +79,19 @@ function fn_create_ismrmd(folder,scan,params)
                 warning('off')
                 if contains(scan,'sv')  ||  contains(scan,'cv')
                     if params.is2d == 1
-                        filename_v = sprintf('./data/%s/ismrmd/2d/%s_v_r%i_sl%i_2d.h5',folder,scan,j,k);
-                        filename_b = sprintf('./data/%s/ismrmd/2d/%s_b_r%i_sl%i_2d.h5',folder,scan,j,k);
+                        filename_v = sprintf('./data/%s/ismrmd/2d/%s_v_r%i_sl%i_2d_%s.h5',folder,scan,j,k,traj_name);
+                        filename_b = sprintf('./data/%s/ismrmd/2d/%s_b_r%i_sl%i_2d_%s.h5',folder,scan,j,k,traj_name);
                     else
-                        filename_v = sprintf('./data/%s/ismrmd/3d/%s_v_r%i_3d.h5',folder,scan,params.rep_to_save);
-                        filename_b = sprintf('./data/%s/ismrmd/3d/%s_b_r%i_3d.h5',folder,scan,params.rep_to_save);
+                        filename_v = sprintf('./data/%s/ismrmd/3d/%s_v_r%i_3d_%s.h5',folder,scan,params.rep_to_save,traj_name);
+                        filename_b = sprintf('./data/%s/ismrmd/3d/%s_b_r%i_3d_%s.h5',folder,scan,params.rep_to_save,traj_name);
                     end
                     delete(filename_v);
                     delete(filename_b);
                 elseif contains(scan,'abc')
                     if params.is2d == 1
-                        filename = sprintf('./data/%s/ismrmd/2d/%s_r%i_sl%i_2d.h5',folder,scan,j,k);
+                        filename = sprintf('./data/%s/ismrmd/2d/%s_r%i_sl%i_2d_%s.h5',folder,scan,j,k,traj_name);
                     else
-                        filename = sprintf('./data/%s/ismrmd/3d/%s_r%i_3d.h5',folder,scan,params.rep_to_save);
+                        filename = sprintf('./data/%s/ismrmd/3d/%s_r%i_3d_%s.h5',folder,scan,params.rep_to_save,traj_name);
                     end
                     delete(filename);
                 end

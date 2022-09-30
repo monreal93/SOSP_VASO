@@ -51,7 +51,11 @@ function fn_coil_sensitivities(folder,scan,file,params)
                     var=padarray(var,[0,0,floor((cs_mtx(3)-z)/2)],'pre');
                     var=padarray(var,[0,0,(floor((cs_mtx(3)-z)/2))+1],'post');
                 else
-                    var=padarray(var,[(cs_mtx(1)-x)/2,(cs_mtx(2)-y)/2,(cs_mtx(3)-z)/2],'both');
+                    if cs_mtx(3) == 1
+                        var=padarray(var,[(cs_mtx(1)-x)/2,(cs_mtx(2)-y)/2,0],'both');
+                    else
+                        var=padarray(var,[(cs_mtx(1)-x)/2,(cs_mtx(2)-y)/2,(cs_mtx(3)-z)/2],'both');
+                    end
                 end
                 var=FFT_1D(var,'image',3);
             else
@@ -68,7 +72,12 @@ function fn_coil_sensitivities(folder,scan,file,params)
                 var = FFT_2D(var,'kspace',1,2);
         %         var = bart(sprintf('resize -c 0 %i 1 %i',cs_mtx(1),cs_mtx(2)),var);
             end
-
+            
+            % Subsetting if is 2D
+            if cs_mtx(3) == 1
+                        var = var(:,:,z/2+1,:);
+            end
+                       
             % non_wc_crop = non_wc((x/2)-(y/2):(x/2)+(y/2)-1,:,:,:);
             msk = zeros(size(var));
             id = rssq(var,4)>1e-4;
@@ -120,6 +129,10 @@ function fn_coil_sensitivities(folder,scan,file,params)
             end
 
             coil_sens = double(squeeze(espiritmaps(:,:,:,:,1)));
+            
+            if cs_mtx(3) == 1
+                    coil_sens = permute(coil_sens,[1,2,4,3]);
+            end
             % sens = sensemaps.*msk;
             % espi = espiritmaps.*msk;
             if ncc > 0

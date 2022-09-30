@@ -188,7 +188,7 @@ function [twix_params,twix_params_b0] = fn_read_twix(folder,scan,params)
                     bb=permute(aa,[3 1 2]);
 %                 end
                 
-                und_dim = size(bb,1)/params.repetitions/2/params.slices;
+                und_dim = round(size(bb,1)/params.repetitions/2/params.slices);
                 ks = zeros(size(bb,2),und_dim,params.slices*2,params.repetitions,params.ch);
                 
                 tmp = 0;

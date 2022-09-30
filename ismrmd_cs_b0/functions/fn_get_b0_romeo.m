@@ -71,21 +71,62 @@ function fn_get_b0_romeo(folder,scan,file,params)
         % Creating specific folder for mtx size
         system(sprintf('mkdir %s',path_save));
         warning('on')
+        
+        % Subsetting if is 2D
+        if cs_mtx(3) == 1
+            % Writing Niftis of mag and phase
+            img_ph = angle(img);
+            img_mag = abs(img);
+            niftiwrite(img_mag(:,:,z/2+1,:),sprintf('%s/%s_mag.nii',path_save,file))
+            niftiwrite(img_ph(:,:,z/2+1,:),sprintf('%s/%s_ph.nii',path_save,file))
+        else        
+            % Writing Niftis of mag and phase
+            img_ph = angle(img);
+            img_mag = abs(img);
+            niftiwrite(img_mag,sprintf('%s/%s_mag.nii',path_save,file))
+            niftiwrite(img_ph,sprintf('%s/%s_ph.nii',path_save,file))
+        end
 
-        % Writing Niftis of mag and phase
-        img_ph = angle(img);
-        img_mag = abs(img);
-        niftiwrite(img_mag,sprintf('%s/%s_mag.nii',path_save,file))
-        niftiwrite(img_ph,sprintf('%s/%s_ph.nii',path_save,file))
+
         
         % Writing resized Ech1 and Ech9 for future refererence
         tmp = rssq(img_mag,5);
-        tmp = imresize(tmp,[params.gen.n(1) params.gen.n(2)]);
+        % tmp = imresize(tmp,[params.gen.n(1) params.gen.n(2)]);
+       % Changing resolution of echos to save reference
+        if cs_mtx(1) > x
+            tmp=FFT_3D(tmp,'kspace');
+            if mod(size(tmp,3),2)>0
+                tmp=padarray(tmp,[(cs_mtx(1)-x)/2,(cs_mtx(2)-y)/2,0],'both');
+                tmp=padarray(tmp,[0,0,floor((cs_mtx(3)-z)/2)],'pre');
+                tmp=padarray(tmp,[0,0,(floor((cs_mtx(3)-z)/2))+1],'post');
+            else
+                if cs_mtx(3) == 1
+                    tmp=padarray(tmp,[(cs_mtx(1)-x)/2,(cs_mtx(2)-y)/2,0],'both');
+                else
+                    tmp=padarray(tmp,[(cs_mtx(1)-x)/2,(cs_mtx(2)-y)/2,(cs_mtx(3)-z)/2],'both');
+                end
+            end
+            tmp=FFT_3D(tmp,'image');
+        else
+            tmp = FFT_1D(tmp,'kspace',3);
+            if mod(size(tmp,3),2)>0
+                tmp=padarray(tmp,[0,0,floor((cs_mtx(3)-z)/2)],'pre');
+                tmp=padarray(tmp,[0,0,(floor((cs_mtx(3)-z)/2))+1],'post');
+            else
+                tmp = padarray(tmp,[0,0,ceil((cs_mtx(3)-z)/2),0],'both');
+            end
+            tmp = FFT_1D(tmp,'image',3);
+        end
+        % Subsetting if is 2D
+        if cs_mtx(3) == 1
+                    tmp = tmp(:,:,z/2+1,:);
+        end
+            
         % I am flipping dim 1 just to match recon:
-        ech1 = flip(tmp(:,:,:,1),1);
-        ech9 = flip(tmp(:,:,:,9),1);
-        niftiwrite(ech1,sprintf('%s/gre_%i_%i_%i_ech1.nii',path_save,params.gen.n(1),params.gen.n(2),params.gen.n(3)))
-        niftiwrite(ech9,sprintf('%s/gre_%i_%i_%i_ech9.nii',path_save,params.gen.n(1),params.gen.n(2),params.gen.n(3)))
+        ech1 = flip(tmp(:,:,:,1),1)*1e5;
+        ech9 = flip(tmp(:,:,:,9),1)*1e5;
+        niftiwrite(abs(ech1),sprintf('%s/gre_%i_%i_%i_ech1.nii',path_save,params.gen.n(1),params.gen.n(2),params.gen.n(3)))
+        niftiwrite(abs(ech9),sprintf('%s/gre_%i_%i_%i_ech9.nii',path_save,params.gen.n(1),params.gen.n(2),params.gen.n(3)))
 
         % Calling ROMEO
         % tmp = '[8.14,17.11,23,25.01,27.02,32.11,55,60,65]';  % This has to be read from the .dat file and saved in a variable
