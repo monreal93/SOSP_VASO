@@ -156,14 +156,14 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
         % Getting the correct number to split the ADC
         % The ADC obj has to be splitted into N equal parts, with duration multiple
         % of 10us
-        for i = 1:10
+        for i = 1:50
             if mod(adcSamples,i) == 0 && mod(adcSamples/i*adcDwell,10e-9) == 0 && (adcSamples/i) < 8192 && mod(adcSamples/i,4) == 0
                 adcSplit = adcSamples/i;
                 break
             end
         end
-        params.spi.adc_split = adcSplit;
-        params.spi.adc_segments = i;
+        params.gen.adc_split = adcSplit;
+        params.gen.adc_segments = i;
         
         % AMM: Compensating for the 6 zeros I padded before
 %         adcSamples = adcSamples-6;

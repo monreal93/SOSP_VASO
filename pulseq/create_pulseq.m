@@ -24,6 +24,7 @@ addpath(genpath("/home/amonreal/Documents/PhD/PhD_2022/BSc_students/"))
 % - Properly define adcDwell time for gx in 'c' (now I use 2.2ms) 'FlatTime'
 % - check values of duration, timeBwProduct, rf0
 % - Properly define golden angle in prepare_spirals_rf_grad_adc.m function
+% - Define if in tr_tmp, I want to include the time from fat sat..for FA
 
 %% Define parameters
 % Set system limits (MaxGrad=70, MaxSlew = 200);
@@ -34,19 +35,20 @@ lims = mr.opts('MaxGrad',65,'GradUnit','mT/m',...
     'MaxSlew',190,'SlewUnit','T/m/s',...
     'rfRingdownTime', 30e-6,'rfDeadtime', 180e-6,'adcDeadTime', 10e-6, 'B0',6.98);  % To read it in VM I need rfDeadtime = 180e-6
 
-folder_name = '09302022_sv';            % Day I am scanning
+folder_name = '10032022_cv';            % Day I am scanning
 seq_name = 'sample';                   % use sv_n (n for the diff scans at each day)
 params.gen.seq = 1;                      % 1-VASO 2-ABC 3-Fieldmap
 
 % General parameters
 params.gen.fov = [200 200 24].*1e-3;
-params.gen.res = [0.8 0.8 1].*1e-3;     % Target resoultion
-params.gen.fa = 17;
+params.gen.res = [1.4 1.4 1].*1e-3;     % Target resoultion
+% params.gen.fa = 17;                % Now, I calculate the Ernst Angle
+params.gen.ernst_t1 = 1220e-3;      % T1 to calculate Ernst Angle (s)
 params.gen.te = 0e-3;
 params.gen.ro_type = 's';           % 's'-Spiral, 'c'-Cartesian
 params.gen.kz = 1;                  % Acceleration in Kz
 params.gen.pf = 1;                  % Partial fourier in Kz
-params.gen.fat_sat = 0;             % Fat saturation (1=yes,0=no)
+params.gen.fat_sat = 1;             % Fat saturation (1=yes,0=no)
 params.gen.skope = 0;               % Add skope sync scan and triggers
          
 % Spiral parameters
@@ -67,8 +69,8 @@ params.mt.delta = 1024;  %650            % for Pulseq approach should be 650 to 
 params.mt.trf = 0.004;
 
 % EPI parameters
-params.epi.ry = 3;
-params.epi.pf = 6/8;
+params.epi.ry = 1;
+params.epi.pf = 1;
 params.epi.te = [33.6 36.6 38.6 40]*1e-3+0.022; % Echo times for field map
 params.epi.seg = 1;                 % EPI Segments
 params.epi.tr_delay = 20e-3;        % Delay after each TR, needed to reduce SAR
@@ -127,17 +129,9 @@ fs_angle = 110;
 sat_freq = sat_ppm*1e-6*lims.B0*lims.gamma;
 rf_fs = mr.makeGaussPulse(fs_angle*pi/180,'system',lims,'Duration',8e-3,...
     'bandwidth',abs(sat_freq),'freqOffset',sat_freq);
+gx_fs = mr.makeTrapezoid('x',lims,'delay',mr.calcDuration(rf_fs),'Area',-1/1e-4); % spoil up to 0.1mm
+gy_fs = mr.makeTrapezoid('y',lims,'delay',mr.calcDuration(rf_fs),'Area',1/1e-4); % spoil up to 0.1mm
 gz_fs = mr.makeTrapezoid('z',lims,'delay',mr.calcDuration(rf_fs),'Area',1/1e-4); % spoil up to 0.1mm
-
-% ToDo: check values of duration, timeBwProduct
-if params.gen.seq == 2
-    [rf0, gz] = mr.makeSincPulse(params.gen.fa*pi/180,'system',lims,'Duration',1e-3,...
-        'SliceThickness',params.gen.fov(3),'apodization',0.5);
-else
-    [rf0, gz] = mr.makeSincPulse(params.gen.fa*pi/180,'system',lims,'Duration',2.6e-3,...
-        'SliceThickness',params.gen.fov(3),'apodization',0.5,'timeBwProduct',25);
-end
-gzReph = mr.makeTrapezoid('z',lims,'Area',-gz.area/2);
 
 %% Prepare kz Blips:
 tmp = params.gen.n(3);
@@ -211,14 +205,14 @@ elseif params.gen.ro_type == 'c'
     % The ADC obj has to be splitted into N equal parts, with duration multiple
     % of 10us
     adc_total_samples = adcSamples*round(params.gen.n(2)/params.epi.ry*(params.epi.pf))*params.gen.n(3);
-    for i = 1:50
+    for i = 1:100
         if mod(adc_total_samples,i) == 0 && mod(adc_total_samples/i*adcDwell,10e-9) == 0 && (adc_total_samples/i) < 8192 && mod(adc_total_samples/i,4) == 0
             adcSplit = adc_total_samples/i;
             break
         end
     end
-    params.epi.adc_split = adcSplit;
-    % params.spi.adc_segments = i;
+    params.gen.adc_split = adcSplit;
+    params.gen.adc_segments = i;
 
     gx = mr.makeTrapezoid('x',lims,'Area',params.gen.n(1)*params.gen.del_k(1),'Duration',adc.duration+(adc.delay*2));%,'Duration',round(params.gen.n(1)*adcDwell,4)); % Dwell time 2.2e-6
     gx_pre = mr.makeTrapezoid('x',lims,'maxGrad',30e-3*lims.gamma,'Area',-gx.area/2);
@@ -234,6 +228,32 @@ elseif params.gen.ro_type == 'c'
     [gy_blip_up,gy_blip_down,~] = mr.align('right',gy_blip_up,'left',gy_blip_down,gx);
     gy_blips = mr.addGradients({gy_blip_down, gy_blip_up},lims);
 end
+
+% RF excitation
+% ToDo: check values of duration, timeBwProduct
+% Rough estimate of TR, to calculate Ernst Angle
+if params.gen.ro_type == 'c'
+    tr_tmp = mr.calcDuration(gx)*(round(params.gen.n(2)/params.epi.ry*(params.epi.pf))+3)+2.6e-3;
+%     if params.gen.fat_sat == 1
+%         tr_tmp = tr_tmp + mr.calcDuration(rf_fs) +  mr.calcDuration(gz_fs);
+%     end
+elseif params.gen.ro_type == 's'
+    tr_tmp = mr.calcDuration(gx)+2.6e-3;
+%     if params.gen.fat_sat == 1
+%         tr_tmp = tr_tmp + mr.calcDuration(rf_fs) +  mr.calcDuration(gz_fs);
+%     end
+end
+% FA
+params.gen.fa = acos(exp(-(tr_tmp)/(params.gen.ernst_t1)))*(180/pi); 
+
+if params.gen.seq == 2
+    [rf0, gz] = mr.makeSincPulse(params.gen.fa*pi/180,'system',lims,'Duration',1e-3,...
+        'SliceThickness',params.gen.fov(3),'apodization',0.5);
+else
+    [rf0, gz] = mr.makeSincPulse(params.gen.fa*pi/180,'system',lims,'Duration',2.6e-3,...
+        'SliceThickness',params.gen.fov(3),'apodization',0.5,'timeBwProduct',25);
+end
+gzReph = mr.makeTrapezoid('z',lims,'Area',-gz.area/2);
 
 
 %% Prepare spoilers
@@ -659,7 +679,7 @@ if params.gen.ro_type == 's'
 elseif params.gen.ro_type == 'c'
     plane_samples = adc.numSamples*round(params.gen.n(2)/params.epi.ry*params.epi.pf);
     % Discarding the EPI navigator samples, here I have 3
-    j = j+(params.gen.n(1)*3);
+    j = j+(adc.numSamples*3);
     tmp = ktraj_adc(1,j:j+adc.numSamples*3);
     tmp_mx = max(tmp(:));
 end
@@ -669,7 +689,7 @@ for i=1:params.gen.n(3)
         ks_traj.kz(:,i) = ktraj_adc(3,j:j+plane_samples-1);
         j = j+plane_samples;
         if params.gen.ro_type == 'c'
-            j = j+(params.gen.n(1)*3);
+            j = j+(adc.numSamples*3);
         end
 end
 
@@ -722,7 +742,7 @@ julia_time = repmat(params.gen.TE+(0:adc.dwell:adc.duration-adc.dwell),1,params.
 params.gen.t_vector = julia_time;
 
 %% Designed segment length
-seq.setDefinition('MaxAdcSegmentLength',params.spi.adc_split);
+seq.setDefinition('MaxAdcSegmentLength',params.gen.adc_split);
 
 %% Saving files
 % Check if folder exist, if no it creates it
