@@ -1,10 +1,9 @@
 % To do:
-% - C1: Check with Skope data if I need to change the sign
-% - C2: Check if I need to FFT_1D in partition direction, with data from
-% scanner
-% - Fix parameter sample_time_us = to get it from file or somewhere else
+% This function is to be called inside fn_read_twix, it won't read the
+% raw data from a .mat file, it will recieve k_vaso and k_bold as
+% parameters
 
-function fn_create_ismrmd(folder,scan,params)
+function fn_create_ismrmd5(folder,scan,params,ks_vaso_all,ks_bold_all)
     % This function creates one mrd file per repetition and per slice...
     fprintf('--- Creating ISMRMD files for scan %s ... \n',scan);
     
@@ -51,15 +50,15 @@ function fn_create_ismrmd(folder,scan,params)
             return
     elseif tmp == 'y'
         % Load K-space data
-        if contains(scan,'sv')  ||  contains(scan,'cv')
-            load(['./data/' folder '/raw/' scan '_ks_vaso.mat']);
-            ks_vaso_all =ks_vaso;
-            load(['./data/' folder '/raw/' scan '_ks_bold.mat']);
-            ks_bold_all = ks_bold;
-        elseif contains(scan,'abc')
-            load(['./data/' folder '/raw/' scan '_ks_abc.mat']);
-            ks_abc_all = ks_abc;
-        end
+%         if contains(scan,'sv')  ||  contains(scan,'cv')
+%             load(['./data/' folder '/raw/' scan '_ks_vaso.mat']);
+%             ks_vaso_all =ks_vaso;
+%             load(['./data/' folder '/raw/' scan '_ks_bold.mat']);
+%             ks_bold_all = ks_bold;
+%         elseif contains(scan,'abc')
+%             load(['./data/' folder '/raw/' scan '_ks_abc.mat']);
+%             ks_abc_all = ks_abc;
+%         end
         
         % If is 2D, repeat this for every slice
         if params.is2d

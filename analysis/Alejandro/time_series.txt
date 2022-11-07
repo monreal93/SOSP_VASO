@@ -1,0 +1,16 @@
+set terminal postscript enhanced color solid  "Helvetica" 10
+
+set out "time_series.ps"
+
+set key left bottom # für Position of Legend
+
+
+# set title "Motion across timesteps"   font "Helvetica,10"
+# set ylabel "displacement in mm"  font "Helvetica,10"
+set xlabel "TR's"  font "Helvetica,10"
+
+set size ratio 0.6
+
+
+set term qt
+exit

@@ -17,7 +17,7 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
 %             last_tetha = last_tetha+20;
         end
         
-        last_tetha = floor(last_tetha/(4*pi))*4*pi;
+        last_tetha = ceil(last_tetha/(2*pi))*2*pi;
 %         last_tetha = floor(last_tetha/2*pi)*2*pi;
         
         tetha = 0:2*pi/1e2:last_tetha;
@@ -27,7 +27,7 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
 %         ka = ka.';
 %         ka = (tetha./(2*pi*fov_vd))*params.spi.rxy.*exp(1i.*tetha);
         % figure; hold on; plot(ka)
-
+        
         % Partitions loop
         for j=1:params.gen.n(3)
             % Spiral segments
@@ -51,22 +51,36 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
                 g_max = params.spi.max_grad*10/100;  % convert mT/m -> G/cm
                 sr_max = params.spi.max_sr*10/100; % convert mT/m/ms -> G/cm/ms   
                 C = [squeeze(kaa(1,:)).', squeeze(kaa(2,:)).']./100; % times 100 to make it 1/cm
-                [C,time,g,s,k] = minTimeGradient(C,rv, 0, 0, g_max, sr_max,T,ds,0);
-                % Interpolating to the initial size of kaa
-    %             tmp = 0:length(g)-1
-                time = round(time*1e-3,3);
-                tmp = linspace(0,time,length(g));
-                tmp1 = (time*1e-3)./2e-6.*lims.adcRasterTime;
-                for k=1:2
-                    % g_new(k,:) = interp1(tmp,g(:,k).',linspace(0,time,length(kaa)));
-                    g_new(k,:) = interp1(tmp,g(:,k).',(0:floor(time(end)/lims.gradRasterTime))*lims.gradRasterTime);
+
+                if params.spi.type == 1
+                    C = flip(C,1);
                 end
+
+                if j==1 || contains('none',params.spi.rotate) == 0
+                    %%%%%%% Unsafe spirals
+                    [C,time,g,s,k] = minTimeGradient(C,rv, C(1,1), 0, g_max, sr_max,T,ds,0);
+                    % Interpolating to the initial size of kaa
+        %             tmp = 0:length(g)-1
+                    time = round(time*1e-3,3);
+                    tmp = linspace(0,time,length(g));
+                    tmp1 = (time*1e-3)./2e-6.*lims.adcRasterTime;
+                    for k=1:2
+                        % g_new(k,:) = interp1(tmp,g(:,k).',linspace(0,time,length(kaa)));
+                        g_new(k,:) = interp1(tmp,g(:,k).',(0:floor(time(end)/lims.gradRasterTime))*lims.gradRasterTime);
+                    end
+                                    % Trying to get grad to correct units
+                    g_new = g_new*42.58e6/100;    % convert from G/cm -> Hz/m
+                    g_new = rmmissing(g_new,2);
+                    %%%%%%%%%%%%
     
-                % Trying to get grad to correct units
-                g_new = g_new*42.58e6/100;    % convert from G/cm -> Hz/m
-                g_new = rmmissing(g_new,2);
+%                     %%%%%% Safe spirals
+%                     [g_new(1,:),g_new(2,:),time] = fn_safe_spirals(C,params);
+%                     %%%%%%%%%
+                end
+
                 spiral_grad_shape(:,:,i,j) = g_new(1:2,:);
                 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
                  
 %                 %%%% Calculating Gradients with Pulseq approach %%%%%%%
 %                 [ga, sa]=mr.traj2grad(kaa);
@@ -100,12 +114,19 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
             end    
         end
 
-        % AMM: I am padding some zeros so the gradient shape starts from 0
-        tmp = ceil((size(spiral_grad_shape,2)/2)./100)*2*100;
-        if tmp == size(spiral_grad_shape,2)
-            tmp = size(spiral_grad_shape,2)+100;
+        % Padding some zeros so the gradient shape starts from 0 
+        if params.spi.type == 0
+            tmp = ceil((size(spiral_grad_shape,2)/2)./100)*2*100;
+            if tmp == size(spiral_grad_shape,2)
+                tmp = size(spiral_grad_shape,2)+100;
+            end
+            spiral_grad_shape = padarray(spiral_grad_shape,[0 tmp-size(spiral_grad_shape,2) 0],'pre'); 
         end
-        spiral_grad_shape = padarray(spiral_grad_shape,[0 tmp-size(spiral_grad_shape,2) 0],'pre'); 
+
+        if params.spi.type == 1
+           spiral_grad_shape = padarray(spiral_grad_shape,[0 10 0],'post');  
+        end
+        
 
         % AMM: Here I am just padding some zeros, so grad starts from 0
 %         spiral_grad_shape = padarray(spiral_grad_shape,[0 10 0],'pre'); 
@@ -185,9 +206,9 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
 %         end
 
     %% Checking forbidden frequencies
-    check_forbbiden_fq(squeeze(spiral_grad_shape(1,:,1,1)))
+    check_forbbiden_fq(squeeze(spiral_grad_shape(1,:,1,1)),false)
     title('Forbidden Frequencies Gx')
-    check_forbbiden_fq(squeeze(spiral_grad_shape(2,:,1,1)))
+    check_forbbiden_fq(squeeze(spiral_grad_shape(2,:,1,1)),false)
     title('Forbidden Frequencies Gy')
 
 

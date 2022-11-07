@@ -1,14 +1,9 @@
 % Script to read and format twix data
+% This function won'ts save the raw data into a .mat file,
+% This is very consuming and inefficient, so it will call
+% directly fn_create_ismrmd5, pasing k space data as arguments...
 
-
-
-%% Select the name of file...
-% psfy_ref, psfy_on, psfz_ref, psfz_on
-% wc, non_wc, u_wc, u_non_wc
-% fieldmap
-% sv_1p2, sv_0p8, epi_1p2, epi_0p9 , b0
-
-function [twix_params,twix_params_b0] = fn_read_twix(folder,scan,params)
+function [twix_params,twix_params_b0] = fn_read_twix1(folder,scan,params)
 
     fprintf('--- Reading scan %s Twix data and saving it into .mat format... \n',scan);
     tmp = 'y';
@@ -236,7 +231,6 @@ function [twix_params,twix_params_b0] = fn_read_twix(folder,scan,params)
 
 
             if  contains(scan,'sv')
-%                 fn_create_ismrmd5(folder,scan,params,ks_vaso,ks_bold);
                 save(save_file_vaso,'ks_vaso','-v7.3')
                 save(save_file_bold,'ks_bold','-v7.3')
                 save(sprintf('./data/%s/acq/%s_twix_params.mat',folder,scan),'twix_params');

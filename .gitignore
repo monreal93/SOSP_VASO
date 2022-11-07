@@ -19,7 +19,8 @@ docs/site/
 
 # AMM:
 data/
-analysis/renzo_example/
+analysis/youtube/
+
 tmp/
 *.jpg
 *.nii

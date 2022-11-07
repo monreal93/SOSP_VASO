@@ -11,7 +11,7 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
 
     # Loading data
     ### cs mat format
-    cs = matread(string(params_sv[:path],"acq/cs_",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],".mat")); cs = cs["coil_sens"];
+    cs = matread(string(params_sv[:path],"acq/cs_",params_sv[:scan],"_",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],".mat")); cs = cs["coil_sens"];
     ### cs nifti format
     # tmp = niread("/home/amonreal/Documents/PhD/PhD_2021/data/cs_134_134_24_r_msk.nii"); tmp = tmp.raw;
     # itmp = niread("/home/amonreal/Documents/PhD/PhD_2021/data/cs_134_134_24_i_msk.nii"); itmp = itmp.raw;
@@ -20,10 +20,10 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
     # cs = circshift(cs, (0,0,-1,0));
     # cs = circshift(cs, (1,0,0,0));
 
-    if params_sv[:is2d]
-        cs = cs[:,:,params_sv[:sl_reco],:];
-        cs = reshape(cs,(params_sv[:nx],params_sv[:ny],1,params_sv[:nCoils]));
-    end
+    # if params_sv[:is2d]
+    #     cs = cs[:,:,params_sv[:sl_reco],:];
+    #     cs = reshape(cs,(params_sv[:nx],params_sv[:ny],1,params_sv[:nCoils]));
+    # end
     # converting to ComplexF32, that is what MRIReco.jl expects
     cs = convert(Array{ComplexF32,4},cs);
     cs = reverse(cs,dims =1 );			# AMM: it looks like I need to reverse the dim, not sure if always
@@ -31,13 +31,14 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
     # load B0 map, romeo/skope-i
     if params_sv[:do_b0_corr]   
         if params_sv[:b0_type] == "romeo"
-            b0 = niread(string(params_sv[:path],"acq/romeo/",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"/B0_masked_sm.nii")); # From Romeo
+            b0 = niread(string(params_sv[:path],"acq/romeo/b0_",params_sv[:scan],"_",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"/B0_masked_sm.nii")); # From Romeo
             # b0 = niread(string(params_sv[:path],"acq/romeo/",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"/B0_masked.nii")); # From Romeo
             b0 = b0.raw;
             replace!(b0, NaN=>0);
-            b0 = b0.*2π;
+            # b0 = b0.*2π;
             # AMM: Temp: Trying to scale
-            b0 = b0.*-2.5; # (-2.5), it seems like I have to adjust this value "scale" each b0 differently...
+            b0 = b0.*2π
+            b0 = b0.*-0.5 # (-2.5), it seems like I have to adjust this value "scale" each b0 differently...
             b0 = reverse(b0,dims = 1);
         elseif params_sv[:b0_type] == "gilad"
             b0 = niread(string(params_sv[:path],"acq/gilad/b0_",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"_gilad.nii")); # From Gilad's
@@ -64,13 +65,13 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
         # b0 = reverse(b0,dims = 1);			# AMM: it looks like I need to reverse the dim, not sure if always
         # b0 = circshift(b0, (1,0,0));
 
-        if params_sv[:is2d]
-            b0 = b0[:,:,params_sv[:sl_reco]];
-            b0 = reshape(b0,(params_sv[:nx],params_sv[:ny],1));
-        end
+        # if params_sv[:is2d]
+        #     b0 = b0[:,:,params_sv[:sl_reco]];
+        #     b0 = reshape(b0,(params_sv[:nx],params_sv[:ny],1));
+        # end
 
         # AMM: Infiltrate
-        @infiltrate
+        # @infiltrate
     end
 
     # # get the number of samples per readout, if its 3d, need to divide by # of slices
@@ -102,6 +103,7 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
         params[:reconSize] = (params_sv[:nx],params_sv[:ny]);
     else
         params[:reconSize] = (params_sv[:nx],params_sv[:ny],params_sv[:sl]);
+        params_sv[:sl] = 1;
     end
     params[:regularization] = "L2";
     params[:λ] = 1.e-2;
@@ -109,9 +111,9 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
     params[:solver] = "cgnr";
     params[:senseMaps] = cs;
 
-    if params_sv[:do_b0_corr]
-        params[:correctionMap] = b0;
-    end
+    # if params_sv[:do_b0_corr]
+    #     params[:correctionMap] = b0;
+    # end
 
     # Loop for vaso and bold, also for each echo..
     # contrasts = ["v","b"];
@@ -121,99 +123,127 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
         params_sv[:repetitions] = 2;
         f_rep = 2;
     else
-        f_rep = 1;
+        f_rep = params_sv[:f_rep];
     end
-    # AMM: Infiltrate
-    # @infiltrate
 
     for i=f_rep:params_sv[:repetitions]
-        for j=1:length(contrasts)
-
-            if params_sv[:seq] == 2
-                file=ISMRMRDFile(string(params_sv[:path],"ismrmd/3d/",params_sv[:scan],"_r",i,"_",params_sv[:id],".h5"));
-            else
-                if params_sv[:id] == "2d"
-                    file=ISMRMRDFile(string(params_sv[:path],"ismrmd/2d/",params_sv[:scan],"_",contrasts[j],"_r",i,"_sl",params_sv[:sl_reco],"_",params_sv[:id],"_",params_sv[:traj_type] ,".h5"));
-                else
-                    file=ISMRMRDFile(string(params_sv[:path],"ismrmd/3d/",params_sv[:scan],"_",contrasts[j],"_r",i,"_",params_sv[:id],"_",params_sv[:traj_type] ,".h5"));
+        for k=1:params_sv[:sl]
+            for j=1:length(contrasts)
+                
+                if params_sv[:is2d]
+                    # Subseting cs and b0    
+                    params[:senseMaps] = reshape(cs[:,:,k,:],(params_sv[:nx],params_sv[:ny],1,params_sv[:nCoils]))
+                    if params_sv[:do_b0_corr]
+                        params[:correctionMap] = reshape(b0[:,:,k],(params_sv[:nx],params_sv[:ny],1))
+                    end
                 end
+
+                if params_sv[:seq] == 2
+                    if params_sv[:id] == "2d"
+                        file=ISMRMRDFile(string(params_sv[:path],"ismrmd/2d/",params_sv[:scan],"_r",i,"_sl",params_sv[:sl_reco],"_",params_sv[:id],"_",params_sv[:traj_type] ,".h5"));
+                    else
+                        file=ISMRMRDFile(string(params_sv[:path],"ismrmd/3d/",params_sv[:scan],"_r",i,"_",params_sv[:id],"_",params_sv[:traj_type] ,".h5"));
+                        # file=ISMRMRDFile(string(params_sv[:path],"ismrmd/3d/",params_sv[:scan],"_",params_sv[:id],"_",params_sv[:traj_type] ,".h5"));
+                    end
+                else
+                    if params_sv[:id] == "2d"
+                    file=ISMRMRDFile(string(params_sv[:path],"ismrmd/2d/",params_sv[:scan],"_",contrasts[j],"_r",i,"_sl",k,"_",params_sv[:id],"_",params_sv[:traj_type] ,".h5"));
+                    # file=ISMRMRDFile(string(params_sv[:path],"ismrmd/2d/",params_sv[:scan],"_",contrasts[j],"_",params_sv[:id],"_r",i,"_",params_sv[:traj_type] ,".h5"));
+                    # file=ISMRMRDFile(string(params_sv[:path],"ismrmd/2d/",params_sv[:scan],"_",contrasts[j],"_",params_sv[:id],"_",params_sv[:traj_type] ,".h5"));
+                    else
+                        # file=ISMRMRDFile(string(params_sv[:path],"ismrmd/3d/",params_sv[:scan],"_",contrasts[j],"_",params_sv[:id],"_",params_sv[:traj_type] ,".h5"));
+                        file=ISMRMRDFile(string(params_sv[:path],"ismrmd/3d/",params_sv[:scan],"_",contrasts[j],"_",params_sv[:id],"_r",i,"_",params_sv[:traj_type] ,".h5"));
+                    end
+                end
+
+
+                # file = ISMRMRDFile("/usr/share/sosp_vaso/data/10132022_sv/ismrmd/2d/sv_01_v_2d_r2_nom.h5")
+                acqData = AcquisitionData(file);
+
+                @infiltrate
+                
+                # get the number of samples per readout, if its 3d, need to divide by # of slices
+                if params_sv[:is2d]
+                    n_samples = acqData.traj[1].numSamplingPerProfile;
+                else
+                    n_samples = acqData.traj[1].numSamplingPerProfile/params_sv[:sl];
+                end
+
+                # adjust TE and TAQ after read-in, create times vector for one readout
+                tAQ = (n_samples-1) * params_sv[:dt];
+                acqData.traj[1].AQ = tAQ;                   # Lars: important for B0 correction
+                acqData.traj[1].TE = params_sv[:TE];
+                times = params_sv[:TE] .+ collect(0:params_sv[:dt]:tAQ);
+                acqData.traj[1].times = vec(times).+0.001;
+
+                # times = params_sv[:times]
+
+                # if its 3D, repeat the times vector for each slice
+                if !params_sv[:is2d]
+                    times = repeat(times,Int(params_sv[:sl]/params_sv[:kz]))';
+                end
+
+                acqData.traj[1].times = vec(times);
+                acqData.traj[1].TE = params_sv[:TE];
+                acqData.traj[1].AQ = maximum(times);
+
+                # for i=f_rep:params_sv[:repetitions]
+                    # params[:rep] = i
+                    ######## Reconstruction ###################
+                    @info ("Starting reconstruction....")
+                    params = merge(defaultRecoParams(), params);
+                    @time Ireco = reconstruction(acqData, params);
+                    # Ireco = Ireco.*1e6;
+                    # Ireco_tmp = NIVolume(abs.(Ireco[:,:,:,1,1,:]));
+                    # path_sv =  string(pwd(),"/tmp/recon_",contrasts[j],".nii")
+                    # # path_sv =  string(pwd(),"/tmp/recon_",contrasts[j],"_r",i,".nii")
+
+                    # niwrite(path_sv,Ireco_tmp)
+                    # AMM:
+                    # @infiltrate
+                # end
+
+                # GC.gc()
+                # ccall(:malloc_trim, Cvoid, (Cint,), 0)
+
+            # end
+                if params_sv[:plt]
+                    imshow(abs.(Ireco[:,:,:,1,1]));
+                end
+
+                Ireco_mag = NIVolume(abs.(Ireco[:,:,:,1,1,:]));
+
+                @infiltrate
+
+                if params_sv[:is2d]
+                    save_name = string(params_sv[:path],"recon/2d/",params_sv[:scan],"_",contrasts[j],"_sl",k,"_rep",i,"_",params_sv[:id],"_",params_sv[:traj_type] );
+                    # save_name = string(params_sv[:path],"recon/2d/",params_sv[:scan],"_",contrasts[j],"_rep",i,"_",params_sv[:id],"_",params_sv[:traj_type] );
+                    # save_name = string(params_sv[:path],"recon/2d/",params_sv[:scan],"_",contrasts[j],"_",params_sv[:id],"_",params_sv[:traj_type] );
+                else
+                    save_name = string(params_sv[:path],"recon/3d/",params_sv[:scan],"_",contrasts[j],"_rep",i,"_",params_sv[:id],"_",params_sv[:traj_type] );
+                    # save_name = string(params_sv[:path],"recon/3d/",params_sv[:scan],"_",contrasts[j],"_",params_sv[:id],"_",params_sv[:traj_type] );
+                end
+
+                if params_sv[:do_b0_corr] 
+                    save_name = string(save_name,"_b0_",params_sv[:b0_type],"_mrreco.nii")
+                else
+                    save_name = string(save_name,"_mrreco.nii")
+                end
+
+                niwrite(save_name,Ireco_mag);
+
+                if params_sv[:save_ph] == 1
+                    save_name = string(save_name[1:end-4],"_ph",".nii")
+                    Ireco_ph = NIVolume(angle.(Ireco[:,:,:,1,1,:]))
+                    niwrite(save_name,Ireco_ph)
+                end
+                if params_sv[:is2d]
+                    @info string("Done reconstructing scan ",params_sv[:scan],  " repetition ",i, " contrast ", contrasts[j], " slice ",k )
+                else
+                    @info string("done reconstructing scan ",params_sv[:scan], " repetition ", i, " contrast ",  contrasts[j])
+                end
+
             end
-            
-            acqData = AcquisitionData(file);
-
-            # AMM:
-            # @infiltrate
-
-            # get the number of samples per readout, if its 3d, need to divide by # of slices
-            if params_sv[:is2d]
-                n_samples = acqData.traj[1].numSamplingPerProfile;
-            else
-                n_samples = acqData.traj[1].numSamplingPerProfile/params_sv[:sl];
-            end
-
-            # # adjust TE and TAQ after read-in, create times vector for one readout
-            # tAQ = (n_samples-1) * params_sv[:dt];
-            # acqData.traj[1].AQ = tAQ;                   # Lars: important for B0 correction
-            # acqData.traj[1].TE = params_sv[:TE];
-            # times = params_sv[:TE] .+ collect(0:params_sv[:dt]:tAQ);
-            # acqData.traj[1].times = vec(times);
-
-            times = params_sv[:times];
-
-            # if its 3D, repeat the times vector for each slice
-            if !params_sv[:is2d]
-                times = repeat(times,Int(params_sv[:sl]/params_sv[:kz]))';
-            end
-
-            # AMM: Infiltrate
-            # @infiltrate
-
-            # acqData.traj[1].times = vec(times);
-            # acqData.traj[1].TE = params_sv[:TE];
-            # acqData.traj[1].AQ = maximum(times);
-
-            # AMM:
-            # @infiltrate
-            
-            ######## Reconstruction ###################
-            params = merge(defaultRecoParams(), params);
-            @time Ireco = reconstruction(acqData, params);
-            Ireco = Ireco.*1e6;
-
-            if params_sv[:plt]
-                imshow(abs.(Ireco[:,:,:,1,1]));
-            end
-
-            #AMM: Infiltrate
-            # @infiltrate
-
-            Ireco_mag = NIVolume(abs.(Ireco[:,:,:,1,1]));
-
-            if params_sv[:is2d]
-                save_name = string(params_sv[:path],"recon/2d/",params_sv[:scan],"_",contrasts[j],"_sl",params_sv[:sl_reco],"_rep",i,"_",params_sv[:id],"_",params_sv[:traj_type] );
-            else
-                save_name = string(params_sv[:path],"recon/3d/",params_sv[:scan],"_",contrasts[j],"_rep",i,"_",params_sv[:id],"_",params_sv[:traj_type] );
-            end
-
-            if params_sv[:do_b0_corr] 
-                save_name = string(save_name,"_b0_",params_sv[:b0_type],"_mrreco.nii")
-            else
-                save_name = string(save_name,"_mrreco.nii")
-            end
-
-            niwrite(save_name,Ireco_mag);
-
-            if params_sv[:save_ph] == 1
-                save_name = string(save_name[1:end-4],"_ph",".nii")
-                Ireco_ph = NIVolume(angle.(Ireco[:,:,:,1,1]))
-                niwrite(save_name,Ireco_ph)
-            end
-            if params_sv[:is2d]
-                @info string("Done reconstructing scan ",params_sv[:scan],  " repetition ",i, " contrast ", contrasts[j], " slice ",params_sv[:sl_reco] )
-            else
-                @info string("Done reconstructing scan ",params_sv[:scan], " repetition ",i ,  " contrast ",  contrasts[j])
-            end
-
         end
     end
 

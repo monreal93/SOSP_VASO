@@ -6,7 +6,7 @@ function fn_get_b0_romeo(folder,scan,file,params)
     
     path_save = sprintf('./data/%s/acq/romeo/',folder);
     path_save = what(path_save); path_save = path_save.path;
-    path_save = sprintf('%s/%i_%i_%i',path_save,cs_mtx(1),cs_mtx(2),cs_mtx(3));
+    path_save = sprintf('%s/b0_%s_%i_%i_%i',path_save,scan,cs_mtx(1),cs_mtx(2),cs_mtx(3));
     save_file_b0 = sprintf('%s/B0_masked_sm.nii',path_save);
     
     tmp = 'y';

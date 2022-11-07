@@ -1,11 +1,11 @@
-%numRuns=length(dir('S*.nii'));
+
 addpath(genpath('/home/amonreal/Documents/PhD/tools/spm12'))
-% cd /home/amonreal/Documents/PhD/PhD_2022/sosp_vaso/analysis/renzo_example/EPI_analysis/
 
-cd /home/amonreal/Documents/PhD/PhD_2022/sosp_vaso/data/09192022_sv/analysis/sv_09/
+cd /home/amonreal/Documents/PhD/PhD_2022/sosp_vaso/data/_10292022_sv_2/analysis/cv_01_02/
 
-% cd /mnt/ssh/var/www/dabeast/5T3/Alejandro/sosp_vaso/data/09192022_sv/analysis/sv_09/
+spm_figure('GetWin','Graphics');
 
+%numRuns=length(dir('S*.nii'));
 clear;
 fileID = fopen('NT.txt','r');
 nTRs = fscanf(fileID,'%f');
@@ -75,19 +75,4 @@ spm('defaults','FMRI')
 spm_jobman('initcfg');
 spm_jobman('run',matlabbatch);
 
-% exit
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+exit

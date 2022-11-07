@@ -7,9 +7,9 @@ function fn_coil_sensitivities(folder,scan,file,params)
     tmp = 'y';
     
     if ncc > 0
-        save_file = sprintf('./data/%s/acq/cs_%i_%i_%i_cc%i.mat',folder,cs_mtx(1),cs_mtx(2),cs_mtx(3),ncc);
+        save_file = sprintf('./data/%s/acq/cs_%s_%i_%i_%i_cc%i.mat',folder,scan,cs_mtx(1),cs_mtx(2),cs_mtx(3),ncc);
     else
-        save_file = sprintf('./data/%s/acq/cs_%i_%i_%i.mat',folder,cs_mtx(1),cs_mtx(2),cs_mtx(3));
+        save_file = sprintf('./data/%s/acq/cs_%s_%i_%i_%i.mat',folder,scan,cs_mtx(1),cs_mtx(2),cs_mtx(3));
     end
     
     if exist(save_file,'file') > 1

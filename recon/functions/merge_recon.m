@@ -3,13 +3,14 @@ clear all; clc
 cd /mnt/5T3/Alejandro/sosp_vaso/
 addpath(genpath('../tools/as'))
 
-folder = '09192022_sv';
-scan = 'sv_05';
+folder = '11012022_abc';
+scan = 'abc_02';
 b0 = '';           % b0='','romeo','gilad','skope'
 traj = 'nom';           % 'nom', 'sk'
-rep = 12;                % If its only one rep=1, it will use rep2 and won't do time series...
+rep = 400;                % If its only one rep=1, it will use rep2 and won't do time series...
 is2d = 0;
-contrasts = ["b"];  % "v","b","abc"
+contrasts = ["abc"];  % "v","b","abc"
+rotate = false;
 
 % root = '/mnt/ssh/var/www/dabeast/5T3/Alejandro/sosp_vaso';
 root = '/mnt/5T3/Alejandro/sosp_vaso';
@@ -72,16 +73,20 @@ else
 end
 end
 
-merged = merged.*1e3;
+merged = merged.*10e3;
+
+% % Sometimes I need to scale it even more
+merged = merged.*1e5;
 
 % Adding nifti information
 % info = niftiinfo(sprintf('./data/%s/recon/3d/%s_v_rep%i_3d_mrreco.nii',folder,scan,1));
-info = niftiinfo(sprintf('./data/%s/recon/3d/%s_v_rep%i_3d_nom_mrreco.nii',folder,'sv_01',2));
+% Reading dummy nifti to get info
+info =  niftiinfo(sprintf('./data/%s/recon/%s_v_3d_nom_mrreco.nii','10062022_sv_abc','sv_01'));
 info.PixelDimensions = params.gen.res*1000;
 info.PixelDimensions(4) = params.gen.volTR;
 info.ImageSize = params.gen.n;
 info.ImageSize(3) = info.ImageSize(3).*params.gen.kz;
-if rep>1
+if rep>1 && length(contrasts) >1
     info.ImageSize(4) = rep*2;
 else
     info.ImageSize(4) = rep;
@@ -92,21 +97,34 @@ info.TransformName = 'Sform';
 info.Transform.T(1,1) = params.gen.res(1)*1000;
 info.Transform.T(2,2) = params.gen.res(2)*1000;
 info.Transform.T(3,3) = params.gen.res(3)*1000;
+info.Filemoddate = string(datetime('today','Format','y-MM-d'));
+
+tmp = strjoin(contrasts,'');
+
+% Rotate the file if needed
+if rotate
+    merged = rot90(merged,-1);
+    info.Transform.T(1,1) = params.gen.res(2)*1000;
+    info.Transform.T(2,2) = params.gen.res(1)*1000;
+    info.ImageSize(1) = params.gen.n(2);
+    info.ImageSize(2) = params.gen.n(1);
+end
+
 
 if is2d == 1
     if isempty(b0)
-%         niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_2d3d_%s_mrreco.nii',root,folder,scan,traj),info)
-        niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_2d3d_%s_mrreco.nii',root,folder,scan,traj))
+        niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_%s_2d3d_%s_mrreco.nii',root,folder,scan,tmp,traj),info)
+%         niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_2d3d_%s_mrreco.nii',root,folder,scan,traj))
     else
-%         niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_2d3d_b0_%s_%s_mrreco.nii',root,folder,scan,traj,b0),info)
-        niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_2d3d_b0_%s_%s_mrreco.nii',root,folder,scan,traj,b0))
+        niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_%s_2d3d_b0_%s_%s_mrreco.nii',root,folder,scan,tmp,traj,b0),info)
+%         niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_2d3d_b0_%s_%s_mrreco.nii',root,folder,scan,traj,b0))
     end
 else
     if isempty(b0)
-%         niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_3d_%s_mrreco.nii',root,folder,scan,traj),info)
-        niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_3d_%s_mrreco.nii',root,folder,scan,traj))
+        niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_%s_3d_%s_mrreco.nii',root,folder,scan,tmp,traj),info)
+%         niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_3d_%s_mrreco.nii',root,folder,scan,traj))
     else
-%         niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_3d_%s_b0_%s_mrreco.nii',root,folder,scan,traj,b0),info)
-        niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_3d_%s_b0_%s_mrreco.nii',root,folder,scan,traj,b0))
+        niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_%s_3d_%s_b0_%s_mrreco.nii',root,folder,scan,tmp,traj,b0),info)
+%         niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_3d_%s_b0_%s_mrreco.nii',root,folder,scan,traj,b0))
     end
 end
