@@ -122,7 +122,7 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
             end
             spiral_grad_shape = padarray(spiral_grad_shape,[0 tmp-size(spiral_grad_shape,2) 0],'pre'); 
         end
-
+        
         if params.spi.type == 1
            spiral_grad_shape = padarray(spiral_grad_shape,[0 10 0],'post');  
         end
@@ -169,9 +169,11 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
 % % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%% Lusing approach %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        % Adding adc deadtime and 
+        % time = time+lims.adcDeadTime;
         adcSamples = round(time./adcDwell);
         % In SIEMENS number of ADC samples should be divisible by 4
-        adcSamples = floor(adcSamples/4)*4;  
+        adcSamples = ceil(adcSamples/4)*4;  
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
         % Getting the correct number to split the ADC
@@ -207,9 +209,9 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
 
     %% Checking forbidden frequencies
     check_forbbiden_fq(squeeze(spiral_grad_shape(1,:,1,1)),false)
-    title('Forbidden Frequencies Gx')
+    % title('Forbidden Frequencies Gx')
     check_forbbiden_fq(squeeze(spiral_grad_shape(2,:,1,1)),false)
-    title('Forbidden Frequencies Gy')
+    % title('Forbidden Frequencies Gy')
 
 
 end

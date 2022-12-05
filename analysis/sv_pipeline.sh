@@ -12,22 +12,20 @@ cp /home/amonreal/Documents/PhD/PhD_2022/sosp_vaso/analysis/youtube/gnuplot_moco
 # cp /home/amonreal/Documents/PhD/PhD_2022/sosp_vaso/analysis/youtube/
 
 #### 2) MOTION CORRECTION (modify cp path in mocobatch.m):
-path=$(ls -1 ../cv_*.nii | head -n 1)
+path=$(ls -1 ../sv_01*.nii | head -n 1)
 dir=$(pwd)
 
 3dAutomask -prefix moma.nii -peels 3 -dilate 2 ${path}
 #3dAutomask -prefix moma.nii -peels 3 -dilate 2 *v_0*.nii 
 
-cp ./*v_0* ./Basis_a.nii
+cp ../*sv_01*.nii ./Basis_a.nii
 3dTcat -prefix Basis_a.nii Basis_a.nii'[4..7]' Basis_a.nii'[4..$]' -overwrite
 cp ./Basis_a.nii ./Basis_b.nii
 
 3dinfo -nt Basis_a.nii >> NT.txt
 3dinfo -nt Basis_b.nii >> NT.txt
 
-###### 3) STOP HEREE...... OPEN MATLAB..... ############
-###### For now, open matlab and run file mocobatch.m and make sure you change the path cd... in the .m file.... ########
-###### STOP HEREE...... OPEN MATLAB..... ############
+###### 3) Motion Correction
 matlab -nodesktop -nosplash -r "fn_mocobatch_flex "${dir}
 
 gnuplot "gnuplot_moco.txt"
@@ -130,7 +128,6 @@ echo "BOLD based on GLM"
 3dcalc -overwrite -a activationmap.nii -expr 'step(a-1.8)' -prefix binarised_output.nii
 
 3dROIstats -mask binarised_output.nii -1DRformat -quiet time_series.nii > timecourse.dat
-
 
 
 #### 7) Possible smoothing
