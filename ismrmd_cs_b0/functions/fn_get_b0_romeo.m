@@ -132,17 +132,35 @@ function fn_get_b0_romeo(folder,scan,file,params)
         % tmp = '[8.14,17.11,23,25.01,27.02,32.11,55,60,65]';  % This has to be read from the .dat file and saved in a variable
         % For 9 echos fieldmap
         te = string((params.twix_params_b0.TE(1:9))/1000);
-        te = strcat('[',te(1),',',te(2),',',te(3),',',te(4),',',te(5),',',te(6),',',te(7),',',te(8),',',te(9),']');
+       te = strcat('[',te(1),',',te(2),',',te(3),',',te(4),',',te(5),',',te(6),',',te(7),',',te(8),',',te(9),']');
         % For 3 echos fieldmap
 %         te = string((params.twix_params_b0.TE(1:4))/1000);
 %         te = strcat('[',te(1),',',te(2),',',te(3),',',te(4),']');
         romeo_settings = ...
-            sprintf('romeo -p %s/%s_ph.nii -m %s/%s_mag.nii -k nomask -t %s -o %s --coil-combination --compute-B0 --phase-offset-correction', ...
+            sprintf('romeo -p %s/%s_ph.nii -m %s/%s_mag.nii -k nomask -t %s -o %s --compute-B0 --phase-offset-correction', ...
             path_save,file,path_save,file,te,path_save);
-
+        
+        % te = (params.twix_params_b0.TE(1:9))/1000;
+        parameters.output_dir = path_save;
+        parameters.TE = te;
+        parameters.mag = load_nii(sprintf('%s/%s_mag.nii',path_save,file));
+        parameters.mag = parameters.mag.img;
+        parameters.mask = 'nomask';
+        parameters.calculate_B0 = true;
+        parameters.phase_offset_correction = 'off';
+        parameters.voxel_size = load_nii_hdr(sprintf('%s/%s_ph.nii',path_save,file));
+        parameters.voxel_size = parameters.voxel_size.dime.pixdim(2:4);
+        parameters.additional_flags = '--verbose -q -i';
+        phase = load_nii(sprintf('%s/%s_ph.nii',path_save,file));
+        phase = phase.img;
+        
         fprintf('Calculating the B0 maps using ROMEO...')
-        system(romeo_settings);
+        % [unwrapped,b0] = ROMEO(phase,parameters);
+        % system(romeo_settings);
         fprintf('B0 map saved as path %s/B0.nii \n',path_save);
+        
+        fprintf('For now ROMEO from Matlab is not working.... paste this in the command line and run script again')
+        fprintf(sprintf('\n %s', romeo_settings)) 
 
         % Masking
         b0 = niftiread(sprintf('%s/B0.nii',path_save));
@@ -153,28 +171,28 @@ function fn_get_b0_romeo(folder,scan,file,params)
         b0(isnan(b0)) = 0;
         
        % Changing resolution of B0 for Sensitivities
-        if cs_mtx(1) > x
-            b0=FFT_3D(b0,'kspace');
-            if mod(size(b0,3),2)>0
-                b0=padarray(b0,[(cs_mtx(1)-x)/2,(cs_mtx(2)-y)/2,0],'both');
-                b0=padarray(b0,[0,0,floor((cs_mtx(3)-z)/2)],'pre');
-                b0=padarray(b0,[0,0,(floor((cs_mtx(3)-z)/2))+1],'post');
-            else
-                b0=padarray(b0,[(cs_mtx(1)-x)/2,(cs_mtx(2)-y)/2,(cs_mtx(3)-z)/2],'both');
-            end
-            b0=FFT_3D(b0,'image');
-        else
-            b0 = FFT_1D(b0,'kspace',3);
-            if mod(size(b0,3),2)>0
-                b0=padarray(b0,[0,0,floor((cs_mtx(3)-z)/2)],'pre');
-                b0=padarray(b0,[0,0,(floor((cs_mtx(3)-z)/2))+1],'post');
-            else
-                b0 = padarray(b0,[0,0,ceil((cs_mtx(3)-z)/2),0],'both');
-            end
-            b0 = FFT_1D(b0,'image',3);
-%             b0 = FFT_2D(b0,'image',1,2);
-%             b0 = imresize(b0,[cs_mtx(1) cs_mtx(2)]);
-        end
+%         if cs_mtx(1) > x
+%             b0=FFT_3D(b0,'kspace');
+%             if mod(size(b0,3),2)>0
+%                 b0=padarray(b0,[(cs_mtx(1)-x)/2,(cs_mtx(2)-y)/2,0],'both');
+%                 b0=padarray(b0,[0,0,floor((cs_mtx(3)-z)/2)],'pre');
+%                 b0=padarray(b0,[0,0,(floor((cs_mtx(3)-z)/2))+1],'post');
+%             else
+%                 b0=padarray(b0,[(cs_mtx(1)-x)/2,(cs_mtx(2)-y)/2,(cs_mtx(3)-z)/2],'both');
+%             end
+%             b0=FFT_3D(b0,'image');
+%         else
+%             b0 = FFT_1D(b0,'kspace',3);
+%             if mod(size(b0,3),2)>0
+%                 b0=padarray(b0,[0,0,floor((cs_mtx(3)-z)/2)],'pre');
+%                 b0=padarray(b0,[0,0,(floor((cs_mtx(3)-z)/2))+1],'post');
+%             else
+%                 b0 = padarray(b0,[0,0,ceil((cs_mtx(3)-z)/2),0],'both');
+%             end
+%             b0 = FFT_1D(b0,'image',3);
+% %             b0 = FFT_2D(b0,'image',1,2);
+% %             b0 = imresize(b0,[cs_mtx(1) cs_mtx(2)]);
+%         end
         b0 = imresize(b0,[cs_mtx(1) cs_mtx(2)]);
         b0 = real(b0);
         
@@ -182,10 +200,16 @@ function fn_get_b0_romeo(folder,scan,file,params)
         niftiwrite(b0,sprintf('%s/B0_masked.nii',path_save));
 
         % Smoothing, for now just a gauss filter
-        b0 = imgaussfilt(b0,2);
+        % b0 = imgaussfilt(b0,2);
+        % Remove gaps and smooth
+        tmp = abs(ech1);
+        for s=1:z
+            disp(['Sli #' num2str(s)])
+            b0(:,:,s) = FitB0ToRemoveGaps(b0(:,:,s),tmp(:,:,s),5);
+        end
 
         % Saving masked smoothed map
-        niftiwrite(b0,sprintf('%s/B0_masked_sm.nii',path_save));
+        niftiwrite(b0,sprintf('%s/B0_sm.nii',path_save));
 
         % Saving mask
         niftiwrite(msk,sprintf('%s/mask.nii',path_save));

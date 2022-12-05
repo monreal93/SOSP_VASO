@@ -47,7 +47,7 @@ function fn_create_ismrmd(folder,scan,params)
     
     % Check selection:
     if tmp == 'n'
-            fprintf('B0 map not generated \n');  
+            fprintf('ISMRMD files not generated \n');  
             return
     elseif tmp == 'y'
         % Load K-space data
@@ -60,6 +60,36 @@ function fn_create_ismrmd(folder,scan,params)
             load(['./data/' folder '/raw/' scan '_ks_abc.mat']);
             ks_abc_all = ks_abc;
         end
+        
+%  %%%%%%%%%%%%%%%%%%% DEMO: Perform phase correction...
+%         % Do I want to do separate VASO  and BOLD?
+%         f_nav = 300;
+%         l_nav = 400;
+%         te = 1.9e-3;
+%         tau = 2.5e-3;
+%         ref_rep = 20;
+%         ks_tmp_b =  mean(ks_bold_all,4);
+% %         ks_tmp_b = angle(ks_tmp_b(f_nav:l_nav,:,:));
+%         ks_tmp_b = ks_tmp_b(f_nav:l_nav,:,:);
+%         ks_tmp_b = ks_tmp_b./abs(ks_tmp_b);
+%         nav0_b = (ks_tmp_b(:,params.gen.n(3)/2,ref_rep));
+%         ks_tmp_v =  mean(ks_vaso_all,4);
+% %         ks_tmp_v = angle(ks_tmp_v(f_nav:l_nav,:,:));
+%         ks_tmp_v = ks_tmp_v(f_nav:l_nav,:,:);
+%         ks_tmp_v = ks_tmp_v./abs(ks_tmp_v);
+%         nav0_v = (ks_tmp_v(:,params.gen.n(3)/2,ref_rep));
+%         for i =1:params.repetitions
+%             nav_b = (ks_tmp_b(:,params.gen.n(3)/2,i));
+%             del_b = mean(nav0_b-nav_b)/(2*pi*tau);
+%             ks_bold_new(:,:,i,:) =  FFT_1D(ks_bold_all(:,:,i,:),'image',1).*exp(-1i*2*pi*del_b*te);
+%             nav_v = (ks_tmp_v(:,params.gen.n(3)/2,i));
+%             del_v = mean(nav0_v-nav_v)/(2*pi*tau);
+%             ks_vaso_new(:,:,i,:) =  FFT_1D(ks_vaso_all(:,:,i,:),'image',1).*exp(-1i*2*pi*del_v*te);
+%         end
+%         ks_bold_all = FFT_1D(ks_bold_new,'kspace',1);
+%         ks_vaso_all = FFT_1D(ks_vaso_new,'kspace',1);
+%         clearvars ks_bold_new ks_vaso_new    
+% %%%%%%%%%%%%%%%%%%%%%%%%%
         
         % If is 2D, repeat this for every slice
         if params.is2d
@@ -131,7 +161,7 @@ function fn_create_ismrmd(folder,scan,params)
                     ks_traj.ky = ks_traj.ky.*-1;        % Swaping nominal trajectory to match scaner one
                 end
 
-                %%% Temp: Discaring corrupted samples
+%%%%%%%% DEMO: Discaring crop corrupted samples
                 st_crop = find(ks_traj.kx(:,1));
                 st_crop = st_crop(1); st_crop = floor(st_crop/10)*10+1;
                 ks_traj.kx = ks_traj.kx(st_crop:end,:);
@@ -143,22 +173,25 @@ function fn_create_ismrmd(folder,scan,params)
                 elseif params.gen.seq == 2
                     ks_abc = ks_abc(st_crop:end,:,:);
                 end
-                % Updating params...
-                params.nx = length(ks_traj.kx);
-                params.gen.t_vector = params.gen.t_vector(st_crop:end);
-                params.spi.ro_samples = length(ks_traj.kx);
-                save(sprintf('./data/%s/acq/%s_params.mat',folder,scan),'params');
-                %%%%%
-                
-                
-%                 % Correcting for gradient Delay
-%                 g_delay = 89e-9;
-%                 kx = interp1(params.gen.t_vector,ks_traj.kx,params.gen.t_vector+g_delay,'linear','extrap');
-%                 ky = interp1(params.gen.t_vector,ks_traj.ky,params.gen.t_vector+g_delay,'linear','extrap');
-%                 kz = interp1(params.gen.t_vector,ks_traj.kz,params.gen.t_vector+g_delay,'linear','extrap');
-%                 ks_traj.kx = kx;
-%                 ks_traj.ky = ky;
-%                 ks_traj.kz = kz;
+                % Updating params, only once
+                if length(ks_traj.kx) ~= length(params.gen.t_vector)
+                    params.nx = length(ks_traj.kx);
+                    params.gen.t_vector = params.gen.t_vector(st_crop:end);
+                    params.spi.ro_samples = length(ks_traj.kx);
+                    params.gen.ro_samples = length(ks_traj.kx);
+                    save(sprintf('./data/%s/acq/%s_params.mat',folder,scan),'params');
+                end
+%%%%%%%%%%%%%%%%%%%%%%%%
+                    
+%%%%%%%%%%%%%% DEMO: Correcting for gradient Delay
+                g_delay = 2e-6;
+                kx = interp1(params.gen.t_vector,ks_traj.kx,params.gen.t_vector-g_delay,'linear','extrap');
+                ky = interp1(params.gen.t_vector,ks_traj.ky,params.gen.t_vector-g_delay,'linear','extrap');
+                kz = interp1(params.gen.t_vector,ks_traj.kz,params.gen.t_vector-g_delay,'linear','extrap');
+                ks_traj.kx = kx;
+                ks_traj.ky = ky;
+                ks_traj.kz = kz;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
             %     % Cropping trajctory to center and edges of kspace, if its from Skope is
             %     % should be cropped manually before
@@ -178,25 +211,17 @@ function fn_create_ismrmd(folder,scan,params)
                 % Normalize and interpolate trajectory
                 ks_traj = norm_interp_traj(ks_traj.kx,ks_traj.ky,ks_traj.kz,params.nx*params.spi.interl);
 
-            %     %%%%%%%%% Temp, Trying to match RECON as in gpuNUFFT
-            %     % shifting BOLD slices
-            %     tmp = FFT_3D(ks_bold,'image');
-            %     tmp = circshift(tmp,[0,8,0,0]);
-            %     tmp = FFT_3D(tmp,'kspace');
-            % %     tmp = FFT_1D(tmp,'image',2);  % Putting it in the hyb dom to work as 2D 
-            %     ks_bold = tmp;
-            %     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-                % Temp: FFT shift data, for now only spiral, not sure if
+%%%%%%%%%%%%%% DEMO: FFT shift data, for now only spiral, not sure if
                 % needed for cartesian
                 if params.gen.ro_type == 's'
                     if params.gen.seq == 1
-                        ks_vaso = fft_shift_2D(ks_vaso,ks_traj.kx,round(params.twix_params_b0.shift/params.res(2)./10000),ks_traj.ky,0); % 14,31
-                        ks_bold = fft_shift_2D(ks_bold,ks_traj.kx,round(params.twix_params_b0.shift/params.res(2)./10000),ks_traj.ky,0);
+                        ks_vaso = fft_shift_2D(ks_vaso,ks_traj.kx,(params.twix_params_b0.shift/params.res(2)./10000),ks_traj.ky,0); % 14,31
+                        ks_bold = fft_shift_2D(ks_bold,ks_traj.kx,(params.twix_params_b0.shift/params.res(2)./10000),ks_traj.ky,0);
                     elseif params.gen.seq == 2
                         ks_abc = fft_shift_2D(ks_abc,ks_traj.kx,round(params.twix_params_b0.shift/params.res(2)./10000),ks_traj.ky,0);
                     end
                 end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
                 
                 % Subseting data if is 2d
                 if params.is2d==1 
@@ -222,15 +247,6 @@ function fn_create_ismrmd(folder,scan,params)
                 ks_traj.ky = permute(ks_traj.ky,[3,2,1]);
                 ks_traj.kz = permute(ks_traj.kz,[3,2,1]);
 
-                % %%%%%%%%% Temp, Trying to match RECON as in gpuNUFFT
-                % % shifting BOLD slices
-                % tmp = FFT_3D(ks_bold,'image');
-                % tmp = circshift(tmp,[0,8,0,0]);
-                % tmp = FFT_3D(tmp,'kspace');
-                % tmp = FFT_1D(tmp,'image',2);  % Putting it in the hyb dom to work as 2D 
-                % ks_bold = tmp;
-                % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                % 
                 % % Subseting data if is 2d
                 % if params.is2d==1
                 %     ks_traj.kx = ks_traj.kx(:,slice_to_save);

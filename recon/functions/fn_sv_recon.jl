@@ -31,14 +31,13 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
     # load B0 map, romeo/skope-i
     if params_sv[:do_b0_corr]   
         if params_sv[:b0_type] == "romeo"
-            b0 = niread(string(params_sv[:path],"acq/romeo/b0_",params_sv[:scan],"_",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"/B0_masked_sm.nii")); # From Romeo
-            # b0 = niread(string(params_sv[:path],"acq/romeo/",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"/B0_masked.nii")); # From Romeo
+            b0 = niread(string(params_sv[:path],"acq/romeo/b0_",params_sv[:scan],"_",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"/B0_sm.nii")); # From Romeo
+            # b0 = niread(string(params_sv[:path],"acq/romeo/b0_",params_sv[:scan],"_",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"/B0_masked_removegaps.nii")); # From Romeo
             b0 = b0.raw;
             replace!(b0, NaN=>0);
-            # b0 = b0.*2π;
             # AMM: Temp: Trying to scale
-            b0 = b0.*2π
-            b0 = b0.*-0.5 # (-2.5), it seems like I have to adjust this value "scale" each b0 differently...
+            b0 = b0.*2π.*-1
+            # b0 = b0.*-1 # (-2.5), it seems like I have to adjust this value "scale" each b0 differently...
             b0 = reverse(b0,dims = 1);
         elseif params_sv[:b0_type] == "gilad"
             b0 = niread(string(params_sv[:path],"acq/gilad/b0_",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],"_gilad.nii")); # From Gilad's
@@ -110,21 +109,28 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
     params[:iterations] = 10;
     params[:solver] = "cgnr";
     params[:senseMaps] = cs;
+    params[:method] = "leastsquare";
 
-    # if params_sv[:do_b0_corr]
-    #     params[:correctionMap] = b0;
-    # end
+    if params_sv[:do_b0_corr]
+        params[:correctionMap] = b0;
+    end
 
     # Loop for vaso and bold, also for each echo..
     # contrasts = ["v","b"];
     contrasts = params_sv[:contrasts];
     # if only want to recon 1 rep (it will do rep 2)
     if params_sv[:multiRepetitions] == false
-        params_sv[:repetitions] = 2;
-        f_rep = 2;
+        params_sv[:repetitions] = params_sv[:rep_recon];
+        f_rep = params_sv[:rep_recon];
     else
-        f_rep = params_sv[:f_rep];
+        # f_rep = params_sv[:f_rep]
+        f_rep = 1
     end
+
+
+    # params_sv[:repetitions] = 1
+    # AMM: Infiltrate
+    # @infiltrate
 
     for i=f_rep:params_sv[:repetitions]
         for k=1:params_sv[:sl]
@@ -142,7 +148,7 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
                     if params_sv[:id] == "2d"
                         file=ISMRMRDFile(string(params_sv[:path],"ismrmd/2d/",params_sv[:scan],"_r",i,"_sl",params_sv[:sl_reco],"_",params_sv[:id],"_",params_sv[:traj_type] ,".h5"));
                     else
-                        file=ISMRMRDFile(string(params_sv[:path],"ismrmd/3d/",params_sv[:scan],"_r",i,"_",params_sv[:id],"_",params_sv[:traj_type] ,".h5"));
+                        file=ISMRMRDFile(string(params_sv[:path],"ismrmd/3d/",params_sv[:scan],"_",params_sv[:id],"_r",i,"_",params_sv[:traj_type] ,".h5"));
                         # file=ISMRMRDFile(string(params_sv[:path],"ismrmd/3d/",params_sv[:scan],"_",params_sv[:id],"_",params_sv[:traj_type] ,".h5"));
                     end
                 else
@@ -152,7 +158,7 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
                     # file=ISMRMRDFile(string(params_sv[:path],"ismrmd/2d/",params_sv[:scan],"_",contrasts[j],"_",params_sv[:id],"_",params_sv[:traj_type] ,".h5"));
                     else
                         # file=ISMRMRDFile(string(params_sv[:path],"ismrmd/3d/",params_sv[:scan],"_",contrasts[j],"_",params_sv[:id],"_",params_sv[:traj_type] ,".h5"));
-                        file=ISMRMRDFile(string(params_sv[:path],"ismrmd/3d/",params_sv[:scan],"_",contrasts[j],"_",params_sv[:id],"_r",i,"_",params_sv[:traj_type] ,".h5"));
+                        file=ISMRMRDFile(string(params_sv[:path],"ismrmd/3d/",params_sv[:scan],"_",contrasts[j],"_r",i,"_",params_sv[:id],"_",params_sv[:traj_type] ,".h5"));
                     end
                 end
 
@@ -160,7 +166,6 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
                 # file = ISMRMRDFile("/usr/share/sosp_vaso/data/10132022_sv/ismrmd/2d/sv_01_v_2d_r2_nom.h5")
                 acqData = AcquisitionData(file);
 
-                @infiltrate
                 
                 # get the number of samples per readout, if its 3d, need to divide by # of slices
                 if params_sv[:is2d]
@@ -169,6 +174,8 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
                     n_samples = acqData.traj[1].numSamplingPerProfile/params_sv[:sl];
                 end
 
+                @infiltrate
+                
                 # adjust TE and TAQ after read-in, create times vector for one readout
                 tAQ = (n_samples-1) * params_sv[:dt];
                 acqData.traj[1].AQ = tAQ;                   # Lars: important for B0 correction
@@ -182,6 +189,9 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
                 if !params_sv[:is2d]
                     times = repeat(times,Int(params_sv[:sl]/params_sv[:kz]))';
                 end
+                
+                # AMM:
+                @infiltrate
 
                 acqData.traj[1].times = vec(times);
                 acqData.traj[1].TE = params_sv[:TE];
@@ -213,15 +223,14 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
 
                 Ireco_mag = NIVolume(abs.(Ireco[:,:,:,1,1,:]));
 
-                @infiltrate
 
                 if params_sv[:is2d]
                     save_name = string(params_sv[:path],"recon/2d/",params_sv[:scan],"_",contrasts[j],"_sl",k,"_rep",i,"_",params_sv[:id],"_",params_sv[:traj_type] );
                     # save_name = string(params_sv[:path],"recon/2d/",params_sv[:scan],"_",contrasts[j],"_rep",i,"_",params_sv[:id],"_",params_sv[:traj_type] );
                     # save_name = string(params_sv[:path],"recon/2d/",params_sv[:scan],"_",contrasts[j],"_",params_sv[:id],"_",params_sv[:traj_type] );
                 else
-                    save_name = string(params_sv[:path],"recon/3d/",params_sv[:scan],"_",contrasts[j],"_rep",i,"_",params_sv[:id],"_",params_sv[:traj_type] );
-                    # save_name = string(params_sv[:path],"recon/3d/",params_sv[:scan],"_",contrasts[j],"_",params_sv[:id],"_",params_sv[:traj_type] );
+                    # save_name = string(params_sv[:path],"recon/3d/",params_sv[:scan],"_",contrasts[j],"_rep",i,"_",params_sv[:id],"_",params_sv[:traj_type] );
+                    save_name = string(params_sv[:path],"recon/3d/",params_sv[:scan],"_",contrasts[j],"_",params_sv[:id],"_",params_sv[:traj_type] );
                 end
 
                 if params_sv[:do_b0_corr] 

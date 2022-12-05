@@ -3,6 +3,8 @@ using MRIReco, MAT, NIfTI, MriResearchTools
 using Revise
 using Infiltrator
 
+using MRIFiles
+
 include("./functions/fn_sv_recon.jl")
 include("./functions/fn_save_nii.jl")
 # include("./functions/fn_ismrmd.jl")
@@ -12,11 +14,12 @@ params = Dict{Symbol, Any}()
 # @info string("Reconstructing scan ", ARGS[1], ", contrast ", ARGS[2])
 
 params[:plt] = false;
-params[:do_b0_corr] = false;
+params[:do_b0_corr] = true;
 params[:b0_type] = "romeo";                     # B0 map from: "romeo" , "gilad", "skope"               
-params[:is2d] = false;
+params[:is2d] = true;
 params[:multiRepetitions] = false;              # Reconstruct multiple repetitions, if false = 2nd rep will be reconstructed
-params[:contrasts] = ["v","b"];                # Contrasts to recon v,b or both 
+params[:rep_recon] = 40;                    # Rep to recon if multiRepetitions=false
+params[:contrasts] = ["b"];                # Contrasts to recon v,b or both 
 params[:traj_type] = "nom";                 # Trajectory type nominal="nom",skope="sk"
 params[:save_ph] = 0;                       # Save phase of recon as nifti
 # contrasts = ["b","v"];
@@ -27,9 +30,9 @@ params[:save_ph] = 0;                       # Save phase of recon as nifti
 
 # Some parameters
 # params[:scan] = "sv_01";                       # sv_#_b (scan # Bold) or sv_#_v (scan # Vaso)
-scans = ["sv_06"]; #,"sv_02","sv_03","sv_04","sv_05"];
+scans = ["sv_01"]; #,"sv_02","sv_03","sv_04","sv_05"];
 # params[:scan] = ARGS[1];
-params[:directory] = "data/09302022_sv/"        # directory where the data is stored
+params[:directory] = "data/10292022_sv_2/"        # directory where the data is stored
 
 # Find out if script is running in laptop/dabeast/docker
 path_tmp = pwd();
@@ -62,12 +65,13 @@ end
         params[:nCoils] = Int(twix_params["ch"]);                    # number of receiver coils
         params[:kz] = Int(pulseq_params["gen"]["kz"]);
         params[:repetitions]  = Int(twix_params["repetitions"]);     # Number of repetitions
-        # params[:dt] = twix_params["dwell"]                      # acquisition dwell time [s]
+        params[:dt] = twix_params["dwell"]                      # acquisition dwell time [s]
         # params[:dt] = 2e-6;                      		 # acquisition dwell time [s]
-        # params[:TE] = 2.3e-3; #pulseq_params["gen"]["TE"]; 
+        params[:TE] = 1.9e-3; #pulseq_params["gen"]["TE"]; 
         # params[:sl_reco] = Int(twix_params["sl_to_recon"]);                          # slice to reconstruct if is2d = true
         params[:times] = pulseq_params["gen"]["t_vector"];		# Times vector for B0 correction
         params[:seq] = pulseq_params["gen"]["seq"];
+
         if params[:seq] == 2
             params[:contrasts] = ["abc"];
         end
@@ -89,10 +93,10 @@ end
         # If it is 2D, loop over all slices
 
         if params[:is2d]
-            for j=1:params[:sl]
-                params[:sl_reco] = j;
+            # for j=1:params[:sl]
+                # params[:sl_reco] = j;
                 @time fn_sv_recon(params)
-            end
+            # end
         else
             @time fn_sv_recon(params)
         end

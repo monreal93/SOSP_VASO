@@ -3,13 +3,14 @@ clear all; clc
 cd /mnt/5T3/Alejandro/sosp_vaso/
 addpath(genpath('../tools/as'))
 
-folder = '11012022_abc';
-scan = 'abc_02';
-b0 = '';           % b0='','romeo','gilad','skope'
+folder = '10292022_sv_2';
+scan = 'sv_01';
+b0 = 'romeo';           % b0='','romeo','gilad','skope'
 traj = 'nom';           % 'nom', 'sk'
-rep = 400;                % If its only one rep=1, it will use rep2 and won't do time series...
-is2d = 0;
-contrasts = ["abc"];  % "v","b","abc"
+reps = 1;                % If its only one rep=1, it will use rep2 and won't do time series...
+rep_recon = 40;          % Rep to recon if reps =1
+is2d = 1;
+contrasts = ["b"];  % "v","b","abc"
 rotate = false;
 
 % root = '/mnt/ssh/var/www/dabeast/5T3/Alejandro/sosp_vaso';
@@ -20,16 +21,16 @@ load(sprintf('%s/data/%s/acq/%s_params.mat',root,folder,scan))
 
 if (contains(scan,'sv') || contains(scan,'cv')) && length(contrasts) == 2
 %     contrasts = ["v","b"];
-    merged = zeros([params.gen.n rep*2]);
+    merged = zeros([params.gen.n reps*2]);
 else
 %     contrasts = "abc";
-    merged = zeros([params.gen.n rep]);
+    merged = zeros([params.gen.n reps]);
 end
 
 k = 1;
-for j=1:rep
-    if rep == 1
-        j = j+1;
+for j=1:reps
+    if reps == 1
+        j = rep_recon;
     end
     if is2d == 1
         for i = 1:params.gen.n(3)
@@ -81,16 +82,24 @@ merged = merged.*1e5;
 % Adding nifti information
 % info = niftiinfo(sprintf('./data/%s/recon/3d/%s_v_rep%i_3d_mrreco.nii',folder,scan,1));
 % Reading dummy nifti to get info
-info =  niftiinfo(sprintf('./data/%s/recon/%s_v_3d_nom_mrreco.nii','10062022_sv_abc','sv_01'));
+info =  niftiinfo('brain.nii');
+
+% AMM: Need to double check this parameters:
+info.Description = sprintf('Scan %s %s',folder,scan);
+info.SliceCode = 'Sequential-Increasing';
+%%%%
 info.PixelDimensions = params.gen.res*1000;
-info.PixelDimensions(4) = params.gen.volTR;
 info.ImageSize = params.gen.n;
 info.ImageSize(3) = info.ImageSize(3).*params.gen.kz;
-if rep>1 && length(contrasts) >1
-    info.ImageSize(4) = rep*2;
-else
-    info.ImageSize(4) = rep;
+if reps > 1
+    info.PixelDimensions(4) = params.gen.volTR;
+    if reps>1 && length(contrasts) >1
+        info.ImageSize(4) = reps*2;
+    else
+        info.ImageSize(4) = reps;
+    end
 end
+info.SpaceUnits = 'Millimeter';
 info.TimeUnits = 'Second';
 info.Datatype = 'single';
 info.TransformName = 'Sform';
