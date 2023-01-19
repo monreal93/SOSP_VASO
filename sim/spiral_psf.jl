@@ -1,4 +1,5 @@
 using MAT, MRIReco, NIfTI
+using infiltrator, MIRTjim
 
 include("../recon/functions/fn_save_nii.jl")
 
@@ -17,6 +18,7 @@ else
     img[Int(mtx_s[1]/2),Int(mtx_s[2]/2),Int(mtx_s[3]/2)] = 1;
 end
 
+@infiltrate
 for i = 1:Int(length(scans))
 
     params =  matread(string("/usr/share/sosp_vaso/data/",directory,"/acq/",scans[i],"_params.mat"))
