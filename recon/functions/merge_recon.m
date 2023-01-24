@@ -5,11 +5,11 @@ addpath(genpath('../tools/as'))
 
 folder = '10292022_sv_2';
 scan = 'sv_01';
-b0 = 'romeo';           % b0='','romeo','gilad','skope'
+b0 = 'fessler';           % b0='','fessler','romeo','gilad','skope','fessler'
 traj = 'nom';           % 'nom', 'sk'
-reps = 1;                % If its only one rep=1, it will use rep2 and won't do time series...
-rep_recon = 40;          % Rep to recon if reps =1
-is2d = 1;
+reps = 144;                % If its only one rep=1, it will use rep2 and won't do time series...
+rep_recon = 1;          % Rep to recon if reps =1
+is2d = 0;
 contrasts = ["b"];  % "v","b","abc"
 rotate = false;
 

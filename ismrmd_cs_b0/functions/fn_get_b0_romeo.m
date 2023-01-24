@@ -77,18 +77,16 @@ function fn_get_b0_romeo(folder,scan,file,params)
             % Writing Niftis of mag and phase
             img_ph = angle(img);
             img_mag = abs(img);
-            niftiwrite(img_mag(:,:,z/2+1,:),sprintf('%s/%s_mag.nii',path_save,file))
-            niftiwrite(img_ph(:,:,z/2+1,:),sprintf('%s/%s_ph.nii',path_save,file))
+            niftiwrite(img_mag(:,:,z/2+1,:),sprintf('%s/%s_mag.nii',path_save,'fieldmap'))
+            niftiwrite(img_ph(:,:,z/2+1,:),sprintf('%s/%s_ph.nii',path_save,'fieldmap'))
         else        
             % Writing Niftis of mag and phase
             img_ph = angle(img);
             img_mag = abs(img);
-            niftiwrite(img_mag,sprintf('%s/%s_mag.nii',path_save,file))
-            niftiwrite(img_ph,sprintf('%s/%s_ph.nii',path_save,file))
+            niftiwrite(img_mag,sprintf('%s/%s_mag.nii',path_save,'fieldmap'))
+            niftiwrite(img_ph,sprintf('%s/%s_ph.nii',path_save,'fieldmap'))
         end
-
-
-        
+     
         % Writing resized Ech1 and Ech9 for future refererence
         tmp = rssq(img_mag,5);
         % tmp = imresize(tmp,[params.gen.n(1) params.gen.n(2)]);
@@ -143,15 +141,15 @@ function fn_get_b0_romeo(folder,scan,file,params)
         % te = (params.twix_params_b0.TE(1:9))/1000;
         parameters.output_dir = path_save;
         parameters.TE = te;
-        parameters.mag = load_nii(sprintf('%s/%s_mag.nii',path_save,file));
+        parameters.mag = load_nii(sprintf('%s/%s_mag.nii',path_save,'fieldmap'));
         parameters.mag = parameters.mag.img;
         parameters.mask = 'nomask';
         parameters.calculate_B0 = true;
         parameters.phase_offset_correction = 'off';
-        parameters.voxel_size = load_nii_hdr(sprintf('%s/%s_ph.nii',path_save,file));
+        parameters.voxel_size = load_nii_hdr(sprintf('%s/%s_ph.nii',path_save,'fieldmap'));
         parameters.voxel_size = parameters.voxel_size.dime.pixdim(2:4);
         parameters.additional_flags = '--verbose -q -i';
-        phase = load_nii(sprintf('%s/%s_ph.nii',path_save,file));
+        phase = load_nii(sprintf('%s/%s_ph.nii',path_save,'fieldmap'));
         phase = phase.img;
         
         fprintf('Calculating the B0 maps using ROMEO...')
