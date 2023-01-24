@@ -1,11 +1,10 @@
 clear all; clc
 % Change directory to path where sosp_vaso git has been cloned
-cd /home/amonreal/Documents/PhD/PhD_2022/sosp_vaso/
+cd /home/amonreal/Documents/PhD/PhD_2023/sosp_vaso/
 addpath(genpath("./pulseq/functions"))
 % Add path to pulseq installation folder
 addpath(genpath("/home/amonreal/Documents/PhD/tools/pulseq/"))
 addpath(genpath("/home/amonreal/Documents/PhD/tools/tOptGrad_V0.2/minTimeGradient/mex_interface/"))
-addpath(genpath("/home/amonreal/Documents/PhD/PhD_2022/BSc_students/"))
 
 %% ToDo
 % - Check exactly how the saturation pulse should be, what spoliers I need?
@@ -35,38 +34,38 @@ lims = mr.opts('MaxGrad',65,'GradUnit','mT/m',...
     'MaxSlew',190,'SlewUnit','T/m/s',...
     'rfRingdownTime', 20e-6,'rfDeadtime', 150e-6,'adcDeadTime', 10e-6, 'B0',6.98);  % To read it in VM I need rfDeadtime = 180e-6
 
-folder_name = '11012022_abc';         % Day I am scanning
+folder_name = '01162023_sv';         % Day I am scanning
 seq_name = 'sample';                        % use sv_n (n for the diff scans at each day)
-params.gen.seq = 2;                         % 1-VASO 2-ABC 3-Multi-Echo
+params.gen.seq = 1;                         % 1-VASO 2-ABC 3-Multi-Echo
 
 % General parameters
 params.gen.fov = [192 192 24].*1e-3;
 params.gen.res = [0.8 0.8 1].*1e-3;     % Target resoultion (for 0.8 use 0.78)
-params.gen.fa = 0;                 % Set to 0, to use Erns Angle
+params.gen.fa = 0;                  % Set to 0, to use Ernst Angle
 params.gen.ernst_t1 = 1800e-3;      % T1 to calculate Ernst Angle (s)
 params.gen.te = 0e-3;               % Set to 0 to shortest TE possible
 params.gen.ro_type = 's';           % 's'-Spiral, 'c'-Cartesian
 params.gen.kz = 1;                  % Acceleration in Kz
 params.gen.pf = 1;                  % Partial fourier in Kz
-params.gen.fat_sat = 0;             % Fat saturation (1=yes,0=no)
+params.gen.fat_sat = 1;             % Fat saturation (1=yes,0=no)
 params.gen.vfa = 0;                 % Variable FA, demo
-params.gen.skope = 1;               % Add skope sync scan and triggers, 0=N0, 1=sepscan, 2=same scan/concurrent(center partition)
+params.gen.skope = 0;               % Add skope sync scan and triggers, 0=N0, 1=sepscan, 2=same scan/concurrent(center partition)
 params.gen.dork = 0;                % extra adc's for DORK correction
-params.gen.kz_enc = 1;              % k-space partition encoding 0=linear,1=center-out For Cartesian now only linear encoding
+params.gen.kz_enc = 0;              % k-space partition encoding 0=linear,1=center-out For Cartesian now only linear encoding
          
 % Spiral parameters
 params.spi.type = 0;                % spiral type 0=spiral-Out , 1=spiral-In
-params.spi.rotate = 'none';         % Spiral rotation ('none','linear','golden'), linear not implemented
+params.spi.rotate = 'golden';         % Spiral rotation ('none','linear','golden'), linear not implemented
 params.spi.increment = 'linear';    % Spiral increment mode (for now only linear)
-params.spi.max_grad  = 35;          % Peak gradient amplitude for spiral (mT/m)  (35)
-params.spi.max_sr = 155;            % Max gradient slew rate for spiral (mT/m/ms) (155)
-params.spi.interl = 1;              % Spiral interleaves
+params.spi.max_grad  = 65;          % Peak gradient amplitude for spiral (mT/m)  (35)
+params.spi.max_sr = 165;            % Max gradient slew rate for spiral (mT/m/ms) (155)
+params.spi.interl = 4;              % Spiral interleaves
 params.spi.vd = 1.6;                % Variability density
-params.spi.rxy = 3;                 % In-plane undersampling
+params.spi.rxy = 4;                 % In-plane undersampling
 params.spi.bw = 500e3;              % Spiral BW in MHz (Max value 1,000e3) (500e3)
 
 % MT pulse parameters
-params.mt.mt = 1;                   % Add MT pulse, 0 for reference scan without MT
+params.mt.mt = 0;                   % Add MT pulse, 0 for reference scan without MT
 params.mt.alpha = 225;  %225
 params.mt.delta = 650;  %650      % for Pulseq approach should be 650 to match Viktors phase
 params.mt.trf = 0.004;
@@ -524,9 +523,9 @@ if params.gen.seq == 1
                 seq.addBlock(gx_spoil,gy_spoil,gz_spoil);
                 if exist('tr_delay','var'); seq.addBlock(tr_delay); end
             end
+            if and(i==1,j==1); tr1 = seq.duration(); end                           % save seq dur to calc TR
     %         seq.addBlock(dummy_delay);          % AMM: Temp: Adding a delay to let mag recover
         end
-    if i==1; tr1 = seq.duration(); end                           % save seq dur to calc TR
     end
     if params.vaso.v_b_delay > 0; seq.addBlock(v_b_delay); end   % VASO-BOLD delay
     seq.addBlock(ext_trig);                                      % External trigger
@@ -820,14 +819,20 @@ for i=1:params.gen.n(3)
         end
 end
 
-% Plotting traj
-figure(15);
-legend();
+% Plotting traj partition by partition
+figure(17);
+plot3(ks_traj.kx(:),ks_traj.ky(:),ks_traj.kz(:),'DisplayName',sprintf('Kz = %i',i)); title('3D K-space'); xlabel('Kx (1/m)'); ylabel('Ky (1/m)'); zlabel('Kz (1/m)');
 hold on
-for i = 1:params.gen.n(3)
-    plot3(ks_traj.kx(:,i),ks_traj.ky(:,i),ks_traj.kz(:,i),'DisplayName',sprintf('Kz = %i',i)); title('3D K-space'); xlabel('Kx (1/m)'); ylabel('Ky (1/m)'); zlabel('Kz (1/m)');
-end
 view(2)
+
+% % Plotting traj partition by partition
+% figure(15);
+% legend();
+% hold on
+% for i = 1:params.gen.n(3)
+%     plot3(ks_traj.kx(:,i),ks_traj.ky(:,i),ks_traj.kz(:,i),'DisplayName',sprintf('Kz = %i',i)); title('3D K-space'); xlabel('Kx (1/m)'); ylabel('Ky (1/m)'); zlabel('Kz (1/m)');
+% end
+% view(2)
 
 %% Adding some extra parameters to params
 % Update resolution and mtx size with effective resolution
