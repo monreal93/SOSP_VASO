@@ -42,8 +42,8 @@ function [twix_params,twix_params_b0] = fn_read_twix(folder,scan,params)
         elseif tmp == 'y'
             r = params.rz;
             pf = params.pf;
-            sl = floor(params.slices/r*pf);
-%             sl = params.slices;
+%             sl = floor(params.slices/r*pf);
+            sl = params.mtx_s(3);
             
             ro = params.nx;
             ch = params.ch;
@@ -54,13 +54,14 @@ function [twix_params,twix_params_b0] = fn_read_twix(folder,scan,params)
             % Find the file that matches the name of scan
             tmp = dir(sprintf('./data/%s/raw/twix/*%s*',folder,scan));
             twix = mapVBVD(sprintf('%s/%s',tmp.folder,tmp.name));
+            twix = twix{1}; % AMM: This seems to be only needed for VE12...
 
             % Saving relevant parameters
             if contains(scan,'b0')
                 % Here I can save more twix parameters as needed...
                 twix_params_b0.shift = twix.hdr.MeasYaps.sSliceArray.asSlice{1}.sPosition.dCor; 
 %                 twix_params_b0.shift = twix.hdr.MeasYaps.sSliceArray.asSlice{1}.sPosition.dTra; 
-                twix_params_b0.TE = twix.hdr.Meas.alTE;
+                twix_params_b0.TE = twix.hdr.Meas.alTE(1:5);
                 twix_params_b0.TR = twix.hdr.Meas.alTR;
                 twix_params_b0.FA = twix.hdr.Phoenix.adFlipAngleDegree;
                 twix_params_b0.scan_time = twix.hdr.Phoenix.lScanTimeSec;
@@ -130,7 +131,25 @@ function [twix_params,twix_params_b0] = fn_read_twix(folder,scan,params)
 %                 else
                     bb=aa;
 %                 end
+
+
                 cc=permute(bb,[1 4 3 2]); % Getting ch dim to the end and set to second
+                
+                % Temp, trying to extract the dork navigators:
+                if params.gen.dork == 2
+                    dork_nav = cc(:,:,2:2:end,:);
+                    % dork_nav = reshape(dork_nav,[],sl*dyn,ch);
+                    dork_nav = dork_nav(3600-99:3600,1,:,:);
+                    dork_nav = squeeze(dork_nav);
+                    dork_nav = permute(dork_nav,[2 1 3]);
+                    dork_nav = reshape(dork_nav,sl*2,params.repetitions,[],ch);
+                    dork_nav = permute(dork_nav,[3 1 2 4]);
+                    nav.vaso = dork_nav(:,1:sl,:,:);
+                    nav.bold = dork_nav(:,sl+1:end,:,:);
+                    cc = cc(:,:,1:2:end,:);
+                    save(sprintf('./data/%s/raw/%s_nav.mat',folder,scan),'nav')
+                end
+                
                 dd=reshape(cc,[],sl*dyn,ch);  % Permuting first and second dim, Col and Set
 
                 % VASO contrast

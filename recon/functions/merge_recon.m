@@ -7,10 +7,10 @@ folder = '10292022_sv_2';
 scan = 'sv_01';
 b0 = 'fessler';           % b0='','fessler','romeo','gilad','skope','fessler'
 traj = 'nom';           % 'nom', 'sk'
-reps = 144;                % If its only one rep=1, it will use rep2 and won't do time series...
+reps = 32;                % If its only one rep=1, it will use rep2 and won't do time series...
 rep_recon = 1;          % Rep to recon if reps =1
 is2d = 0;
-contrasts = ["b"];  % "v","b","abc"
+contrasts = ["v"];  % "v","b","abc"
 rotate = false;
 
 % root = '/mnt/ssh/var/www/dabeast/5T3/Alejandro/sosp_vaso';
@@ -60,6 +60,7 @@ for j=1:reps
                 end
         else
                 tmp = niftiread(sprintf('%s/data/%s/recon/3d/%s_%s_rep%i_3d_%s_b0_%s_mrreco.nii',root,folder,scan,contrasts(1),j,traj,b0));
+%                 tmp = niftiread(sprintf('%s/data/%s/recon/3d/%s_%s_rep%i_3d_%s_b0_%s_mrreco_noDORK.nii',root,folder,scan,contrasts(1),j,traj,b0));
                 merged(:,:,:,k) = tmp;
                 if (contains(scan,'sv') || contains(scan,'cv')) && length(contrasts) == 2
                     tmp = niftiread(sprintf('%s/data/%s/recon/3d/%s_%s_rep%i_3d_%s_b0_%s_mrreco.nii',root,folder,scan,contrasts(2),j,traj,b0));

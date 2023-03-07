@@ -16,6 +16,8 @@ function fn_create_ismrmd5(folder,scan,params,ks_vaso_all,ks_bold_all)
     % Check trajectory type
     if params.traj == 1
         traj_name = 'nom';
+    elseif params.traj == 2
+        traj_name = 'poet';
     elseif params.traj == 3
         traj_name = 'sk';
     end
@@ -125,8 +127,8 @@ function fn_create_ismrmd5(folder,scan,params,ks_vaso_all,ks_bold_all)
                     load(['./data/' folder '/acq/' scan '_ks_traj_nom.mat']);
                     ks_traj.ky = ks_traj.ky.*-1;        % Swaping nominal trajectory to match scaner one
                 elseif params.traj == 2
-                    load(['./data/' folder '/acq/' scan '_ks_traj_nom_poet.mat']);
-                    ks_traj.kx = ks_traj.kx.*-1;        % Swaping nominal trajectory to match scaner one
+                    load(['./data/' folder '/acq/' scan '_ks_traj_poet.mat']);
+%                     ks_traj.kx = ks_traj.kx.*-1;        % Swaping nominal trajectory to match scaner one
                     ks_traj.ky = ks_traj.ky.*-1;        % Swaping nominal trajectory to match scaner one
                 end
 

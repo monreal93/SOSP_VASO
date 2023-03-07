@@ -19,6 +19,8 @@ function fn_create_ismrmd1(folder,scan,params)
     % Check trajectory type
     if params.traj == 1
         traj_name = 'nom';
+    elseif params.traj == 2
+        traj_name = 'poet';
     elseif params.traj == 3
         traj_name = 'sk';
     end
@@ -144,8 +146,8 @@ function fn_create_ismrmd1(folder,scan,params)
             load(['./data/' folder '/acq/' scan '_ks_traj_nom.mat']);
             ks_traj.ky = ks_traj.ky.*-1;        % Swaping nominal trajectory to match scaner one
         elseif params.traj == 2
-            load(['./data/' folder '/acq/' scan '_ks_traj_nom_poet.mat']);
-            ks_traj.kx = ks_traj.kx.*-1;        % Swaping nominal trajectory to match scaner one
+            load(['./data/' folder '/acq/' scan '_ks_traj_poet.mat']);
+%             ks_traj.kx = ks_traj.kx.*-1;        % Swaping nominal trajectory to match scaner one
             ks_traj.ky = ks_traj.ky.*-1;        % Swaping nominal trajectory to match scaner one
         end
         
@@ -171,15 +173,15 @@ function fn_create_ismrmd1(folder,scan,params)
         end
 %%%%%%%%%%%%%%%%%%%%%%%%
                     
-%%%%%%%%%%%%%% DEMO: Correcting for gradient Delay
-        g_delay = 2e-6;
-        kx = interp1(params.gen.t_vector,ks_traj.kx,params.gen.t_vector-g_delay,'linear','extrap');
-        ky = interp1(params.gen.t_vector,ks_traj.ky,params.gen.t_vector-g_delay,'linear','extrap');
-        kz = interp1(params.gen.t_vector,ks_traj.kz,params.gen.t_vector-g_delay,'linear','extrap');
-        ks_traj.kx = kx;
-        ks_traj.ky = ky;
-        ks_traj.kz = kz;
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% %%%%%%%%%%%%%% DEMO: Correcting for gradient Delay
+%         g_delay = 2e-6;
+%         kx = interp1(params.gen.t_vector,ks_traj.kx,params.gen.t_vector-g_delay,'linear','extrap');
+%         ky = interp1(params.gen.t_vector,ks_traj.ky,params.gen.t_vector-g_delay,'linear','extrap');
+%         kz = interp1(params.gen.t_vector,ks_traj.kz,params.gen.t_vector-g_delay,'linear','extrap');
+%         ks_traj.kx = kx;
+%         ks_traj.ky = ky;
+%         ks_traj.kz = kz;
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         % Normalize and interpolate trajectory
         ks_traj = norm_interp_traj(ks_traj.kx,ks_traj.ky,ks_traj.kz,params.nx*params.spi.interl);

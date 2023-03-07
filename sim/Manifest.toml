@@ -2,7 +2,7 @@
 
 julia_version = "1.8.2"
 manifest_format = "2.0"
-project_hash = "b148729a529e7a734817a8764c23f52461d2e76c"
+project_hash = "0d4fe484cb30fa92911cf952ec49a37ee0be0db9"
 
 [[deps.AMD]]
 deps = ["Libdl", "LinearAlgebra", "SparseArrays", "Test"]
@@ -165,6 +165,12 @@ deps = ["ChainRulesCore", "LinearAlgebra", "Test"]
 git-tree-sha1 = "38f7a08f19d8810338d4f5085211c7dfa5d5bdd8"
 uuid = "9e997f8a-9a97-42d5-a9f1-ce6bfc15e2c0"
 version = "0.1.4"
+
+[[deps.CodeTracking]]
+deps = ["InteractiveUtils", "UUIDs"]
+git-tree-sha1 = "0e5c14c3bb8a61b3d53b2c0620570c332c8d0663"
+uuid = "da1fd8a2-8d9e-5ec2-8556-3022fb5608a2"
+version = "1.2.0"
 
 [[deps.CodecZlib]]
 deps = ["TranscodingStreams", "Zlib_jll"]
@@ -544,11 +550,23 @@ git-tree-sha1 = "99380ca88546f0e5e5a087f2e20182624c947cc0"
 uuid = "9ee76f2b-840d-4475-b6d6-e485c9297852"
 version = "0.9.0"
 
+[[deps.ImagePhantoms]]
+deps = ["LazyGrids", "Random", "SpecialFunctions"]
+git-tree-sha1 = "0279b897f014d7779b9ac8284e6e138f63433a60"
+uuid = "71a99df6-f52c-4da1-bd2a-69d6f37f3252"
+version = "0.7.2"
+
 [[deps.ImageTransformations]]
 deps = ["AxisAlgorithms", "ColorVectorSpace", "CoordinateTransformations", "ImageBase", "ImageCore", "Interpolations", "OffsetArrays", "Rotations", "StaticArrays"]
 git-tree-sha1 = "8717482f4a2108c9358e5c3ca903d3a6113badc9"
 uuid = "02fcd773-0e25-5acc-982a-7f6622650795"
 version = "0.9.5"
+
+[[deps.Infiltrator]]
+deps = ["InteractiveUtils", "Markdown", "REPL", "UUIDs"]
+git-tree-sha1 = "6e48065ac352c8c9616013faa419b0ea65bb6455"
+uuid = "5903a43b-9cc3-4c30-8d17-598619ec4e9b"
+version = "1.6.3"
 
 [[deps.IniFile]]
 git-tree-sha1 = "f550e6e32074c939295eb5ea6de31849ac2c9625"
@@ -632,6 +650,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "b53380851c6e6664204efb2e62cd24fa5c47e4ba"
 uuid = "aacddb02-875f-59d6-b918-886e6ef4fbf8"
 version = "2.1.2+0"
+
+[[deps.JuliaInterpreter]]
+deps = ["CodeTracking", "InteractiveUtils", "Random", "UUIDs"]
+git-tree-sha1 = "72ab280d921e8a013a83e64709f66bc3e854b2ed"
+uuid = "aa1ae85d-cabe-5617-a682-6adf51b2e16a"
+version = "0.9.20"
 
 [[deps.JuliaVariables]]
 deps = ["MLStyle", "NameResolution"]
@@ -809,6 +833,12 @@ git-tree-sha1 = "dd3ad841e372861781af2326e467bb46709408f0"
 uuid = "898213cb-b102-5a47-900c-97e73b919f73"
 version = "0.5.2"
 
+[[deps.LoweredCodeUtils]]
+deps = ["JuliaInterpreter"]
+git-tree-sha1 = "60168780555f3e663c536500aa790b6368adc02a"
+uuid = "6f1432cf-f94c-5a45-995e-cdbf5db27b0b"
+version = "2.3.0"
+
 [[deps.MAT]]
 deps = ["BufferedStreams", "CodecZlib", "HDF5", "SparseArrays"]
 git-tree-sha1 = "971be550166fe3f604d28715302b58a3f7293160"
@@ -851,16 +881,22 @@ uuid = "5af58b90-8a55-4daf-adb4-2008a66a38cf"
 version = "0.0.1"
 
 [[deps.MRIOperators]]
-deps = ["Distributions", "FLoops", "LinearAlgebra", "LowRankApprox", "MRIBase", "NFFT", "Printf", "Reexport", "SparsityOperators", "StatsBase"]
-git-tree-sha1 = "0dc5b02b1bf842e65e6a8ac849e0a424143788c4"
+deps = ["Distributions", "FLoops", "Infiltrator", "LinearAlgebra", "LowRankApprox", "MRIBase", "NFFT", "Printf", "Reexport", "SparsityOperators", "StatsBase"]
+path = "/root/.julia/dev/MRIReco/MRIOperators"
 uuid = "fb1137e3-90a6-46ce-a672-6e1e53d120f2"
-version = "0.1.2"
+version = "0.1.1"
 
 [[deps.MRIReco]]
-deps = ["AxisArrays", "FLoops", "LinearAlgebra", "MRIBase", "MRIOperators", "ProgressMeter", "Random", "Reexport", "RegularizedLeastSquares", "SnoopPrecompile", "Unitful"]
-git-tree-sha1 = "4472c315e5982b7fd926fce994bc29965b094acf"
+deps = ["AxisArrays", "FLoops", "Infiltrator", "LinearAlgebra", "MRIBase", "MRIOperators", "ProgressMeter", "Random", "Reexport", "RegularizedLeastSquares", "SnoopPrecompile", "Unitful"]
+path = "/root/.julia/dev/MRIReco"
 uuid = "bdf86e05-2d2b-5731-a332-f3fe1f9e047f"
-version = "0.7.1"
+version = "0.7.0"
+
+[[deps.MRISimulation]]
+deps = ["Infiltrator", "LinearAlgebra", "MRIBase", "MRIOperators", "Printf", "ProgressMeter", "Reexport", "StatsBase"]
+path = "/root/.julia/dev/MRIReco/MRISimulation"
+uuid = "8988da37-ea20-4fa6-9af7-8a6f6f9a8970"
+version = "0.1.1"
 
 [[deps.MacroTools]]
 deps = ["Markdown", "Random"]
@@ -1174,6 +1210,12 @@ deps = ["UUIDs"]
 git-tree-sha1 = "838a3a4188e2ded87a4f9f184b4b0d78a1e91cb7"
 uuid = "ae029012-a4dd-5104-9daa-d747884805df"
 version = "1.3.0"
+
+[[deps.Revise]]
+deps = ["CodeTracking", "Distributed", "FileWatching", "JuliaInterpreter", "LibGit2", "LoweredCodeUtils", "OrderedCollections", "Pkg", "REPL", "Requires", "UUIDs", "Unicode"]
+git-tree-sha1 = "fd5dba2f01743555d8435f7c96437b29eae81a17"
+uuid = "295af30f-e4ad-537b-8983-00126c2a3abe"
+version = "3.5.0"
 
 [[deps.Rmath]]
 deps = ["Random", "Rmath_jll"]

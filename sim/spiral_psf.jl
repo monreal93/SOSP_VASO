@@ -1,10 +1,10 @@
 using MAT, MRIReco, NIfTI
-using infiltrator, MIRTjim
+using Infiltrator, MIRTjim
 
 include("../recon/functions/fn_save_nii.jl")
 
-scans = ["sv_12"]#,"sv_02","sv_03","sv_04","sv_05","sv_06","sv_07"]; #,"sv_02","sv_03","sv_04","sv_05"];
-directory = "11252022_psf"        # directory where the data is stored
+scans = ["sv_04"]#,"sv_02","sv_03","sv_04","sv_05","sv_06","sv_07"]; #,"sv_02","sv_03","sv_04","sv_05"];
+directory = "02022023_psf"        # directory where the data is stored
 obj = 1;                          # Simulate 0=point, 1=brain
 
 mtx_s = (238,240,24)
@@ -20,6 +20,7 @@ end
 
 @infiltrate
 for i = 1:Int(length(scans))
+
 
     params =  matread(string("/usr/share/sosp_vaso/data/",directory,"/acq/",scans[i],"_params.mat"))
     params = params["params"]
@@ -55,7 +56,8 @@ for i = 1:Int(length(scans))
         path = string("/usr/share/sosp_vaso/data/",directory,"/tmp/",scans[i],"_sim_recon.nii")
         niwrite(path,vol)
     else
-        matwrite(string("/usr/share/sosp_vaso/data/",directory,"/acq/",scans[i],"_psf.mat"),Dict("psf" => img_new))
+        @infiltrate
+        matwrite(string("/usr/share/sosp_vaso/data/",directory,"/tmp/",scans[i],"_psf.mat"),Dict("psf" => img_new))
         vol = NIVolume(abs.(img_new))
         path = string("/usr/share/sosp_vaso/data/",directory,"/tmp/",scans[i],"_psf.nii")
         niwrite(path,vol)

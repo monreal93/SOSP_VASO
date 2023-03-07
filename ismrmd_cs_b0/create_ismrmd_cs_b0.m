@@ -23,10 +23,10 @@ end
 
 cd ./sosp_vaso
 
-folder = '10292022_sv_2';
-cs_b0_file = 'fieldmap_9ech_b0_s01_1_6_1_6_1_F';
-scan = 'sv_01';
-repetitions = 144; %4,120        % AMM: ToDo: find a way to get this param from somewhere
+folder = '03032023_sv';
+cs_b0_file = 'b0_s02_fieldmap';
+scan = 'sv_11';
+repetitions = 60; %4,120        % AMM: ToDo: find a way to get this param from somewhere
 
 % Reading some parameters from Pulseq
 load(sprintf('./data/%s/acq/%s_params.mat',folder,scan));
@@ -37,6 +37,8 @@ params.is2d = 0;                   % 1 if 3D dataset saved as 2D
 params.traj = 1;                   % Trajectory input: 1 (matlab simulation), 2 (poet), 3 (skope)
 params.plot = 0;                   % Plot stuff
 params.ncc = 0;              	   % Coil compression coils... 0 for no compression
+params.gen.dork = 0;                % DORK, 0=no,1=partial,2=full
+params.reps_to_save = 1:10;         % Repetitions to create ismrmd files (range or 1 number)
 
 %% Adding extra parameters from Pulseq
 params.slices = params.gen.n(3);
@@ -74,15 +76,15 @@ end
 params.twix_params = twix_params;
 
 %% Create ISMRMD files, one per each repetition/dynamic
-fn_create_ismrmd1(folder,scan,params); 
+fn_create_ismrmd2(folder,scan,params); 
 
-   %% Generate Coil Sensitivities
-fn_coil_sensitivities(folder,scan,cs_b0_file,params);
-
-%%  Generate B0 map
-fn_get_b0_romeo(folder,scan,cs_b0_file,params);
-
-cd ..
+%    %% Generate Coil Sensitivities
+% fn_coil_sensitivities(folder,scan,cs_b0_file,params);
+% 
+% %%  Generate B0 map
+% fn_get_b0_romeo(folder,scan,cs_b0_file,params);
+% 
+% cd ..
 
 %% Final message
 fprintf('--------------------------------------------------------------\n');
