@@ -57,7 +57,7 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
                 end
 
                 if j==1 || contains('none',params.spi.rotate) == 0
-                    %%%%%%% Unsafe spirals
+                    %%%%%%% spirals
                     [C,time,g,s,k] = minTimeGradient(C,rv, C(1,1), 0, g_max, sr_max,T,ds,0);
                     % Interpolating to the initial size of kaa
         %             tmp = 0:length(g)-1
@@ -68,7 +68,7 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
                         % g_new(k,:) = interp1(tmp,g(:,k).',linspace(0,time,length(kaa)));
                         g_new(k,:) = interp1(tmp,g(:,k).',(0:floor(time(end)/lims.gradRasterTime))*lims.gradRasterTime);
                     end
-                                    % Trying to get grad to correct units
+                    % Trying to get grad to correct units
                     g_new = g_new*42.58e6/100;    % convert from G/cm -> Hz/m
                     g_new = rmmissing(g_new,2);
                     %%%%%%%%%%%%
@@ -76,9 +76,15 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
 %                     %%%%%% Safe spirals
 %                     [g_new(1,:),g_new(2,:),time] = fn_safe_spirals(C,params);
 %                     %%%%%%%%%
-                end
+                    spiral_grad_shape(:,:,i,j) = g_new(1:2,:);
 
-                spiral_grad_shape(:,:,i,j) = g_new(1:2,:);
+                elseif params.spi.interl > 1 || contains('none',params.spi.rotate) == 1
+                    spiral_grad_shape(:,:,i,j) = spiral_grad_shape(:,:,i,1);
+                end
+                
+%                 if params.spi.interl > 1 || contains('none',params.spi.rotate) == 1
+%                     spiral_grad_shape(:,:,i,j) = spiral_grad_shape(:,:,i,1);
+%                 end
                 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
                  
