@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.8.2"
+julia_version = "1.8.5"
 manifest_format = "2.0"
-project_hash = "0d4fe484cb30fa92911cf952ec49a37ee0be0db9"
+project_hash = "f966f6293de76a47fe467a06227c051a10407c14"
 
 [[deps.AMD]]
 deps = ["Libdl", "LinearAlgebra", "SparseArrays", "Test"]
@@ -211,7 +211,7 @@ version = "4.5.0"
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
-version = "0.5.2+0"
+version = "1.0.1+0"
 
 [[deps.CompositionsBase]]
 git-tree-sha1 = "455419f7e328a1a2493cabc6428d79e951349769"
@@ -878,22 +878,22 @@ version = "0.3.3"
 deps = ["ImageGeoms", "LimitedLDLFactorizations", "LinearAlgebra", "SparseArrays", "StatsBase"]
 path = "/root/.julia/dev/MRIFieldmaps"
 uuid = "5af58b90-8a55-4daf-adb4-2008a66a38cf"
-version = "0.0.1"
+version = "0.0.2"
 
 [[deps.MRIOperators]]
 deps = ["Distributions", "FLoops", "Infiltrator", "LinearAlgebra", "LowRankApprox", "MRIBase", "NFFT", "Printf", "Reexport", "SparsityOperators", "StatsBase"]
 path = "/root/.julia/dev/MRIReco/MRIOperators"
 uuid = "fb1137e3-90a6-46ce-a672-6e1e53d120f2"
-version = "0.1.1"
+version = "0.1.2"
 
 [[deps.MRIReco]]
-deps = ["AxisArrays", "FLoops", "Infiltrator", "LinearAlgebra", "MRIBase", "MRIOperators", "ProgressMeter", "Random", "Reexport", "RegularizedLeastSquares", "SnoopPrecompile", "Unitful"]
+deps = ["AxisArrays", "FLoops", "LinearAlgebra", "MRIBase", "MRIOperators", "ProgressMeter", "Random", "Reexport", "RegularizedLeastSquares", "SnoopPrecompile", "Unitful"]
 path = "/root/.julia/dev/MRIReco"
 uuid = "bdf86e05-2d2b-5731-a332-f3fe1f9e047f"
-version = "0.7.0"
+version = "0.7.1"
 
 [[deps.MRISimulation]]
-deps = ["Infiltrator", "LinearAlgebra", "MRIBase", "MRIOperators", "Printf", "ProgressMeter", "Reexport", "StatsBase"]
+deps = ["LinearAlgebra", "MRIBase", "MRIOperators", "Printf", "ProgressMeter", "Reexport", "StatsBase"]
 path = "/root/.julia/dev/MRIReco/MRISimulation"
 uuid = "8988da37-ea20-4fa6-9af7-8a6f6f9a8970"
 version = "0.1.1"

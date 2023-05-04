@@ -3,14 +3,16 @@ clear all; clc
 cd /mnt/5T3/Alejandro/sosp_vaso/
 addpath(genpath('../tools/as'))
 
-folder = '10292022_sv_2';
+folder = '04252023_sv_abc';
 scan = 'sv_01';
 b0 = 'fessler';           % b0='','fessler','romeo','gilad','skope','fessler'
 traj = 'nom';           % 'nom', 'sk'
-reps = 32;                % If its only one rep=1, it will use rep2 and won't do time series...
-rep_recon = 1;          % Rep to recon if reps =1
+rep_recon = 1:144;          % Range or repetitions to merge
 is2d = 0;
-contrasts = ["v"];  % "v","b","abc"
+contrasts = ["b","v"];  % "v","b","abc"
+p_dork = "";              % Partition DORK "_pDORK"
+r_dork = "_rDORK";              % Repetition DORK "_rDORK"
+drift = "";               % Drift "_drift"
 rotate = false;
 
 % root = '/mnt/ssh/var/www/dabeast/5T3/Alejandro/sosp_vaso';
@@ -21,49 +23,46 @@ load(sprintf('%s/data/%s/acq/%s_params.mat',root,folder,scan))
 
 if (contains(scan,'sv') || contains(scan,'cv')) && length(contrasts) == 2
 %     contrasts = ["v","b"];
-    merged = zeros([params.gen.n reps*2]);
+    merged = zeros([params.gen.n length(rep_recon)*2]);
 else
 %     contrasts = "abc";
-    merged = zeros([params.gen.n reps]);
+    merged = zeros([params.gen.n length(rep_recon)]);
 end
 
 k = 1;
-for j=1:reps
-    if reps == 1
-        j = rep_recon;
-    end
+for j=rep_recon(1):rep_recon(end)
     if is2d == 1
         for i = 1:params.gen.n(3)
                 if  isempty(b0)
-                    tmp = niftiread(sprintf('%s/data/%s/recon/2d/%s_%s_sl%i_rep%i_2d_%s_mrreco.nii',root,folder,scan,contrasts(1),i,j,traj));
+                    tmp = niftiread(sprintf('%s/data/%s/recon/2d/%s_%s_sl%i_rep%i_2d_%s%s%s%s.nii',root,folder,scan,contrasts(1),i,j,traj,p_dork,r_dork,drift));
                     merged(:,:,i,k) = tmp;
                     if (contains(scan,'sv') || contains(scan,'cv')) && length(contrasts) == 2
-                        tmp = niftiread(sprintf('%s/data/%s/recon/2d/%s_%s_sl%i_rep%i_2d_%s_mrreco.nii',root,folder,scan,contrasts(2),i,j,traj));
+                        tmp = niftiread(sprintf('%s/data/%s/recon/2d/%s_%s_sl%i_rep%i_2d_%s%s%s%s.nii',root,folder,scan,contrasts(2),i,j,traj,p_dork,r_dork,drift));
                         merged(:,:,i,k+1) = tmp;
                     end
                 else
-                    tmp = niftiread(sprintf('%s/data/%s/recon/2d/%s_%s_sl%i_rep%i_2d_%s_b0_%s_mrreco.nii',root,folder,scan,contrasts(1),i,j,traj,b0));
+                    tmp = niftiread(sprintf('%s/data/%s/recon/2d/%s_%s_sl%i_rep%i_2d_%s%s%s%s_b0_%s.nii',root,folder,scan,contrasts(1),i,j,traj,p_dork,r_dork,drift,b0));
                     merged(:,:,i,k) = tmp;
                     if (contains(scan,'sv') || contains(scan,'cv')) && length(contrasts) == 2
-                        tmp = niftiread(sprintf('%s/data/%s/recon/2d/%s_%s_sl%i_rep%i_2d_%s_b0_%s_mrreco.nii',root,folder,scan,contrasts(2),i,j,traj,b0));
+                        tmp = niftiread(sprintf('%s/data/%s/recon/2d/%s_%s_sl%i_rep%i_2d_%s%s%s%s_b0_%s.nii',root,folder,scan,contrasts(2),i,j,traj,p_dork,r_dork, drift,b0));
                         merged(:,:,i,k+1) = tmp;
                     end
                 end
         end
     else
         if  isempty(b0)
-                tmp = niftiread(sprintf('%s/data/%s/recon/3d/%s_%s_rep%i_3d_%s_mrreco.nii',root,folder,scan,contrasts(1),j,traj));
+                tmp = niftiread(sprintf('%s/data/%s/recon/3d/%s_%s_rep%i_3d_%s%s%s%s.nii',root,folder,scan,contrasts(1),j,traj,p_dork,r_dork,drift));
                 merged(:,:,:,k) = tmp;
                 if (contains(scan,'sv') || contains(scan,'cv')) && length(contrasts) == 2
-                    tmp = niftiread(sprintf('%s/data/%s/recon/3d/%s_%s_rep%i_3d_%s_mrreco.nii',root,folder,scan,contrasts(2),j,traj));
+                    tmp = niftiread(sprintf('%s/data/%s/recon/3d/%s_%s_rep%i_3d_%s%s%s%s.nii',root,folder,scan,contrasts(2),j,traj,p_dork,r_dork,drift));
                     merged(:,:,:,k+1) = tmp;
                 end
         else
-                tmp = niftiread(sprintf('%s/data/%s/recon/3d/%s_%s_rep%i_3d_%s_b0_%s_mrreco.nii',root,folder,scan,contrasts(1),j,traj,b0));
+                tmp = niftiread(sprintf('%s/data/%s/recon/3d/%s_%s_rep%i_3d_%s%s%s%s_b0_%s.nii',root,folder,scan,contrasts(1),j,traj,p_dork,r_dork,drift,b0));
 %                 tmp = niftiread(sprintf('%s/data/%s/recon/3d/%s_%s_rep%i_3d_%s_b0_%s_mrreco_noDORK.nii',root,folder,scan,contrasts(1),j,traj,b0));
                 merged(:,:,:,k) = tmp;
                 if (contains(scan,'sv') || contains(scan,'cv')) && length(contrasts) == 2
-                    tmp = niftiread(sprintf('%s/data/%s/recon/3d/%s_%s_rep%i_3d_%s_b0_%s_mrreco.nii',root,folder,scan,contrasts(2),j,traj,b0));
+                    tmp = niftiread(sprintf('%s/data/%s/recon/3d/%s_%s_rep%i_3d_%s%s%s%s_b0_%s.nii',root,folder,scan,contrasts(2),j,traj,p_dork,r_dork,drift,b0));
                     merged(:,:,:,k+1) = tmp;
                 end
         end
@@ -92,12 +91,12 @@ info.SliceCode = 'Sequential-Increasing';
 info.PixelDimensions = params.gen.res*1000;
 info.ImageSize = params.gen.n;
 info.ImageSize(3) = info.ImageSize(3).*params.gen.kz;
-if reps > 1
+if length(rep_recon) > 1
     info.PixelDimensions(4) = params.gen.volTR;
-    if reps>1 && length(contrasts) >1
-        info.ImageSize(4) = reps*2;
+    if length(rep_recon)>1 && length(contrasts) >1
+        info.ImageSize(4) = length(rep_recon)*2;
     else
-        info.ImageSize(4) = reps;
+        info.ImageSize(4) = length(rep_recon);
     end
 end
 info.SpaceUnits = 'Millimeter';
@@ -123,18 +122,18 @@ end
 
 if is2d == 1
     if isempty(b0)
-        niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_%s_2d3d_%s_mrreco.nii',root,folder,scan,tmp,traj),info)
+        niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_%s_2d3d_%s%s%s%s.nii',root,folder,scan,tmp,traj,p_dork,r_dork,drift),info)
 %         niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_2d3d_%s_mrreco.nii',root,folder,scan,traj))
     else
-        niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_%s_2d3d_b0_%s_%s_mrreco.nii',root,folder,scan,tmp,traj,b0),info)
+        niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_%s_2d3d_%s%s%s%s_b0_%s.nii',root,folder,scan,tmp,traj,p_dork,r_dork,drift,b0),info)
 %         niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_2d3d_b0_%s_%s_mrreco.nii',root,folder,scan,traj,b0))
     end
 else
     if isempty(b0)
-        niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_%s_3d_%s_mrreco.nii',root,folder,scan,tmp,traj),info)
+        niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_%s_3d_%s%s%s%s.nii',root,folder,scan,tmp,traj,p_dork,r_dork,drift),info)
 %         niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_3d_%s_mrreco.nii',root,folder,scan,traj))
     else
-        niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_%s_3d_%s_b0_%s_mrreco.nii',root,folder,scan,tmp,traj,b0),info)
+        niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_%s_3d_%s%s%s%s_b0_%s.nii',root,folder,scan,tmp,traj,p_dork,r_dork,drift,b0),info)
 %         niftiwrite(single(merged),sprintf('%s/data/%s/recon/%s_3d_%s_b0_%s_mrreco.nii',root,folder,scan,traj,b0))
     end
 end

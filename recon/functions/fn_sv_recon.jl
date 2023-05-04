@@ -18,8 +18,14 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
         @info ("Calculating Sensitivity maps ...")
         ### Get Sensitivity maps:
         # fieldmap_ft = matread(string(params_sv[:path],"raw/fieldmap_9ech_b0_",params_sv[:scan][1],params_sv[:scan][4:5],"_1_6_1_6_1_F",".mat"))
+        
+        @infiltrate
 
-        fieldmap_ft = matread(string(params_sv[:path],"raw/b0_s02_fieldmap.mat"))
+        if params_sv[:fmri] == 1
+            fieldmap_ft = matread(string(params_sv[:path],"raw/b0_",params_sv[:scan][1],params_sv[:scan][end-1:end],"_fieldmap.mat"))
+        else
+            fieldmap_ft = matread(string(params_sv[:path],"raw/b0_",params_sv[:scan][1],"01_fieldmap.mat"))
+        end
         # fieldmap_ft = matread(string(params_sv[:path],"raw/b0_",params_sv[:scan],"_fieldmap.mat"))
         fieldmap_ft = fieldmap_ft["b0"]
         fieldmap_ft = convert(Array{ComplexF32, 5},fieldmap_ft)
@@ -34,13 +40,14 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
         calibration = fftshift(fft(ifftshift(fieldmap_ft,3),3),3)
         calibration = calibration[Int(end/2+1-12):Int(end/2+12),Int(end/2+1-12):Int(end/2+12),:,1,:]
         cs = espirit(calibration,(params_sv[:nx],params_sv[:ny],params_sv[:sl]))
+        # cs = dropdims(cs; dims=5)
         cs = dropdims(reverse(cs,dims = 1); dims = 5)
         # cs = cs.*-1
 
         # For now I save the Sensitivity maps and fm in MAT format
         matwrite(string(params_sv[:path],"acq/cs_",file_name,".mat"), Dict("coil_sens" => cs))
-        matwrite(string(params_sv[:path],"acq/fm_",file_name,".mat"), Dict("fieldmap" => fieldmap))
-        # matwrite(string(params_sv[:path],"acq/fm_",params_sv[:scan],"_",params_sv[:nx],"_",params_sv[:ny],"_",params_sv[:sl],".mat"), Dict("fieldmap" => fieldmap))
+        # matwrite(string(params_sv[:path],"acq/fm_",file_name,".mat"), Dict("fieldmap" => fieldmap))
+        matwrite(string(params_sv[:path],"acq/fm_",params_sv[:scan],".mat"), Dict("fieldmap" => fieldmap))
     end
 
     ## Load sensitivity maps mat format (created from BART)
@@ -72,11 +79,11 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
     if input == "n"
             @info ("Loading Off-resonance map ...")
             b0 = matread(string(params_sv[:path],"acq/b0_",file_name,".mat")); b0 = b0["b0"]
+            # b0 = matread("/usr/share/sosp_vaso/data/03032023_sv/tmp/b0_masked.mat"); b0 = b0["b0"]
     else
         @info ("Calculating Off-resonance map ...")
         fieldmap = matread(string(params_sv[:path],"acq/fm_",params_sv[:scan],".mat")); fieldmap = fieldmap["fieldmap"];
         smap = imresize(cs,(size(fieldmap)[1],size(fieldmap)[2],size(fieldmap)[3],size(fieldmap)[5]))
-        @infiltrate
         # smap ./= sqrt.(sum(abs2, smap; dims=4)) # normalize by SSoS
         mask = cs[:,:,:,1]
         mask[abs.(mask) .> 0] .= 1
@@ -85,19 +92,30 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
         fm = fieldmap
         fm = permutedims(fm,(1,2,3,5,4))
         fm = fm.*1e3   # Scale data
+
         params_sv[:b0_te] =  params_sv[:b0_te] * 1f-3 * 1s # echo times in sec
         ######### Temp:
         ydata = fm; echotime = params_sv[:b0_te]
         # smap = cs;
         yik_sos = sum(conj(smap) .* ydata; dims=4) # coil combine
         yik_sos = yik_sos[:,:,:,1,:] # (dims..., ne)
+
+        @infiltrate
         (yik_sos_scaled, scale) = b0scale(yik_sos, echotime) # todo
         # finit = b0init(ydata, echotime; smap)
-        @infiltrate
         yik_scale = ydata / scale
+
+        ## Get the mask from sosp_vaso
+        # tmp = abs.(yik_sos[:,:,:,1])
+        # mask = tmp.>=maximum(tmp).*0.1
+
+        finit = b0init(ydata, echotime; smap)
+
+        @infiltrate
+
         fmap_run = (niter, precon, track; kwargs...) ->
-            b0map(yik_scale, echotime; smap, mask,
-            order=1, l2b=-4, gamma_type=:PR, niter, precon, track, kwargs...)
+            b0map(yik_scale, echotime; finit, smap, mask,
+            order=2, l2b=-3, gamma_type=:PR, niter, precon, track, kwargs...)
         function runner(niter, precon; kwargs...)
             (fmap, times, out) = fmap_run(niter, precon, true; kwargs...)
             # (fmap, _, out) = fmap_run(niter, precon, true; kwargs...) # tracking run
@@ -105,17 +123,29 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
             return (fmap, out.fhats, out.costs, times)
         end;
         if !@isdefined(fmap_cg_d)
-            niter_cg_d = 300
+            niter_cg_d = 800  # 300, 120
             (fmap_cg_d, fhat_cg_d, cost_cg_d, time_cg_d) = runner(niter_cg_d, :diag)
+            # (fmap_cg_d, fhat_cg_d, cost_cg_d, time_cg_d) = runner(niter_cg_d, :ichol)
         end
-        fn_save_nii(ustrip.(fmap_cg_d),"B0_jeff")
+        
+        @infiltrate
+
         b0 = fmap_cg_d
         b0 = b0.*2π.*-1
-        b0 = reverse(b0,dims = 1)
+        # b0 = reverse(b0,dims = 1)
         b0 = ustrip.(b0)
         b0 = imresize(b0,(params_sv[:nx],params_sv[:ny],params_sv[:sl]))
         b0 = 1im.*b0;
         b0 = convert(Array{ComplexF32,3},b0)
+
+
+        # b0[findall(>(500),abs.(b0))] .= Complex(0)
+        # b0[findall(<(-500),abs.(b0))] .= Complex(0)
+
+        fn_save_nii(imag.(b0),"B0_jeff")
+
+        @infiltrate
+
         mask = imresize(mask,(params_sv[:nx],params_sv[:ny],params_sv[:sl]))
         # Saving B0 map and mask, for now only in MAT format
         matwrite(string(params_sv[:path],"acq/b0_",file_name,".mat"), Dict("b0" => b0))
@@ -126,10 +156,10 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
 
     # reco parameters directory
     params = Dict{Symbol, Any}()
-    params[:reco] = "multiCoil";
+    params[:reco] = "multiCoil"; # 'multiCoil'
     params[:regularization] = "L1";
     params[:λ] = 1.e-2;  # 1.e-2
-    params[:iterations] = 10;
+    params[:iterations] = 20; # (10)
     params[:solver] = "admm"; # cgnr (L2), fista (L1), admm(L1)
     params[:senseMaps] = cs;
     params[:method] = "nfft"; # nfft, leastsquare
@@ -153,6 +183,11 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
     #     f_rep = 1
     # end
 
+    # Get calibration matrix for B0 dynamic correction
+    if params_sv[:drift] == "_drift" && params_sv[:do_b0_corr] == true
+        A, B, sh_basis, ΔB0, b_A = getCalibrationMatrix(params_sv,b0)
+    end
+
     j=1:length(contrasts)
     for j=1:length(contrasts)
         # for i=f_rep:params_sv[:repetitions]
@@ -166,25 +201,24 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
                         params[:correctionMap] = reshape(b0[:,:,k],(params_sv[:nx],params_sv[:ny],1))
                     end
                 end
-                if params_sv[:seq] == 2
+                if params_sv[:seq] == 2 || params_sv[:seq] == 4 
                     if params_sv[:id] == "2d"
-                        file=ISMRMRDFile(string(params_sv[:path],"ismrmd/2d/",params_sv[:scan],"_r",i,"_sl",params_sv[:sl_reco],"_",params_sv[:id],"_",params_sv[:traj_type],params_sv[:dork] ,".h5"));
+                        file=ISMRMRDFile(string(params_sv[:path],"ismrmd/2d/",params_sv[:scan],"_r",i,"_sl",params_sv[:sl_reco],"_",params_sv[:id],"_",params_sv[:traj_type],params_sv[:pdork],params_sv[:rdork] ,".h5"));
                     else
-                        file=ISMRMRDFile(string(params_sv[:path],"ismrmd/3d/",params_sv[:scan],"_",params_sv[:id],"_r",i,"_",params_sv[:traj_type] ,params_sv[:dork] ,".h5"));
+                        file=ISMRMRDFile(string(params_sv[:path],"ismrmd/3d/",params_sv[:scan],"_",params_sv[:id],"_r",i,"_",params_sv[:traj_type] ,params_sv[:pdork],params_sv[:rdork] ,".h5"));
                         # file=ISMRMRDFile(string(params_sv[:path],"ismrmd/3d/",params_sv[:scan],"_",params_sv[:id],"_",params_sv[:traj_type] ,".h5"));
                     end
                 else
                     if params_sv[:id] == "2d"
-                        file =ISMRMRDFile(string(params_sv[:path],"ismrmd/2d/",params_sv[:scan],"_",contrasts[j],"_r",i,"_sl",k,"_",params_sv[:id],"_",params_sv[:traj_type],params_sv[:dork]  ,".h5"));
+                        file =ISMRMRDFile(string(params_sv[:path],"ismrmd/2d/",params_sv[:scan],"_",contrasts[j],"_r",i,"_sl",k,"_",params_sv[:id],"_",params_sv[:traj_type],params_sv[:pdork],params_sv[:rdork]  ,".h5"));
                         # file=ISMRMRDFile(string(params_sv[:path],"ismrmd/2d/",params_sv[:scan],"_",contrasts[j],"_",params_sv[:id],"_r",i,"_",params_sv[:traj_type] ,".h5"));
                         # file=ISMRMRDFile(string(params_sv[:path],"ismrmd/2d/",params_sv[:scan],"_",contrasts[j],"_",params_sv[:id],"_",params_sv[:traj_type] ,".h5"));
                     else
-                        file=ISMRMRDFile(string(params_sv[:path],"ismrmd/3d/",params_sv[:scan],"_",contrasts[j],"_",params_sv[:id],"_r",i,"_",params_sv[:traj_type] ,params_sv[:dork]  ,".h5"));
+                        file=ISMRMRDFile(string(params_sv[:path],"ismrmd/3d/",params_sv[:scan],"_",contrasts[j],"_",params_sv[:id],"_r",i,"_",params_sv[:traj_type] ,params_sv[:pdork],params_sv[:rdork]  ,".h5"));
                         # file=ISMRMRDFile(string(params_sv[:path],"ismrmd/3d/",params_sv[:scan],"_",contrasts[j],"_r",i,"_",params_sv[:id],"_",params_sv[:traj_type] ,".h5"));
                     end
                 end
                 
-                @infiltrate
                 acqData = AcquisitionData(file)
 
                 # # get the number of samples per readout, if its 3d, need to divide by # of slices
@@ -213,10 +247,101 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
 
                 # Add B0 map and correct for scanner drift
                 if params_sv[:do_b0_corr]
-                    b0_drift = Array{ComplexF64}(undef,size(b0))
-                    b0_drift = b0
-                    # b0_drift[findall(!iszero,b0_drift)] = b0_drift[findall(!iszero,b0_drift)].-(1im.*0.14*f_rep*2*pi)
-                    # b0_drift[findall(!iszero,b0_drift)] = b0_drift[findall(!iszero,b0_drift)].-(1im.*0.14*72*2*pi)
+                    b0_drift = Array{ComplexF32}(undef,size(b0))
+                    if params_sv[:directory][10:13]=="2022"
+                        b0_drift = b0#.*(-1)
+                    else
+                        b0_drift = b0
+                    end
+
+                    if params_sv[:drift] == "_drift"
+                    
+                        # #### Zero-th order DORK correction.... (not working properly)
+                        # # Here I am trying to add the exta Hz difference btw partitions
+                        # del_omg_v = matread(string(params_sv[:path],"tmp/",params_sv[:scan],"_del_omg_n_v.mat"))
+                        # del_omg_b = matread(string(params_sv[:path],"tmp/",params_sv[:scan],"_del_omg_n_b.mat"))
+                        
+                        # if params_sv[:contrasts][j] == "v"
+                        #     del_omg = del_omg_v["del_omg_n_v_new"]
+                        # elseif params_sv[:contrasts][j] == "b"
+                        #     del_omg = del_omg_b["del_omg_n_b_new"]
+                        # end
+
+                        # b0_drift = Array{ComplexF32}(b0_drift.+(2*pi*del_omg[i].*1im))
+
+                        ##### AMM: Temp, trying to get 
+                        file1=ISMRMRDFile(string(params_sv[:path],"ismrmd/3d/",params_sv[:scan],"_",contrasts[j],"_",params_sv[:id],"_r",i,"_",params_sv[:traj_type]  ,".h5"));
+                        acqData1 = AcquisitionData(file1)
+                        #####
+
+                        #### Higher order correction.... (Wallace approach)
+                        # Getting the navigator data
+                        nav_range = Int(params_sv[:ro_samples]*(params_sv[:sl]/2+1)+1):Int(params_sv[:ro_samples]*(params_sv[:sl]/2+1)+1+300-1)
+                        nav = (acqData.kdata[1][nav_range,:])
+                        nav_times = params_sv[:times][1:299]
+                        # Taking 10 samples centered at TE of B0 (First echo)
+
+                        tmp = params_sv[:b0_te][1].*1e-3 .<= nav_times
+                        tmp = findall(isone,tmp)[1]
+                        
+                        # nav_range = findall(nav_times -> nav_times>params_sv[:b0_te][tmp-1].*1e-3, nav_times)[tmp-1]-5:findall(nav_times -> nav_times>params_sv[:b0_te][tmp-1].*1e-3, nav_times)[tmp-1]+5
+                        nav_range = findall(nav_times -> nav_times>params_sv[:b0_te][1].*1e-3, nav_times)[1]-5:findall(nav_times -> nav_times>params_sv[:b0_te][1].*1e-3, nav_times)[1]+5
+
+                        nav = mean(nav[nav_range,:], dims=1)'
+
+                        # #### Trying to solve the sys of equations with i and r together
+                        # YY = fill(Array{Float32}(undef,32,1), (2, 1))
+                        # AA = fill(Array{Float32}(undef,32,9), (2, 1))
+                        # bb = fill(Array{Float32}(undef,1,9), (2, 1))
+                        # YY[1] = real.(nav)
+                        # YY[2] = imag.(nav)
+                        # AA[1] = real.(A)
+                        # AA[2] = imag.(A)
+                        # bb[1] = ones(1,9)
+                        # bb[2] = zeros(1,9)
+
+                        ###
+                        YY = vcat(real.(nav),imag.(nav))
+                        AA = vcat(real.(A),imag.(A))
+                        b = AA \ YY
+                        ####
+
+                        # b = imag.(A) \ (imag.(nav))
+                        # b = real.(A) \ (real.(nav))
+
+                        # δB0 = sh_basis * (b)
+                        # B is the SH decomposition of the B0 map
+
+                        δB0 = B * (b)
+                        δB0 = reshape(δB0,params_sv[:nx],params_sv[:ny],params_sv[:sl])
+
+                        # # AMM: Adding extra Hz to test recon
+                        # @infiltrate
+                        # δB0 = δB0 .+ (7)
+
+                        mask = deepcopy(b0)
+                        mask[abs.(mask) .> 0] .= 1
+                        δB0 = δB0.*mask
+
+                        jim((δB0), "δB0"; color=:jet)
+
+                        # It looks like for VB17 I need to change the sign of the B0map
+                        @infiltrate
+                        if params_sv[:directory][10:13]=="2022"
+                            b0_drift = Array{ComplexF32}(b0_drift-((δB0).*im))
+                        else
+                            # b0_drift = Array{ComplexF32}(b0_drift+(((δB0.-del_omg[i]).*2*pi).*im))
+                            b0_drift = Array{ComplexF32}((b0_drift)-(δB0.*2*pi.*im))
+                        end
+                        
+                        @infiltrate
+
+                    end
+
+                    @infiltrate
+                    # b0_drift = b0_drift.-(7.2*2*pi*im)
+                    # rmap = matread(string(params_sv[:path],"tmp/rmap.mat")); rmap = rmap["rmap"];
+                    # b0_drift = b0+rmap
                     params[:correctionMap] = b0_drift
                 end
 
@@ -235,20 +360,19 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
 
                 Ireco_mag = NIVolume(abs.(Ireco[:,:,:,1,1,:]));
 
-
                 if params_sv[:is2d]
-                    save_name = string(params_sv[:path],"recon/2d/",params_sv[:scan],"_",contrasts[j],"_sl",k,"_rep",i,"_",params_sv[:id],"_",params_sv[:traj_type] );
+                    save_name = string(params_sv[:path],"recon/2d/",params_sv[:scan],"_",contrasts[j],"_sl",k,"_rep",i,"_",params_sv[:id],"_",params_sv[:traj_type],params_sv[:pdork],params_sv[:rdork],params_sv[:drift] );
                     # save_name = string(params_sv[:path],"recon/2d/",params_sv[:scan],"_",contrasts[j],"_rep",i,"_",params_sv[:id],"_",params_sv[:traj_type] );
                     # save_name = string(params_sv[:path],"recon/2d/",params_sv[:scan],"_",contrasts[j],"_",params_sv[:id],"_",params_sv[:traj_type] );
                 else
-                    save_name = string(params_sv[:path],"recon/3d/",params_sv[:scan],"_",contrasts[j],"_rep",i,"_",params_sv[:id],"_",params_sv[:traj_type] );
+                    save_name = string(params_sv[:path],"recon/3d/",params_sv[:scan],"_",contrasts[j],"_rep",i,"_",params_sv[:id],"_",params_sv[:traj_type],params_sv[:pdork],params_sv[:rdork],params_sv[:drift]);
                     # save_name = string(params_sv[:path],"recon/3d/",params_sv[:scan],"_",contrasts[j],"_",params_sv[:id],"_",params_sv[:traj_type] );
                 end
 
                 if params_sv[:do_b0_corr] 
-                    save_name = string(save_name,"_b0_",params_sv[:b0_type],"_mrreco.nii")
+                    save_name = string(save_name,"_b0_",params_sv[:b0_type],".nii")
                 else
-                    save_name = string(save_name,"_mrreco.nii")
+                    save_name = string(save_name,".nii")
                 end
 
                 niwrite(save_name,Ireco_mag);

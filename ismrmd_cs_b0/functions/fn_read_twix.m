@@ -23,6 +23,8 @@ function [twix_params,twix_params_b0] = fn_read_twix(folder,scan,params)
         save_file = sprintf('./data/%s/raw/%s.mat',folder,scan);
     elseif contains(scan,'abc')
         save_file = sprintf('./data/%s/raw/%s_ks_abc.mat',folder,scan);
+    elseif contains(scan,'sb')
+        save_file = sprintf('./data/%s/raw/%s_ks_sb.mat',folder,scan);
     end
     
     if contains(scan,'sv') || contains(scan,'cv')
@@ -30,7 +32,7 @@ function [twix_params,twix_params_b0] = fn_read_twix(folder,scan,params)
             prompt = 'File already exists, do you want to replace it: type y/n [y]: ';
             tmp = input(prompt,'s');
         end
-    elseif contains(scan,'b0') || contains(scan,'abc')
+    elseif contains(scan,'b0') || contains(scan,'abc') || contains(scan,'sb')
         if exist(save_file,'file') > 1
             prompt = 'File already exists, do you want to replace it: type y/n [y]: ';
             tmp = input(prompt,'s');
@@ -54,13 +56,17 @@ function [twix_params,twix_params_b0] = fn_read_twix(folder,scan,params)
             % Find the file that matches the name of scan
             tmp = dir(sprintf('./data/%s/raw/twix/*%s*',folder,scan));
             twix = mapVBVD(sprintf('%s/%s',tmp.folder,tmp.name));
-            twix = twix{1}; % AMM: This seems to be only needed for VE12...
+%             twix = twix{1}; % AMM: This seems to be only needed for VE12...
 
             % Saving relevant parameters
-            if contains(scan,'b0')
+            if contains(scan,'b0') 
                 % Here I can save more twix parameters as needed...
-                twix_params_b0.shift = twix.hdr.MeasYaps.sSliceArray.asSlice{1}.sPosition.dCor; 
-%                 twix_params_b0.shift = twix.hdr.MeasYaps.sSliceArray.asSlice{1}.sPosition.dTra; 
+                if contains(folder,'2023') && params.gen.field_strength == 7
+                    twix = twix{1};
+                end
+               
+                twix_params_b0.shift(1) = twix.hdr.MeasYaps.sSliceArray.asSlice{1}.sPosition.dCor; 
+                twix_params_b0.shift(2) = twix.hdr.MeasYaps.sSliceArray.asSlice{1}.sPosition.dTra; 
                 twix_params_b0.TE = twix.hdr.Meas.alTE(1:5);
                 twix_params_b0.TR = twix.hdr.Meas.alTR;
                 twix_params_b0.FA = twix.hdr.Phoenix.adFlipAngleDegree;
@@ -73,6 +79,18 @@ function [twix_params,twix_params_b0] = fn_read_twix(folder,scan,params)
                     twix.hdr.Meas.dSliceResolution].*1e-3;
             else
                 % Here I can save more twix parameters as needed...
+                % the parameter where version is saved is
+                % twix.image.softwareVersion... 
+                % For VE12
+                if contains(folder,'2023') && params.gen.field_strength == 7
+                    twix = twix{1};
+                end
+                
+                % First I make the shift zero, then I update, need to check
+                % why in 9.4 I dont se it or tilted?
+                params.gen.shift(1:2) = 0;
+                twix_params.shift(1) = twix.hdr.MeasYaps.sSliceArray.asSlice{1}.sPosition.dCor; 
+                twix_params.shift(2) = twix.hdr.MeasYaps.sSliceArray.asSlice{1}.sPosition.dTra;
                 twix_params.TE = twix.hdr.Meas.alTE(1).*1e-6;
                 twix_params.TR = twix.hdr.Meas.alTR(1).*1e-6;
                 twix_params.FA = twix.hdr.Phoenix.adFlipAngleDegree{1};
@@ -135,11 +153,12 @@ function [twix_params,twix_params_b0] = fn_read_twix(folder,scan,params)
 
                 cc=permute(bb,[1 4 3 2]); % Getting ch dim to the end and set to second
                 
-                % Temp, trying to extract the dork navigators:
+%                 Temp, trying to extract the dork navigators:
                 if params.gen.dork == 2
+                 if size(cc,3) > sl*dyn*interl
                     dork_nav = cc(:,:,2:2:end,:);
-                    % dork_nav = reshape(dork_nav,[],sl*dyn,ch);
-                    dork_nav = dork_nav(3600-99:3600,1,:,:);
+                    dork_nav = reshape(dork_nav,[],sl*dyn,ch);
+                    dork_nav = dork_nav(params.gen.ro_samples-99:params.gen.ro_samples,:,:);
                     dork_nav = squeeze(dork_nav);
                     dork_nav = permute(dork_nav,[2 1 3]);
                     dork_nav = reshape(dork_nav,sl*2,params.repetitions,[],ch);
@@ -148,6 +167,7 @@ function [twix_params,twix_params_b0] = fn_read_twix(folder,scan,params)
                     nav.bold = dork_nav(:,sl+1:end,:,:);
                     cc = cc(:,:,1:2:end,:);
                     save(sprintf('./data/%s/raw/%s_nav.mat',folder,scan),'nav')
+                 end
                 end
                 
                 dd=reshape(cc,[],sl*dyn,ch);  % Permuting first and second dim, Col and Set
@@ -193,6 +213,26 @@ function [twix_params,twix_params_b0] = fn_read_twix(folder,scan,params)
                 ks_abc = permute(dd,[1,3,2]);
                 ks_abc = reshape(ks_abc,[ro*interl ch sl dyn]);
                 ks_abc = permute(ks_abc,[1,3,4,2]);
+                
+            elseif contains(scan,'sb')
+                dyn = params.repetitions;       % Here I do *2 because I have VASO-BOLD
+                image_data = twix.image();
+                % trying to reshare matrix, for Spiral acquisitions
+                aa=squeeze(image_data);
+                % AMM: This only applies if I use sync scan, now I don't
+                % have it so I dont need to remove skope sync scans.
+%                 if params.gen.skope
+%                     bb=aa(:,:,sl+1:end,:);  % Removing the skope sync readouts
+%                 else
+                    bb=aa;
+%                 end
+                cc=permute(bb,[1 4 3 2]); % Getting ch dim to the end and set to second
+                dd=reshape(cc,[],sl*dyn,ch);  % Permuting first and second dim, Col and Set
+		
+                % Extracting the dynamics
+                ks_sb = permute(dd,[1,3,2]);
+                ks_sb = reshape(ks_sb,[ro*interl ch sl dyn]);
+                ks_sb = permute(ks_sb,[1,3,4,2]);
                 
             elseif contains(scan,'cv')
                 dyn = (params.repetitions)*2;       % Here I do *2 because I have VASO-BOLD
@@ -274,6 +314,10 @@ function [twix_params,twix_params_b0] = fn_read_twix(folder,scan,params)
                 save(save_file,'ks_abc','-v7.3')
                 save(sprintf('./data/%s/acq/%s_twix_params.mat',folder,scan),'twix_params');
                 fprintf('ABC scan saved in path %s/raw/ \n',folder);
+            elseif contains(scan,'sb')
+                save(save_file,'ks_sb','-v7.3')
+                save(sprintf('./data/%s/acq/%s_twix_params.mat',folder,scan),'twix_params');
+                fprintf('Spiral BOLD scan saved in path %s/raw/ \n',folder);
             end
         end 
 end

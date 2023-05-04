@@ -23,10 +23,10 @@ end
 
 cd ./sosp_vaso
 
-folder = '03032023_sv';
-cs_b0_file = 'b0_s02_fieldmap';
-scan = 'sv_11';
-repetitions = 60; %4,120        % AMM: ToDo: find a way to get this param from somewhere
+folder = '04252023_sv_abc';
+cs_b0_file = 'b0_s01_fieldmap';
+scan = 'sv_01';
+repetitions = 144; %4,50        % AMM: ToDo: find a way to get this param from somewhere
 
 % Reading some parameters from Pulseq
 load(sprintf('./data/%s/acq/%s_params.mat',folder,scan));
@@ -37,12 +37,16 @@ params.is2d = 0;                   % 1 if 3D dataset saved as 2D
 params.traj = 1;                   % Trajectory input: 1 (matlab simulation), 2 (poet), 3 (skope)
 params.plot = 0;                   % Plot stuff
 params.ncc = 0;              	   % Coil compression coils... 0 for no compression
-params.gen.dork = 0;                % DORK, 0=no,1=partial,2=full
-params.reps_to_save = 1:10;         % Repetitions to create ismrmd files (range or 1 number)
+params.gen.dork = 1;                % DORK, 0=no,1=partial,2=full
+params.reps_to_save = 1:144;         % Repetitions to create ismrmd files (range or 1 number)
+params.part_dork = 0;              % Partition DORK
+params.rep_dork = 1;               % Repetition DORK
+params.k0_demodulation = 1;         % K0 demodulation, uses skope data
+
 
 %% Adding extra parameters from Pulseq
 params.slices = params.gen.n(3);
-params.ch = 32; 
+params.ch = 32;  % 7T=32 , 9.4T=31
 params.nx = params.gen.ro_samples;
 params.ny = 1; 
 params.rz = params.gen.kz;

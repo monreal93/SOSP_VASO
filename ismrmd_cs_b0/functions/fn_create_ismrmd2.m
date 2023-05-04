@@ -26,27 +26,43 @@ function fn_create_ismrmd2(folder,scan,params)
         traj_name = 'sk';
     end
     
-    % Check DORK
-    if params.gen.dork == 1             % partial DORK
-        dork = '_pDORK';
-    elseif params.gen.dork == 2         % Full DORK
-        dork = '_fDORK';
+%     % Check DORK
+%     if params.gen.dork == 1             % partial DORK
+%         dork = '_pDORK';
+%     elseif params.gen.dork == 2         % Full DORK
+%         dork = '_fDORK';
+%     else
+%         dork = '';
+%     end
+    if params.part_dork == 1
+        p_dork = '_pDORK';
     else
-        dork = '';
+        p_dork = '';
+    end
+    if params.rep_dork == 1
+        r_dork = '_rDORK';
+    else
+        r_dork = '';
     end
     
     % Checking if files exist, it checks for the first one only
     if contains(scan,'sv') ||  contains(scan,'cv')
         if params.is2d == 1
-            filename = sprintf('./data/%s/ismrmd/2d/%s_v_r1_sl1_2d_%s%s.h5',folder,scan,traj_name,dork);
+            filename = sprintf('./data/%s/ismrmd/2d/%s_v_r1_sl1_2d_%s%s%s.h5',folder,scan,traj_name,p_dork,r_dork);
         else
-            filename = sprintf('./data/%s/ismrmd/3d/%s_v_3d_r1_%s%s.h5',folder,scan,traj_name,dork);
+            filename = sprintf('./data/%s/ismrmd/3d/%s_v_3d_r1_%s%s%s.h5',folder,scan,traj_name,p_dork,r_dork);
         end
     elseif contains(scan,'abc')
         if params.is2d == 1
-            filename = sprintf('./data/%s/ismrmd/2d/%s_r1_sl1_2d_%s%s.h5',folder,scan,traj_name,dork);
+            filename = sprintf('./data/%s/ismrmd/2d/%s_r1_sl1_2d_%s%s%s.h5',folder,scan,traj_name,p_dork,r_dork);
         else
-            filename = sprintf('./data/%s/ismrmd/3d/%s_3d_r1_%s%s.h5',folder,scan,traj_name,dork);
+            filename = sprintf('./data/%s/ismrmd/3d/%s_3d_r1_%s%s%s.h5',folder,scan,traj_name,p_dork,r_dork);
+        end
+    elseif contains(scan,'sb')
+        if params.is2d == 1
+            filename = sprintf('./data/%s/ismrmd/2d/%s_r1_sl1_2d_%s%s%s.h5',folder,scan,traj_name,p_dork,r_dork);
+        else
+            filename = sprintf('./data/%s/ismrmd/3d/%s_3d_r1_%s%s%s.h5',folder,scan,traj_name,p_dork,r_dork);
         end
     end
     tmp = 'y';
@@ -70,12 +86,9 @@ function fn_create_ismrmd2(folder,scan,params)
             load(['./data/' folder '/raw/' scan '_ks_bold.mat']);
         elseif contains(scan,'abc')
             load(['./data/' folder '/raw/' scan '_ks_abc.mat']);
+        elseif contains(scan,'sb')
+            load(['./data/' folder '/raw/' scan '_ks_sb.mat']);
         end
-         %%%%%%%%%%%%%%%%%%% DEMO: Perform phase correction...
-        % Do I want to do separate VASO  and BOLD?
-        ks_bold_all = ks_bold;
-        ks_vaso_all = ks_vaso;
-        %%%%%%%%%
         
 %         last_partition = floor(params.slices/params.rz*params.pf);
         last_partition = params.mtx_s(3);
@@ -86,6 +99,8 @@ function fn_create_ismrmd2(folder,scan,params)
                 ks_bold = FFT_1D(ks_bold,'image',2);
             elseif contains(scan,'abc')
                 ks_abc = FFT_1D(ks_abc,'image',2);
+            elseif contains(scan,'sb')
+                ks_abc = FFT_1D(ks_sb,'image',2);
             end
         end
         
@@ -108,6 +123,13 @@ function fn_create_ismrmd2(folder,scan,params)
                 filename = sprintf('./data/%s/ismrmd/3d/%s_3d_%s.h5',folder,scan,traj_name);
             end
             delete(filename);
+        elseif contains(scan,'sb')
+            if params.is2d == 1
+                filename = sprintf('./data/%s/ismrmd/2d/%s_2d_%s.h5',folder,scan,traj_name);
+            else
+                filename = sprintf('./data/%s/ismrmd/3d/%s_3d_%s.h5',folder,scan,traj_name);
+            end
+            delete(filename);
         end
         warning('on')
         
@@ -117,6 +139,8 @@ function fn_create_ismrmd2(folder,scan,params)
             dset_b = ismrmrd.Dataset(filename_b);
         elseif contains(scan,'abc')
             dset_abc = ismrmrd.Dataset(filename);
+        elseif contains(scan,'sb')
+            dset_sb = ismrmrd.Dataset(filename);
         end
         
         acqData = ismrmrd.Acquisition(params.slices);
@@ -157,23 +181,47 @@ function fn_create_ismrmd2(folder,scan,params)
 %         %%%%%
         
         % Normalize and interpolate trajectory
+        if params.traj == 3
+            k0 = ks_traj.k0;
+        end
         ks_traj = norm_interp_traj(ks_traj.kx,ks_traj.ky,ks_traj.kz,params.nx*params.spi.interl);
                 
         % Temp: FFT shift data, for now only spiral, not sure if
         % needed for cartesian
         if params.gen.ro_type == 's'
+            fft_shift(1) = params.twix_params.shift(1)./params.gen.res(1)./10000;
+            fft_shift(2) = params.twix_params.shift(2)./params.gen.res(2)./10000;
+            
             if params.gen.seq == 1
-                ks_vaso = fft_shift_2D(ks_vaso,ks_traj.kx,round(params.twix_params_b0.shift/params.res(2)./10000),ks_traj.ky,0); % 14,31
-                ks_bold = fft_shift_2D(ks_bold,ks_traj.kx,round(params.twix_params_b0.shift/params.res(2)./10000),ks_traj.ky,0);
+%                 ks_vaso = fft_shift_2D(ks_vaso,ks_traj.kx,round(params.twix_params_b0.shift(1)/params.res(1)./10000),ks_traj.ky,round(params.twix_params_b0.shift(2)/params.res(2)./10000)); % 14,31
+%                 ks_bold = fft_shift_2D(ks_bold,ks_traj.kx,round(params.twix_params_b0.shift(1)/params.res(1)./10000),ks_traj.ky,round(params.twix_params_b0.shift(2)/params.res(2)./10000));
+                ks_vaso = fft_shift_2D(ks_vaso,ks_traj.kx,fft_shift(1),ks_traj.ky,fft_shift(2)); % 14,31
+                ks_bold = fft_shift_2D(ks_bold,ks_traj.kx,fft_shift(1),ks_traj.ky,fft_shift(2));
+           
             elseif params.gen.seq == 2
-                ks_abc = fft_shift_2D(ks_abc,ks_traj.kx,round(params.twix_params_b0.shift/params.res(2)./10000),ks_traj.ky,0);
+%                 ks_abc = fft_shift_2D(ks_abc,ks_traj.kx,round(params.twix_params_b0.shift/params.res(2)./10000),ks_traj.ky,0);
+                ks_abc = fft_shift_2D(ks_abc,ks_traj.kx,fft_shift(1),ks_traj.ky,fft_shift(2));
             end
         end
         
- %%%%%%%%%%%%%%%%%%% DEMO: Perform phase correction...
+%%%%%%%%%%%%%%%%%%% DEMO: Perform phase correction...
 if params.gen.dork ~= 0
-        ks_bold_new = ks_bold_all;
-        ks_vaso_new = ks_vaso_all;
+        ks_bold_new = ks_bold;
+        ks_vaso_new = ks_vaso;
+        % Demodulation of k0
+        load('/mnt/5T3/Alejandro/sosp_vaso/data/tmp/k0_sk.mat')
+        
+        if params.k0_demodulation == 1
+            ks_bold_new = ks_bold_new.*exp(1i.*(k0));
+            ks_vaso_new = ks_vaso_new.*exp(1i.*(k0));
+        end
+        
+         load('/mnt/5T3/Alejandro/sosp_vaso/data/03032023_sv/tmp/sim_kspace.mat')
+    
+         % Trying to find the phase difference btw partitions in diff
+         % repetitions
+         
+            
         if params.gen.dork == 2
             load(['./data/' folder '/raw/' scan '_nav.mat']);   
             nav.vaso = squeeze(mean(nav.vaso,4));
@@ -184,85 +232,185 @@ if params.gen.dork ~= 0
             nav.bold = zeros(tmp(1:3));
         end
 
-        
         % Do I want to do separate VASO  and BOLD?
         % Here I try to get the navigator,I look in the kspace traj and
         % take the 100 samples before the spiral is played
         tmp = find(ks_traj.kx(:,1));
-        l_nav = tmp(1);
-        f_nav = l_nav-99;
-        ref_rep = 8;
-        ks_tmp_b =  mean(ks_bold_all,4);
+        if params.traj == 3
+            tmp = find(abs(ks_traj.kx(:,1))>2e-5);
+        end
+        l_nav = 45; % (240)
+        f_nav = 10;%l_nav-99;
+        ref_rep = 2;
+        ks_tmp_b =  mean(ks_bold,4);
         nav_ri_b = (ks_tmp_b(f_nav:l_nav,(params.gen.n(3)/2)+1,ref_rep)); % Reference repetition (first nav @TE)
         nav_rn_b = nav.bold(:,(params.gen.n(3)/2)+1,ref_rep);             % Reference repetition (last nav @TN)
-        ks_tmp_v =  mean(ks_vaso_all,4);
+        ks_tmp_v =  mean(ks_vaso,4);
         nav_ri_v = (ks_tmp_v(f_nav:l_nav,(params.gen.n(3)/2)+1,ref_rep)); % Reference repetition (first nav @TE)
         nav_rn_v = nav.vaso(:,(params.gen.n(3)/2)+1,ref_rep);             % Reference repetition (last nav @TN)
         t = params.gen.t_vector.';
-        tn = t(end)+2e-3;
-        for i =1:size(ks_vaso,3)
-            rep_range = f_nav:l_nav;
-            
-            nav_ni_b = (ks_tmp_b(rep_range,(params.gen.n(3)/2)+1,i));
-            nav_nn_b = nav.bold(:,(params.gen.n(3)/2)+1,i);
-            del_phi_nn_b = (angle(nav_nn_b)-angle(nav_rn_b));%./params.gen.TE; % Nav ph diff
-            del_phi_nn_b = mean(del_phi_nn_b);
-            del_phi_ni_b = (angle(nav_ni_b)-angle(nav_ri_b));%./params.gen.TE; % Nav ph diff
-            del_phi_ni_b = mean(del_phi_ni_b);
-            
-            nav_ni_v = (ks_tmp_v(rep_range,(params.gen.n(3)/2)+1,i));
-            nav_nn_v = nav.vaso(:,(params.gen.n(3)/2)+1,i);
-            del_phi_nn_v = (angle(nav_nn_v)-angle(nav_rn_v));%./params.gen.TE; % Nav ph diff
-            del_phi_nn_v = mean(del_phi_nn_v);
-            del_phi_ni_v = (angle(nav_ni_v)-angle(nav_ri_v));%./params.gen.TE; % Nav ph diff
-            del_phi_ni_v = mean(del_phi_ni_v);
-            
-            del_omg_n_b = (del_phi_nn_b-del_phi_ni_b)./(tn-params.gen.TE);
-            del_omg_n_v = (del_phi_nn_v-del_phi_ni_v)./(tn-params.gen.TE);
-
-            del_phi_n0_b = ((tn*del_phi_ni_b)-(params.gen.TE*del_phi_nn_b))./(tn-params.gen.TE);
-            del_phi_n0_v = ((tn*del_phi_ni_v)-(params.gen.TE*del_phi_nn_v))./(tn-params.gen.TE);
-            
-            if params.spi.interl > 1
-                ref_interl = floor(params.spi.interl/2);
-                ref_interl_range = (f_nav)+(params.gen.ro_samples*(ref_interl-1)):(l_nav)+(params.gen.ro_samples*(ref_interl-1));
-                nav0_b_interl = (ks_tmp_b(ref_interl_range,params.gen.n(3)/2,i));
-                nav0_v_interl = (ks_tmp_v(ref_interl_range,params.gen.n(3)/2,i));
-%                 ks_tmp_b_interl = ks_tmp_b(f_nav:l_nav,:,:);
-%                 ks_tmp_v_interl = ks_tmp_v(f_nav:l_nav,:,:);
-                for j=1:params.spi.interl
-                    interl_range = (params.gen.ro_samples*(j-1))+1:params.gen.ro_samples*j;
-                    interl_range = interl_range.';
-                    nav_range = (f_nav)+(params.gen.ro_samples*(j-1)):(l_nav)+(params.gen.ro_samples*(j-1));
-                    nav_b_interl = (ks_tmp_b(nav_range,params.gen.n(3)/2,i));
-                    del_b_interl = (angle(nav_b_interl)-angle(nav0_b_interl))./params.gen.TE;
-                    del_b_interl = mean(del_b_interl);
-                    nav_v_interl = (ks_tmp_v(nav_range,params.gen.n(3)/2,i));
-                    del_v_interl = (angle(nav_v_interl)-angle(nav0_v_interl))./params.gen.TE;
-                    del_v_interl = mean(del_v_interl);
-%                     % Temp, making it delta negative
-%                     del_b_interl = del_b_interl.*-1;
-%                     del_v_interl = del_v_interl.*-1;
-                    ks_bold_new(interl_range,:,i,:) =  ks_bold_all(interl_range,:,i,:).*exp(-1i*del_b_interl.*t(interl_range));
-                    ks_vaso_new(interl_range,:,i,:) =  ks_vaso_all(interl_range,:,i,:).*exp(-1i*del_v_interl.*t(interl_range));                 
-                end
-% %             % To test DORKS:
-%             figure; 
-%             hold on; plot(angle(ks_bold_new(1:3500,12,1,1)))
-%             hold on; plot(angle(ks_bold_new((3500*1)+1:3500*2,12,1,1)))
-%             hold on; plot(angle(ks_bold_new((3500*2)+1:3500*3,12,1,1)))
-%             hold on; plot(angle(ks_bold_new((3500*3)+1:3500*4,12,1,1)))
-            end
-            del_phi_n0_v = del_phi_n0_v.*-1;
-            del_phi_n0_b = del_phi_n0_b.*-1;
-           %    If partial DORK correction, we assume delta phi n 0 is zero
-            if params.gen.dork == 1
-                del_phi_n0_v = 0;
-                del_phi_n0_b = 0;
-            end
-            ks_bold_new(:,:,i,:) =  ks_bold_new(:,:,i,:).*exp(-1i*(del_phi_n0_b+(del_omg_n_b).*t));
-            ks_vaso_new(:,:,i,:) =  ks_vaso_new(:,:,i,:).*exp(-1i*(del_phi_n0_v+(del_omg_n_v).*t));
+        if params.gen.dork == 2
+            tn = t(end)+2e-3;
+        else
+            tn = 0;
         end
+        
+        tmp_te  = params.gen.TE;%+2e-3;
+    %%%% Partition DORK
+         if params.part_dork == 1
+             for i = 1:params.repetitions
+                %%%%%%% AMM: Temp, trying to compare the phase of the simulated data to the
+                 % in-vivo dataa
+                 % Read the simulated data
+                 load('/mnt/5T3/Alejandro/sosp_vaso/data/03032023_sv/tmp/sim_kspace.mat')
+                 % put it in the same space as in-vivo
+    %              xx = complex(real(ks).*-1,imag(ks));
+    %              xx = xx*exp(1i);
+                 ks_nav = ks;
+                % Here, I try to correct for the phase difference between
+                % partitions, I take as reference the simulated data (xx), it works
+                % best with del_phi negative...
+
+                % nav_xx = squeeze(ks_nav(150:250,:,:));
+                nav_xx = squeeze(ks_nav(f_nav:l_nav,:,:));
+                nav_xx = mean(nav_xx,3);
+                nav_xx = angle(nav_xx);
+
+                nav_xx_vaso = squeeze(ks_vaso(f_nav:l_nav,:,i,:));
+                nav_xx_vaso = mean(nav_xx_vaso,3);
+                nav_xx_vaso = angle(nav_xx_vaso);
+                del_phi_xx_v = (nav_xx-nav_xx_vaso);%./params.gen.TE; % Nav ph diff
+                del_phi_xx_v = mean(del_phi_xx_v,1);
+                del_phi_xx_v = repmat(del_phi_xx_v,[params.gen.ro_samples,1,1,1]);
+                del_phi_xx_v = permute(del_phi_xx_v,[1,2,4,3]);
+                % del_phi_xx_v = del_phi_xx_v.*-1;
+%                 ks_vaso_new_new =  ks_vaso_new.*exp(1i*(del_phi_xx_v));
+                ks_vaso_new_new(:,:,i,:) =  ks_vaso_new(:,:,i,:).*exp(1i*(del_phi_xx_v));
+
+                
+                nav_xx_bold = squeeze(ks_bold(f_nav:l_nav,:,i,:));
+                nav_xx_bold = mean(nav_xx_bold,3);
+                nav_xx_bold = angle(nav_xx_bold);
+                del_phi_xx_b = (nav_xx-nav_xx_bold);%./params.gen.TE; % Nav ph diff
+                del_phi_xx_b = mean(del_phi_xx_b,1);
+                del_phi_xx_b = repmat(del_phi_xx_b,[params.gen.ro_samples,1,1,1]);
+                del_phi_xx_b = permute(del_phi_xx_b,[1,2,4,3]);
+                % del_phi_xx_v = del_phi_xx_v.*-1;
+%                 ks_vaso_new_new =  ks_vaso_new.*exp(1i*(del_phi_xx_v));
+                ks_bold_new_new(:,:,i,:) =  ks_bold_new(:,:,i,:).*exp(1i*(del_phi_xx_b));
+
+                
+                 %%%%%%%%%%%%%
+             end
+             ks_vaso_new = ks_vaso_new_new;
+             ks_bold_new = ks_bold_new_new;
+         end
+
+      %%% Repetition DORK...
+        if params.rep_dork == 1
+            for i =1:size(ks_vaso,3)
+                rep_range = f_nav:l_nav;
+
+                nav_ni_b = (ks_tmp_b(rep_range,(params.gen.n(3)/2)+1,i));
+                nav_nn_b = nav.bold(:,(params.gen.n(3)/2)+1,i);
+                del_phi_nn_b = (angle(nav_nn_b)-angle(nav_rn_b));%./params.gen.TE; % Nav ph diff
+                del_phi_nn_b = mean(del_phi_nn_b);
+                del_phi_ni_b = (angle(nav_ni_b)-angle(nav_ri_b));%./params.gen.TE; % Nav ph diff
+                del_phi_ni_b = mean(del_phi_ni_b);
+
+
+                nav_ni_v = (ks_tmp_v(rep_range,(params.gen.n(3)/2)+1,i));
+                nav_nn_v = nav.vaso(:,(params.gen.n(3)/2)+1,i);
+                del_phi_nn_v = (angle(nav_nn_v)-angle(nav_rn_v));%./params.gen.TE; % Nav ph diff
+                del_phi_nn_v = mean(del_phi_nn_v);
+                del_phi_ni_v = (angle(nav_ni_v)-angle(nav_ri_v));%./params.gen.TE; % Nav ph diff
+                del_phi_ni_v = mean(del_phi_ni_v);
+
+
+                del_omg_n_b(i) = (del_phi_nn_b-del_phi_ni_b)./(tn-tmp_te);
+                del_omg_n_v(i) = (del_phi_nn_v-del_phi_ni_v)./(tn-tmp_te);
+
+                del_phi_n0_b = ((tn*del_phi_ni_b)-(tmp_te*del_phi_nn_b))./(tn-tmp_te);
+                del_phi_n0_v = ((tn*del_phi_ni_v)-(tmp_te*del_phi_nn_v))./(tn-tmp_te);
+
+                if params.spi.interl > 1
+                    ref_interl = floor(params.spi.interl/2);
+                    ref_interl_range = (f_nav)+(params.gen.ro_samples*(ref_interl-1)):(l_nav)+(params.gen.ro_samples*(ref_interl-1));
+                    nav0_b_interl = (ks_tmp_b(ref_interl_range,params.gen.n(3)/2,i));
+                    nav0_v_interl = (ks_tmp_v(ref_interl_range,params.gen.n(3)/2,i));
+    %                 ks_tmp_b_interl = ks_tmp_b(f_nav:l_nav,:,:);
+    %                 ks_tmp_v_interl = ks_tmp_v(f_nav:l_nav,:,:);
+                    for j=1:params.spi.interl
+                        interl_range = (params.gen.ro_samples*(j-1))+1:params.gen.ro_samples*j;
+                        interl_range = interl_range.';
+                        nav_range = (f_nav)+(params.gen.ro_samples*(j-1)):(l_nav)+(params.gen.ro_samples*(j-1));
+                        nav_b_interl = (ks_tmp_b(nav_range,params.gen.n(3)/2,i));
+                        del_b_interl = (angle(nav_b_interl)-angle(nav0_b_interl))./tmp_te;
+                        del_b_interl = mean(del_b_interl);
+                        nav_v_interl = (ks_tmp_v(nav_range,params.gen.n(3)/2,i));
+                        del_v_interl = (angle(nav_v_interl)-angle(nav0_v_interl))./tmp_te;
+                        del_v_interl = mean(del_v_interl);
+    %                     % Temp, making it delta negative
+    %                     del_b_interl = del_b_interl.*-1;
+    %                     del_v_interl = del_v_interl.*-1;
+                        ks_bold_new(interl_range,:,i,:) =  ks_bold_new(interl_range,:,i,:).*exp(1i*del_b_interl.*t(interl_range));
+                        ks_vaso_new(interl_range,:,i,:) =  ks_vaso_new(interl_range,:,i,:).*exp(1i*del_v_interl.*t(interl_range));                 
+                    end
+                end
+    %             del_phi_n0_v = del_phi_n0_v.*-1;
+    %             del_phi_n0_b = del_phi_n0_b.*-1;
+
+                ks_bold_new(:,:,i,:) =  ks_bold_new(:,:,i,:).*exp(-1i*(del_phi_n0_b+(del_omg_n_b(i).*t)));
+                ks_vaso_new(:,:,i,:) =  ks_vaso_new(:,:,i,:).*exp(-1i*(del_phi_n0_v+(del_omg_n_v(i).*t)));
+            end
+        end
+       
+        % Finding Delta W to correctB0 maps
+        if params.rep_dork == 1
+            %%%%% Trying to get the phase difference to reference after all
+            %%%%% corrections, here I assume the reference is 0, since that is
+            %%%%% the phase I would expect in the B0 map
+
+            ref_rep = 2;
+            ks_tmp_b = ks_bold_new;
+            nav_rn_b = squeeze(ks_tmp_b(rep_range,(params.gen.n(3)/2)+1,ref_rep,:));
+            nav_rn_b = mean(nav_rn_b,2);
+            omg_nav_rn_b = angle(nav_rn_b);%./tmp_te;
+
+            ks_tmp_v = ks_vaso_new;
+            nav_rn_v = squeeze(ks_tmp_v(rep_range,(params.gen.n(3)/2)+1,ref_rep,:));
+            nav_rn_v = mean(nav_rn_v,2);
+            omg_nav_rn_v = angle(nav_rn_v);%./tmp_te;
+
+            for i =1:size(ks_vaso_new,3)
+                rep_range = f_nav:l_nav;
+                
+                nav_ni_b = squeeze(ks_tmp_b(rep_range,(params.gen.n(3)/2)+1,i,:));
+                nav_ni_b = mean(nav_ni_b,2);
+                omg_nav_ni_b = angle(nav_ni_b);%./tmp_te;
+
+                nav_ni_v = squeeze(ks_tmp_v(rep_range,(params.gen.n(3)/2)+1,i,:));
+                nav_ni_v = mean(nav_ni_v,2);
+                omg_nav_ni_v = angle(nav_ni_v);%./tmp_te;;
+
+
+                del_omg_n_b_new(i) = (mean(omg_nav_ni_b-omg_nav_rn_b))./tmp_te;
+                del_omg_n_v_new(i) = (mean(omg_nav_ni_v-omg_nav_rn_v))./tmp_te;
+                 
+%                 del_omg_n_b_new(i) = (mean(omg_nav_ni_b)./tmp_te)-(623.95); % 724.63/ 587
+%                 del_omg_n_v_new(i) = (mean(omg_nav_ni_v)./tmp_te)-(623.95);
+
+            end
+
+             save(sprintf('./data/%s/tmp/%s_del_omg_n_v_new.mat',folder,scan),'del_omg_n_v_new')
+             save(sprintf('./data/%s/tmp/%s_del_omg_n_b_new.mat',folder,scan),'del_omg_n_b_new')
+         
+             save(sprintf('./data/%s/tmp/%s_del_omg_n_v.mat',folder,scan),'del_omg_n_v')
+             save(sprintf('./data/%s/tmp/%s_del_omg_n_b.mat',folder,scan),'del_omg_n_b')
+         
+             %%%%%%
+        end
+       
         ks_bold = ks_bold_new;
         ks_vaso = ks_vaso_new;
         clearvars ks_bold_new ks_vaso_new      
@@ -276,8 +424,16 @@ end
         ks_traj.kz = permute(ks_traj.kz,[3,2,1]);
         
         
-        ks_vaso = double(ks_vaso);
-        ks_bold = double(ks_bold);
+
+        
+        if contains(scan,'sv')  ||  contains(scan,'cv')
+            ks_vaso = double(ks_vaso);
+            ks_bold = double(ks_bold);
+        elseif contains(scan,'abc')
+            ks_abc = double(ks_abc);
+        elseif contains(scan,'sb')
+            ks_sb = double(ks_sb);
+        end
 
         % Permuting ks_traj, to make things easier
         kx_tmp = permute(ks_traj.kx,[3 2 1]);
@@ -292,19 +448,26 @@ for j = params.reps_to_save(1):params.reps_to_save(end)
                 warning('off')
                 if contains(scan,'sv')  ||  contains(scan,'cv')
                     if params.is2d == 1
-                        filename_v = sprintf('./data/%s/ismrmd/2d/%s_v_2d_r%i_%s%s.h5',folder,scan,j,traj_name,dork);
-                        filename_b = sprintf('./data/%s/ismrmd/2d/%s_b_2d_r%i_%s%s.h5',folder,scan,j,traj_name,dork);
+                        filename_v = sprintf('./data/%s/ismrmd/2d/%s_v_2d_r%i_%s%s%s.h5',folder,scan,j,traj_name,p_dork,r_dork);
+                        filename_b = sprintf('./data/%s/ismrmd/2d/%s_b_2d_r%i_%s%s%s.h5',folder,scan,j,traj_name,p_dork,r_dork);
                     else
-                        filename_v = sprintf('./data/%s/ismrmd/3d/%s_v_3d_r%i_%s%s.h5',folder,scan,j,traj_name,dork);
-                        filename_b = sprintf('./data/%s/ismrmd/3d/%s_b_3d_r%i_%s%s.h5',folder,scan,j,traj_name,dork);
+                        filename_v = sprintf('./data/%s/ismrmd/3d/%s_v_3d_r%i_%s%s%s.h5',folder,scan,j,traj_name,p_dork,r_dork);
+                        filename_b = sprintf('./data/%s/ismrmd/3d/%s_b_3d_r%i_%s%s%s.h5',folder,scan,j,traj_name,p_dork,r_dork);
                     end
                     delete(filename_v);
                     delete(filename_b);
                 elseif contains(scan,'abc')
                     if params.is2d == 1
-                        filename = sprintf('./data/%s/ismrmd/2d/%s_2d_r%i_%s%s.h5',folder,scan,j,traj_name,dork);
+                        filename = sprintf('./data/%s/ismrmd/2d/%s_2d_r%i_%s%s%s.h5',folder,scan,j,traj_name,p_dork,r_dork);
                     else
-                        filename = sprintf('./data/%s/ismrmd/3d/%s_3d_r%i_%s%s.h5',folder,scan,j,traj_name,dork);
+                        filename = sprintf('./data/%s/ismrmd/3d/%s_3d_r%i_%s%s%s.h5',folder,scan,j,traj_name,p_dork,r_dork);
+                    end
+                    delete(filename);
+                elseif contains(scan,'sb')
+                    if params.is2d == 1
+                        filename = sprintf('./data/%s/ismrmd/2d/%s_2d_r%i_%s%s%s.h5',folder,scan,j,traj_name,p_dork,r_dork);
+                    else
+                        filename = sprintf('./data/%s/ismrmd/3d/%s_3d_r%i_%s%s%s.h5',folder,scan,j,traj_name,p_dork,r_dork);
                     end
                     delete(filename);
                 end
@@ -316,6 +479,8 @@ for j = params.reps_to_save(1):params.reps_to_save(end)
                     dset_b = ismrmrd.Dataset(filename_b);
                 elseif contains(scan,'abc')
                     dset_abc = ismrmrd.Dataset(filename);
+                elseif contains(scan,'sb')
+                    dset_sb = ismrmrd.Dataset(filename);
                 end
 
                 acqData = ismrmrd.Acquisition(params.slices);
@@ -436,16 +601,53 @@ for j = params.reps_to_save(1):params.reps_to_save(end)
                         if params.is2d == 1
                             acqData.head.idx.slice(i) = i;
                             traj = [kx_tmp(:,i) ky_tmp(:,i)];
-                            data = squeeze(ks_bold(:,i,j,:));
+                            data = squeeze(ks_abc(:,i,j,:));
                         else
                             acqData.head.idx.kspace_encode_step_1(i) = i-1; 
                             traj = [kx_tmp(:,i) ky_tmp(:,i) kz_tmp(:,i)];
-                            data = reshape(ks_bold(:,i,j,:),[],size(ks_bold,4));
+                            data = reshape(ks_abc(:,i,j,:),[],size(ks_abc,4));
                         end
                         acqData.data{i} = data;
                         acqData.traj{i} = traj.';
                     end
                     dset_abc.appendAcquisition(acqData);
+                    
+                elseif contains(scan,'sb')
+                    ks_sb = double(ks_sb);
+
+                    % SB
+                    for i=1:last_partition
+                         % Set the header elements that change from acquisition to the next
+                        % c-style counting
+                        acqData.head.scan_counter(i) = params.gen.ro_samples + i-1;
+%                         acqData.head.scan_counter(i) = (j-1)*params.gen.ro_samples + i-1;
+                        % acqData.head.idx.repetition(i) = j - 1;
+
+                        % Set the flags
+                        acqData.head.flagClearAll(i);
+                        if i == 1
+                            acqData.head.flagSet('ACQ_FIRST_IN_ENCODE_STEP1', i);
+                            acqData.head.flagSet('ACQ_FIRST_IN_SLICE', i);
+                            acqData.head.flagSet('ACQ_FIRST_IN_REPETITION', i);
+                        elseif i == params.slices
+                            acqData.head.flagSet('ACQ_LAST_IN_ENCODE_STEP1', i);
+                            acqData.head.flagSet('ACQ_LAST_IN_SLICE', i);
+                            acqData.head.flagSet('ACQ_LAST_IN_REPETITION', i);
+                        end  
+
+                        if params.is2d == 1
+                            acqData.head.idx.slice(i) = i;
+                            traj = [kx_tmp(:,i) ky_tmp(:,i)];
+                            data = squeeze(ks_sb(:,i,j,:));
+                        else
+                            acqData.head.idx.kspace_encode_step_1(i) = i-1; 
+                            traj = [kx_tmp(:,i) ky_tmp(:,i) kz_tmp(:,i)];
+                            data = reshape(ks_sb(:,i,j,:),[],size(ks_sb,4));
+                        end
+                        acqData.data{i} = data;
+                        acqData.traj{i} = traj.';
+                    end
+                    dset_sb.appendAcquisition(acqData);
 
                 end
             % end
@@ -513,6 +715,9 @@ for j = params.reps_to_save(1):params.reps_to_save(end)
         elseif contains(scan,'abc')
             dset_abc.writexml(xmlstring);
             dset_abc.close();  
+        elseif contains(scan,'sb')
+            dset_sb.writexml(xmlstring);
+            dset_sb.close();  
         end
 
         fprintf('ISMRMD file, rep %i saved in path %s/ismrmd/ \n',j, folder);

@@ -23,8 +23,6 @@ function calculateGfactor(acqData::AcquisitionData, replicas::Int64, params::Dic
         Ireco = reconstruction(acqData, params)
         image_replicas[:,:,:,i_rep] = abs.(Ireco[:,:,:,1,1,1])
 
-        @infiltrate
-
     end
 
 end
