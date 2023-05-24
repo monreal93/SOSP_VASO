@@ -206,6 +206,14 @@ function fn_create_ismrmd2(folder,scan,params)
         
 %%%%%%%%%%%%%%%%%%% DEMO: Perform phase correction...
 if params.gen.dork ~= 0
+    
+        % Dirty trick for the moment, to make this part of code work with
+        % ABC data...
+        if params.gen.seq == 2
+            ks_bold = ks_abc;
+            ks_vaso = ks_abc;
+        end
+        
         ks_bold_new = ks_bold;
         ks_vaso_new = ks_vaso;
         % Demodulation of k0
@@ -336,25 +344,25 @@ if params.gen.dork ~= 0
                 if params.spi.interl > 1
                     ref_interl = floor(params.spi.interl/2);
                     ref_interl_range = (f_nav)+(params.gen.ro_samples*(ref_interl-1)):(l_nav)+(params.gen.ro_samples*(ref_interl-1));
-                    nav0_b_interl = (ks_tmp_b(ref_interl_range,params.gen.n(3)/2,i));
-                    nav0_v_interl = (ks_tmp_v(ref_interl_range,params.gen.n(3)/2,i));
+                    nav0_b_interl = (ks_tmp_b(ref_interl_range,params.gen.n(3)/2+1,i));
+                    nav0_v_interl = (ks_tmp_v(ref_interl_range,params.gen.n(3)/2+1,i));
     %                 ks_tmp_b_interl = ks_tmp_b(f_nav:l_nav,:,:);
     %                 ks_tmp_v_interl = ks_tmp_v(f_nav:l_nav,:,:);
                     for j=1:params.spi.interl
                         interl_range = (params.gen.ro_samples*(j-1))+1:params.gen.ro_samples*j;
                         interl_range = interl_range.';
                         nav_range = (f_nav)+(params.gen.ro_samples*(j-1)):(l_nav)+(params.gen.ro_samples*(j-1));
-                        nav_b_interl = (ks_tmp_b(nav_range,params.gen.n(3)/2,i));
+                        nav_b_interl = (ks_tmp_b(nav_range,params.gen.n(3)/2+1,i));
                         del_b_interl = (angle(nav_b_interl)-angle(nav0_b_interl))./tmp_te;
                         del_b_interl = mean(del_b_interl);
-                        nav_v_interl = (ks_tmp_v(nav_range,params.gen.n(3)/2,i));
+                        nav_v_interl = (ks_tmp_v(nav_range,params.gen.n(3)/2+1,i));
                         del_v_interl = (angle(nav_v_interl)-angle(nav0_v_interl))./tmp_te;
                         del_v_interl = mean(del_v_interl);
     %                     % Temp, making it delta negative
     %                     del_b_interl = del_b_interl.*-1;
     %                     del_v_interl = del_v_interl.*-1;
-                        ks_bold_new(interl_range,:,i,:) =  ks_bold_new(interl_range,:,i,:).*exp(1i*del_b_interl.*t(interl_range));
-                        ks_vaso_new(interl_range,:,i,:) =  ks_vaso_new(interl_range,:,i,:).*exp(1i*del_v_interl.*t(interl_range));                 
+                        ks_bold_new(interl_range,:,i,:) =  ks_bold_new(interl_range,:,i,:).*exp(-1i*del_b_interl.*t(interl_range));
+                        ks_vaso_new(interl_range,:,i,:) =  ks_vaso_new(interl_range,:,i,:).*exp(-1i*del_v_interl.*t(interl_range));                 
                     end
                 end
     %             del_phi_n0_v = del_phi_n0_v.*-1;
@@ -411,8 +419,14 @@ if params.gen.dork ~= 0
              %%%%%%
         end
        
-        ks_bold = ks_bold_new;
-        ks_vaso = ks_vaso_new;
+        % Dirty trick for the moment, to make this part of code work with
+        % ABC data...
+        if params.gen.seq == 1
+            ks_bold = ks_bold_new;
+            ks_vaso = ks_vaso_new;
+        elseif params.gen.seq == 2
+            ks_abc = ks_bold_new;
+        end
         clearvars ks_bold_new ks_vaso_new      
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%

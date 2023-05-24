@@ -4,10 +4,10 @@ using SphericalHarmonicExpansions
 # using MAT
 # using ImageTransformations
 
-function getCalibrationMatrix(params::Dict{Symbol,Any},b0_init)
+function getCalibrationMatrix(params::Dict{Symbol,Any},b0_init,fm)
     mtx_s = [Int64(params[:mtx_s][1]),Int64(params[:mtx_s][2]),Int64(params[:mtx_s][3])]
     fov = params[:fov]
-    l = 3
+    l = 4
     lmax = (l+1).^2
 
 
@@ -20,16 +20,16 @@ function getCalibrationMatrix(params::Dict{Symbol,Any},b0_init)
 
     sh_basis = zeros(mtx_s[1],mtx_s[2],mtx_s[3],lmax)
 
-    if params[:fmri] == 1
-        fm = matread(string("../",params[:directory],"acq/fm_", params[:scan],".mat"))
-    else
-        fm = matread(string("../",params[:directory],"acq/fm_",params[:scan][1:2],"_01.mat"))
-    end
-    
-    fm = fm["fieldmap"][:,:,:,3,:]
-    fm = imresize(fm,(mtx_s[1],mtx_s[2],mtx_s[3],params[:nCoils]))
-    # fm = abs.(fm)
+    # if params[:fmri] == 1
+    #     fm = matread(string("../",params[:directory],"acq/fm_", params[:scan],".mat"))
+    # else
+    #     fm = matread(string("../",params[:directory],"acq/fm_",params[:scan][1:2],"_01.mat"))
+    # end
+    # fm = fm["fieldmap"][:,:,:,2,:]
 
+    fm = imresize(fm,(mtx_s[1],mtx_s[2],mtx_s[3],params[:nCoils]))
+    fm = fm[:,:,:,1,:]
+    # fm = fm.*1e-4
 
     # Getting shperical harmonics basis functions
     @polyvar x y z
@@ -86,7 +86,7 @@ function getCalibrationMatrix(params::Dict{Symbol,Any},b0_init)
         B[:,i] =  tmp
     end
     
-    jim(ΔB0, "ΔB0"; color=:jet)
+    # jim(ΔB0, "ΔB0"; color=:jet)
     @infiltrate
 
     return A, B, sh_basis, ΔB0, b

@@ -13,7 +13,13 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
     end
     if input == "n"
         @info ("Loading Sensitivity maps ...")
-        cs = matread(string(params_sv[:path],"acq/cs_",file_name,".mat")); cs = cs["coil_sens"];
+        cs = matread(string(params_sv[:path],"acq/cs_",file_name,".mat")); cs = cs["coil_sens"]
+        if params_sv[:fmri] == 1
+            fm = matread(string("../",params_sv[:directory],"acq/fm_", params_sv[:scan],".mat"))
+        else
+            fm = matread(string("../",params_sv[:directory],"acq/fm_",params_sv[:scan][1:2],"_01.mat"))
+        end
+        fm = fm["fieldmap"]
     else
         @info ("Calculating Sensitivity maps ...")
         ### Get Sensitivity maps:
@@ -93,6 +99,10 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
         fm = permutedims(fm,(1,2,3,5,4))
         fm = fm.*1e3   # Scale data
 
+        # Bias correct..
+        @infiltrate
+
+
         params_sv[:b0_te] =  params_sv[:b0_te] * 1f-3 * 1s # echo times in sec
         ######### Temp:
         ydata = fm; echotime = params_sv[:b0_te]
@@ -138,7 +148,11 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
         b0 = 1im.*b0;
         b0 = convert(Array{ComplexF32,3},b0)
 
-
+        # Saving NIFTI of GRE first echo
+        gre_echo1 = abs.(yik_sos[:,:,:,1])
+        # fm = imresize(fm,(params_sv[:nx],params_sv[:ny],params_sv[:sl]))
+        gre_echo1 = NIVolume(gre_echo1)
+        niwrite(string(params_sv[:path],"tmp/",params_sv[:scan],"_gre_1echo.nii"),gre_echo1)
         # b0[findall(>(500),abs.(b0))] .= Complex(0)
         # b0[findall(<(-500),abs.(b0))] .= Complex(0)
 
@@ -185,7 +199,12 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
 
     # Get calibration matrix for B0 dynamic correction
     if params_sv[:drift] == "_drift" && params_sv[:do_b0_corr] == true
-        A, B, sh_basis, ΔB0, b_A = getCalibrationMatrix(params_sv,b0)
+        A, B, sh_basis, ΔB0, b_A = getCalibrationMatrix(params_sv,b0,fm)
+    end
+
+    # Motion correction, calibration matix
+    if params_sv[:mcorr] == "_mCorr"
+        @time calib = motionCorrection(params_sv,fm,cs)
     end
 
     j=1:length(contrasts)
@@ -245,7 +264,24 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
                     times = repeat(times,Int(params_sv[:sl]/params_sv[:kz]))';
                 end
 
-                # Add B0 map and correct for scanner drift
+                # Getting the navigator data
+                nav_range = Int(params_sv[:ro_samples]*(params_sv[:sl]/2+1)+1):Int(params_sv[:ro_samples]*(params_sv[:sl]/2+1)+1+300-1)
+                nav = (acqData.kdata[1][nav_range,:])
+                nav_times = params_sv[:times][1:299]
+
+                ####### Motion correction
+                if params_sv[:mcorr] == "_mCorr"
+                    @info ("Motion Correction...")
+                    @infiltrate
+                    nav_range = findall(nav_times -> nav_times>params_sv[:b0_te][1].*1e-3, nav_times)[1]-20:findall(nav_times -> nav_times>params_sv[:b0_te][1].*1e-3, nav_times)[1]+20
+                    nav_mCorr = mean(nav[nav_range,:], dims=1)'
+                    nav_mCorr = abs.(nav_mCorr)
+                    x_motion = nav_mCorr \ calib
+                end
+
+
+
+                ####### B0 dynamic off-resonance correction
                 if params_sv[:do_b0_corr]
                     b0_drift = Array{ComplexF32}(undef,size(b0))
                     if params_sv[:directory][10:13]=="2022"
@@ -258,27 +294,23 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
                     
                         # #### Zero-th order DORK correction.... (not working properly)
                         # # Here I am trying to add the exta Hz difference btw partitions
-                        # del_omg_v = matread(string(params_sv[:path],"tmp/",params_sv[:scan],"_del_omg_n_v.mat"))
-                        # del_omg_b = matread(string(params_sv[:path],"tmp/",params_sv[:scan],"_del_omg_n_b.mat"))
+                        del_omg_v = matread(string(params_sv[:path],"tmp/",params_sv[:scan],"_del_omg_n_v.mat"))
+                        del_omg_b = matread(string(params_sv[:path],"tmp/",params_sv[:scan],"_del_omg_n_b.mat"))
                         
-                        # if params_sv[:contrasts][j] == "v"
-                        #     del_omg = del_omg_v["del_omg_n_v_new"]
-                        # elseif params_sv[:contrasts][j] == "b"
-                        #     del_omg = del_omg_b["del_omg_n_b_new"]
-                        # end
+                        if params_sv[:contrasts][j] == "v"
+                            del_omg = del_omg_v["del_omg_n_v"]
+                        elseif params_sv[:contrasts][j] == "b"
+                            del_omg = del_omg_b["del_omg_n_b"]
+                        end
 
                         # b0_drift = Array{ComplexF32}(b0_drift.+(2*pi*del_omg[i].*1im))
 
-                        ##### AMM: Temp, trying to get 
-                        file1=ISMRMRDFile(string(params_sv[:path],"ismrmd/3d/",params_sv[:scan],"_",contrasts[j],"_",params_sv[:id],"_r",i,"_",params_sv[:traj_type]  ,".h5"));
-                        acqData1 = AcquisitionData(file1)
-                        #####
+                        # ##### AMM: Temp, trying to get 
+                        # file1=ISMRMRDFile(string(params_sv[:path],"ismrmd/3d/",params_sv[:scan],"_",contrasts[j],"_",params_sv[:id],"_r",i,"_",params_sv[:traj_type]  ,".h5"));
+                        # acqData1 = AcquisitionData(file1)
+                        # #####
 
                         #### Higher order correction.... (Wallace approach)
-                        # Getting the navigator data
-                        nav_range = Int(params_sv[:ro_samples]*(params_sv[:sl]/2+1)+1):Int(params_sv[:ro_samples]*(params_sv[:sl]/2+1)+1+300-1)
-                        nav = (acqData.kdata[1][nav_range,:])
-                        nav_times = params_sv[:times][1:299]
                         # Taking 10 samples centered at TE of B0 (First echo)
 
                         tmp = params_sv[:b0_te][1].*1e-3 .<= nav_times
@@ -287,21 +319,11 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
                         # nav_range = findall(nav_times -> nav_times>params_sv[:b0_te][tmp-1].*1e-3, nav_times)[tmp-1]-5:findall(nav_times -> nav_times>params_sv[:b0_te][tmp-1].*1e-3, nav_times)[tmp-1]+5
                         nav_range = findall(nav_times -> nav_times>params_sv[:b0_te][1].*1e-3, nav_times)[1]-5:findall(nav_times -> nav_times>params_sv[:b0_te][1].*1e-3, nav_times)[1]+5
 
-                        nav = mean(nav[nav_range,:], dims=1)'
+                        nav_drift = mean(nav[nav_range,:], dims=1)'
 
                         # #### Trying to solve the sys of equations with i and r together
-                        # YY = fill(Array{Float32}(undef,32,1), (2, 1))
-                        # AA = fill(Array{Float32}(undef,32,9), (2, 1))
-                        # bb = fill(Array{Float32}(undef,1,9), (2, 1))
-                        # YY[1] = real.(nav)
-                        # YY[2] = imag.(nav)
-                        # AA[1] = real.(A)
-                        # AA[2] = imag.(A)
-                        # bb[1] = ones(1,9)
-                        # bb[2] = zeros(1,9)
-
                         ###
-                        YY = vcat(real.(nav),imag.(nav))
+                        YY = vcat(real.(nav_drift),imag.(nav_drift))
                         AA = vcat(real.(A),imag.(A))
                         b = AA \ YY
                         ####
@@ -321,17 +343,32 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
 
                         mask = deepcopy(b0)
                         mask[abs.(mask) .> 0] .= 1
+                        
+                        @infiltrate
+                        # Extra Hz from Global drift, values from rep DORKs correction
+                        δB0 = (δB0.*2*pi).+(abs(del_omg[i]))
+
+                        # Adding del_omg to positive B0 values, and resting from negative...
+                        # idx_p = findall(imag.(b0_drift).>0)
+                        # idx_n = findall(imag.(b0_drift).<0)
+                        # b0_drift[idx_p] = b0_drift[idx_p] .+ ((abs(del_omg[i])*im))
+                        # b0_drift[idx_n] = b0_drift[idx_n] .- ((abs(del_omg[i])*im))
+                        # @infiltrate
+                        # tmp = matread("/usr/share/sosp_vaso/data/05192023_sv/tmp/b0_drift_test.mat")
+                        # tmp = matread("/usr/share/sosp_vaso/data/05192023_sv/tmp/b0_drift_test_omg_over_t.mat")
+                        # b0_drift = tmp["xx_ft"].*1*im
+
+                        @infiltrate
                         δB0 = δB0.*mask
 
-                        jim((δB0), "δB0"; color=:jet)
+                        # jim((δB0), "δB0"; color=:jet)
 
                         # It looks like for VB17 I need to change the sign of the B0map
-                        @infiltrate
                         if params_sv[:directory][10:13]=="2022"
                             b0_drift = Array{ComplexF32}(b0_drift-((δB0).*im))
                         else
                             # b0_drift = Array{ComplexF32}(b0_drift+(((δB0.-del_omg[i]).*2*pi).*im))
-                            b0_drift = Array{ComplexF32}((b0_drift)-(δB0.*2*pi.*im))
+                            b0_drift = Array{ComplexF32}((b0_drift)-(δB0.*im))
                         end
                         
                         @infiltrate
@@ -389,6 +426,9 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
                 end
 
             end
+        # Trying to clear some memory
+        ccall(:malloc_trim, Cvoid, (Cint,), 0) 
+        GC.gc()
         end
     end
 

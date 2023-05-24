@@ -13,6 +13,15 @@ using ImageTransformations
 using ImageFiltering: imfilter, Kernel
 using Pkg
 using NFFT
+using FLoops
+using MriResearchTools: makehomogeneous
+
+using FFTW
+# FFTW.set_provider!("mkl")
+FFTW.set_provider!("fftw")
+
+# This packages are used for the motion correction
+# using ImageCore, CoordinateTransformations, Rotations
 
 NFFT._use_threads[] = false
 
@@ -21,6 +30,7 @@ using MRIFiles
 include("./functions/fn_sv_recon.jl")
 include("./functions/fn_save_nii.jl")
 include("./functions/fn_calculateSphericalHarmonics.jl")
+include("../recon/functions/fn_motionCorrection.jl")
 # include("./functions/fn_ismrmd.jl")
 
 params = Dict{Symbol, Any}()
@@ -29,19 +39,20 @@ params[:do_b0_corr] = true;
 params[:b0_type] = "fessler";               # B0 from: "fessler", "romeo" , "gilad", "skope"               
 params[:is2d] = false;
 # params[:multiRepetitions] = true;         # Reconstruct multiple repetitions, if false = 2nd rep will be reconstructed
-params[:rep_recon] = 140;                     # Range of rep to recon
-params[:contrasts] = ["b"];                 # Contrasts to recon v,b or both 
+params[:rep_recon] = 1                     # Range of rep to recon
+params[:contrasts] = ["v"];                 # Contrasts to recon v,b or both 
 params[:traj_type] = "nom";                 # Trajectory type nominal="nom",skope="sk",poet = "poet"
 params[:save_ph] = 0;                       # Save phase of recon as nifti
 params[:fmri] = 1;                          # 1 for fMRI data will use separate cs and b0 maps per scan
-params[:pdork] = ""                  # partition DORK "_pDORK" or ""
-params[:rdork] = "_rDORK"                  # repetition DORK "_rDORK" or ""
-params[:drift] = "_drift"                  # DRIFT correction to B0 map? "_drift" or ""            
+params[:pdork] = ""                         # partition DORK "_pDORK" or ""
+params[:rdork] = "_rDORK"                   # repetition DORK "_rDORK" or ""
+params[:drift] = ""                   # DRIFT correction to B0 map? "_drift" or ""            
+params[:mcorr] = ""           # Motion correction with navigators "_mCorr"
 
 
 # Some parameters
-scans = ["sv_01"]; #,"sv_02","sv_04","sv_06","sv_08","sv_09","sv_10"];
-params[:directory] = "data/04252023_sv_abc/"        # directory where the data is stored
+scans = ["sv_02"]; #,"sv_02","sv_04","sv_06","sv_08","sv_09","sv_10"];
+params[:directory] = "data/05232023_sv/"        # directory where the data is stored
 
 # Find out if script is running in laptop/dabeast/docker
 
@@ -104,6 +115,7 @@ end
 
         @time fn_sv_recon(params)
 
+        ccall(:malloc_trim, Cvoid, (Cint,), 0) 
         GC.gc()
 
     end

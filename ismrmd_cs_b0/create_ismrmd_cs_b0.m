@@ -11,7 +11,7 @@ if contains(path_tmp,"amonreal")
     setenv('TOOLBOX_PATH','/home/amonreal/Documents/PhD/tools/bart-0.7.00')
 elseif contains(path_tmp,"/mnt/")
     % Beast paths
-    cd /mnt/5T3/Alejandro/
+    cd /mnt/5T4/Alejandro/
     addpath(genpath('/mnt/5T3/Alejandro/tools/ismrmrd'))
     addpath(genpath('/mnt/5T3/Alejandro/tools/matlab/functions/general'))
     addpath(genpath('/mnt/5T3/Alejandro/sosp_vaso/ismrmd_cs_b0/functions'))
@@ -23,10 +23,10 @@ end
 
 cd ./sosp_vaso
 
-folder = '04252023_sv_abc';
+folder = '05232023_sv';
 cs_b0_file = 'b0_s01_fieldmap';
 scan = 'sv_01';
-repetitions = 144; %4,50        % AMM: ToDo: find a way to get this param from somewhere
+repetitions = 160; %4,50        % AMM: ToDo: find a way to get this param from somewhere
 
 % Reading some parameters from Pulseq
 load(sprintf('./data/%s/acq/%s_params.mat',folder,scan));
@@ -38,7 +38,7 @@ params.traj = 1;                   % Trajectory input: 1 (matlab simulation), 2 
 params.plot = 0;                   % Plot stuff
 params.ncc = 0;              	   % Coil compression coils... 0 for no compression
 params.gen.dork = 1;                % DORK, 0=no,1=partial,2=full
-params.reps_to_save = 1:144;         % Repetitions to create ismrmd files (range or 1 number)
+params.reps_to_save = 1:160;         % Repetitions to create ismrmd files (range or 1 number)
 params.part_dork = 0;              % Partition DORK
 params.rep_dork = 1;               % Repetition DORK
 params.k0_demodulation = 1;         % K0 demodulation, uses skope data
