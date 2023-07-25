@@ -42,6 +42,12 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
                 elseif contains(params.spi.rotate,'linear')
                     tmp1 = 0;
                     kaa = kaa.*exp(1i*tmp1); % Partition rotations
+                elseif contains(params.spi.rotate,'180')
+                    tmp1 = pi*(j-1);
+                    kaa = kaa.*exp(1i*tmp1); % Partition rotations
+                elseif contains(params.spi.rotate,'120')
+                    tmp1 = (120*pi/180)*(j-1);
+                    kaa = kaa.*exp(1i*tmp1); % Partition rotations
                 end
 
                 kaa=[real(kaa); imag(kaa)];
@@ -52,9 +58,9 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
                 sr_max = params.spi.max_sr*10/100; % convert mT/m/ms -> G/cm/ms   
                 C = [squeeze(kaa(1,:)).', squeeze(kaa(2,:)).']./100; % times 100 to make it 1/cm
 
-                if params.spi.type == 1
-                    C = flip(C,1);
-                end
+%                 if params.spi.type == 1
+%                     C = flip(C,1);
+%                 end
 
                 if j==1 || contains('none',params.spi.rotate) == 0
                     %%%%%%% spirals
@@ -72,6 +78,10 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
                     g_new = g_new*42.58e6/100;    % convert from G/cm -> Hz/m
                     g_new = rmmissing(g_new,2);
                     %%%%%%%%%%%%
+
+                    if params.spi.type == 1
+                        g_new = flip(g_new,2);
+                    end
     
 %                     %%%%%% Safe spirals
 %                     [g_new(1,:),g_new(2,:),time] = fn_safe_spirals(C,params);
@@ -182,17 +192,7 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
         adcSamples = ceil(adcSamples/4)*4;  
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-        % Getting the correct number to split the ADC
-        % The ADC obj has to be splitted into N equal parts, with duration multiple
-        % of 10us
-        for i = 1:50
-            if mod(adcSamples,i) == 0 && mod(adcSamples/i*adcDwell,10e-9) == 0 && (adcSamples/i) < 8192 && mod(adcSamples/i,4) == 0
-                adcSplit = adcSamples/i;
-                break
-            end
-        end
-        params.gen.adc_split = adcSplit;
-        params.gen.adc_segments = i;
+
         
         % AMM: Compensating for the 6 zeros I padded before
 %         adcSamples = adcSamples-6;
