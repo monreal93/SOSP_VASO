@@ -17,13 +17,22 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
 %             last_tetha = last_tetha+20;
         end
         
-        last_tetha = ceil(last_tetha/(2*pi))*2*pi;
+        last_tetha = floor(last_tetha/(2*pi))*2*pi;
 %         last_tetha = floor(last_tetha/2*pi)*2*pi;
         
         tetha = 0:2*pi/1e2:last_tetha;
         
         fov_vd = linspace(params.gen.fov(1)*params.spi.vd,params.gen.fov(1),length(tetha));
         ka = (tetha./(2*pi*fov_vd)).*exp(1i.*(tetha./params.spi.rxy./params.spi.interl));
+        
+%         % Trying to make it finish at 0...
+%         idx = and(imag(ka)<1e-3,imag(ka)>-1e-3);
+%         idx = find(idx);
+%         idx = idx(end);
+% 
+%         ka = ka(1,1:idx);
+
+%         ka = (round((tetha./(2*pi*fov_vd))./(2*pi))*(2*pi)).*exp(1i.*(tetha./params.spi.rxy./params.spi.interl));
 %         ka = ka.';
 %         ka = (tetha./(2*pi*fov_vd))*params.spi.rxy.*exp(1i.*tetha);
         % figure; hold on; plot(ka)
@@ -67,13 +76,24 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
                     [C,time,g,s,k] = minTimeGradient(C,rv, C(1,1), 0, g_max, sr_max,T,ds,0);
                     % Interpolating to the initial size of kaa
         %             tmp = 0:length(g)-1
+
+                    % Temp, trying to make the gradient finish and start at 0
+                    % and adding 20 extra zeros to be used as FID nav for
+                    % DORK correction
+                    tmp = [g(1,:)/2; g(1,:)/4];
+                    tmp1 = [g(end,:)/2; g(end,:)/4];
+                    g = [zeros(20,3); tmp ; g; tmp1; zeros(20,3)];
+
+
                     time = round(time*1e-3,3);
                     tmp = linspace(0,time,length(g));
-                    tmp1 = (time*1e-3)./2e-6.*lims.adcRasterTime;
+                    tmp1 = linspace(0,time,floor(time(end)/lims.gradRasterTime));
+
                     for k=1:2
                         % g_new(k,:) = interp1(tmp,g(:,k).',linspace(0,time,length(kaa)));
-                        g_new(k,:) = interp1(tmp,g(:,k).',(0:floor(time(end)/lims.gradRasterTime))*lims.gradRasterTime);
+                        g_new(k,:) = interp1(tmp,g(:,k).',tmp1,'spline','extrap');
                     end
+
                     % Trying to get grad to correct units
                     g_new = g_new*42.58e6/100;    % convert from G/cm -> Hz/m
                     g_new = rmmissing(g_new,2);
@@ -82,10 +102,20 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
                     if params.spi.type == 1
                         g_new = flip(g_new,2);
                     end
+
+                    % ADC
+                    % Round-down dwell time to adcRasterTime
+                    adcDwell = floor((1./(params.spi.bw)/lims.adcRasterTime))*lims.adcRasterTime;
+                    % updating Spiral BW
+                    params.spi.bw = 1./adcDwell;
     
 %                     %%%%%% Safe spirals
 %                     [g_new(1,:),g_new(2,:),time] = fn_safe_spirals(C,params);
 %                     %%%%%%%%%
+
+                    % Trying to make the spirals finish at y=0
+                    
+
                     spiral_grad_shape(:,:,i,j) = g_new(1:2,:);
 
                 elseif params.spi.interl > 1 || contains('none',params.spi.rotate) == 1
@@ -130,17 +160,23 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
             end    
         end
 
-        % Padding some zeros so the gradient shape starts from 0 
-        if params.spi.type == 0
-            tmp = ceil((size(spiral_grad_shape,2)/2)./100)*2*100;
-            if tmp == size(spiral_grad_shape,2)
-                tmp = size(spiral_grad_shape,2)+100;
-            end
-            spiral_grad_shape = padarray(spiral_grad_shape,[0 tmp-size(spiral_grad_shape,2) 0],'pre'); 
-        end
+%         % ADC
+%         % Round-down dwell time to adcRasterTime
+%         adcDwell = floor((1./(params.spi.bw)/lims.adcRasterTime))*lims.adcRasterTime;
+%         % updating Spiral BW
+%         params.spi.bw = 1./adcDwell;
+
+
+        % Padding some zeros to make it a nice number
+        tmp = ceil((size(spiral_grad_shape,2)/2)./100)*2*100;
+%         if tmp == size(spiral_grad_shape,2)
+%             tmp = size(spiral_grad_shape,2)+100;
+%         end
         
-        if params.spi.type == 1
-           spiral_grad_shape = padarray(spiral_grad_shape,[0 10 0],'post');  
+        if params.spi.type == 0
+            spiral_grad_shape = padarray(spiral_grad_shape,[0 tmp-size(spiral_grad_shape,2) 0],'pre'); 
+        elseif params.spi.type == 1
+            spiral_grad_shape = padarray(spiral_grad_shape,[0 tmp-size(spiral_grad_shape,2) 0],'post'); 
         end
         
 
@@ -150,11 +186,7 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
         % figure; plot(kopt_smooth(1,:),kopt_smooth(2,:))
         % figure; plot(spiral_grad_shape(1,:))
 
-        %% ADC
-        % Round-down dwell time to adcRasterTime
-        adcDwell = floor((1./(params.spi.bw)/lims.adcRasterTime))*lims.adcRasterTime;
-        % updating Spiral BW
-        params.spi.bw = 1./adcDwell;
+
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Pulseq approach
 %         % calculate ADC
@@ -187,7 +219,10 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
 %%%%% Lusing approach %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         % Adding adc deadtime and 
         % time = time+lims.adcDeadTime;
-        adcSamples = round(time./adcDwell);
+        time_new = size(spiral_grad_shape,2).*lims.adcRasterTime/1e-2;
+        % gradient should finish at gradRaster time
+        time_new = round(time_new/lims.gradRasterTime)*lims.gradRasterTime;
+        adcSamples = round(time_new./adcDwell);
         % In SIEMENS number of ADC samples should be divisible by 4
         adcSamples = ceil(adcSamples/4)*4;  
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -200,7 +235,7 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
 
         % extend spiral_grad_shape by repeating the last sample
         % this is needed to accomodate for the ADC tuning delay
-        spiral_grad_shape = [spiral_grad_shape spiral_grad_shape(:,end,:,:)];
+        % spiral_grad_shape = [spiral_grad_shape spiral_grad_shape(:,end,:,:)];
         
         % SOSP Blips
         nz_eff = params.gen.n(3);       % AMM: this should be changed for undersampling kz

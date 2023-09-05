@@ -7,15 +7,16 @@
 
 #### 1) Let's first copy the files I need into this folder
 cp /home/amonreal/Documents/PhD/PhD_2022/sosp_vaso/analysis/youtube/gnuplot_moco.txt ./gnuplot_moco.txt
+cp /home/amonreal/Documents/PhD/PhD_2022/sosp_vaso/analysis/youtube/gnuplot_layers.txt ./gnuplot_layers.txt
 
 # I am not sure if I also want to copy mocobatch.m
 # cp /home/amonreal/Documents/PhD/PhD_2022/sosp_vaso/analysis/youtube/
 
 #### 2) MOTION CORRECTION (modify cp path in mocobatch.m):
-file=../*sv_11_bv*
-vol=160  # s=160 / c=140
-tr=1.66  # s=1.66 / c=1.81
-r_a_tr=8  # TRs for rest and activity s=8 / c=7
+file=../*abc_02*
+vol=120  # s=160 / c=140
+tr=0.42  # s=1.66 / c=1.81
+r_a_tr=6  # TRs for rest and activity s=8 / c=7
 
 blocks=$(echo $vol/$r_a_tr/2 | bc -l)
 blocks=$(echo ${blocks%.*})
@@ -50,6 +51,7 @@ cp ./Basis_a.nii ./Basis_b.nii
 3dinfo -nt Basis_b.nii >> NT.txt
 
 ###### 3) Motion Correction
+## for non-vaso data, use script fn_mocobatch_flex1
 matlab -nodesktop -nosplash -r "fn_mocobatch_flex "${dir}
 
 ##
@@ -151,7 +153,7 @@ tr_av_a=$(echo "[$a1-$a2]")
 3dcalc -a  VASO_r.nii -b VASO_a.nii -overwrite -expr '(a-b)/a' -prefix delta_VASO.nii
 
 # For now, I still need to copy and paste the stim_times, but should make it automatic
-printf "copy and paste this \n $stim_times \n $ublock \n"
+# printf "copy and paste this \n $stim_times \n $ublock \n"
 
 ###
 echo "VASO based on GLM" 
@@ -214,8 +216,8 @@ echo "BOLD based on GLM"
 # -1clip threshold.. (~1.8), (1.5,1.2,270)
 # rmm = cluster connection radius, larger value->remove small clusters
 # vmul minimum cluster volume, smaller value->removes small clusters
-3dclust -1noneg -overwrite -prefix clustered_VASO.nii -1clip 1.3 1.2 120 2_STATS_VASO.nii
-3dclust -1noneg -overwrite -prefix clustered_BOLD.nii -1clip 2 1.1 160 2_STATS_NEG_BOLD.nii
+3dclust -1noneg -overwrite -prefix clustered_VASO.nii -1clip 2 1.4 120 2_STATS_VASO.nii
+3dclust -1noneg -overwrite -prefix clustered_BOLD.nii -1clip 3 1.4 120 2_STATS_NEG_BOLD.nii
 
 ####### 10) Masking relevant volumes
 fslmaths T1_weighted.nii -mul mask.nii T1_weighted_masked.nii
@@ -309,6 +311,10 @@ gnuplot "gnuplot_layers.txt"
 3dcalc -overwrite -a clustered_BOLD_masked.nii -expr 'within(a,9.001,11)' -prefix BOLD_9_11.nii
 3dcalc -overwrite -a clustered_BOLD_masked.nii -expr 'within(a,11.001,50)' -prefix BOLD_11_plus.nii
 
+
+# Calculate volume mean tSNR
+3dBrickStat -mean -non-negative -nonan -mask ./mask.nii ./BOLD_tSNR.nii
+3dBrickStat -mean -non-negative -nonan -mask ./mask.nii ./VASO_LN_tSNR.nii
 
 
 
