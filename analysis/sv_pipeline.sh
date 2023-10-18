@@ -13,10 +13,10 @@ cp /home/amonreal/Documents/PhD/PhD_2022/sosp_vaso/analysis/youtube/gnuplot_laye
 # cp /home/amonreal/Documents/PhD/PhD_2022/sosp_vaso/analysis/youtube/
 
 #### 2) MOTION CORRECTION (modify cp path in mocobatch.m):
-file=../*abc_02*
-vol=120  # s=160 / c=140
-tr=0.42  # s=1.66 / c=1.81
-r_a_tr=6  # TRs for rest and activity s=8 / c=7
+file=../*sv_01_bv_*
+vol=128  # s=160 / c=140
+tr=2.6  # s=1.66 / c=1.81
+r_a_tr=8  # TRs for rest and activity s=8 / c=7
 
 blocks=$(echo $vol/$r_a_tr/2 | bc -l)
 blocks=$(echo ${blocks%.*})
@@ -223,6 +223,13 @@ echo "BOLD based on GLM"
 fslmaths T1_weighted.nii -mul mask.nii T1_weighted_masked.nii
 fslmaths clustered_BOLD.nii -mul mask.nii clustered_BOLD_masked.nii
 fslmaths clustered_VASO.nii -mul mask.nii clustered_VASO_masked.nii
+
+### Create the manual Visual and Motor mask....
+##### 11) Masking again for a ROI, if needed....
+fslmaths mask.nii -mul roi_visual_motor.nii.gz roi_visual_motor_new.nii
+fslmaths clustered_BOLD_masked.nii -mul roi_visual_motor_new.nii clustered_BOLD_masked.nii
+fslmaths clustered_VASO_masked.nii -mul roi_visual_motor_new.nii clustered_VASO_masked.nii
+
 
 ##### 7) Get mean of activations and percentage change
 ### VASO

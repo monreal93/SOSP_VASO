@@ -168,7 +168,8 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
 
 
         % Padding some zeros to make it a nice number
-        tmp = ceil((size(spiral_grad_shape,2)/2)./100)*2*100;
+        tmp = ceil((size(spiral_grad_shape,2)/2))*2;
+        tmp = ceil(tmp/100)*100;
 %         if tmp == size(spiral_grad_shape,2)
 %             tmp = size(spiral_grad_shape,2)+100;
 %         end
@@ -249,9 +250,10 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
 %         end
 
     %% Checking forbidden frequencies
-    check_forbbiden_fq(squeeze(spiral_grad_shape(1,:,1,1)),false)
+    scanner = params.gen.field_strength;
+    check_forbbiden_fq(squeeze(spiral_grad_shape(1,:,1,1)),scanner,true)
     % title('Forbidden Frequencies Gx')
-    check_forbbiden_fq(squeeze(spiral_grad_shape(2,:,1,1)),false)
+    check_forbbiden_fq(squeeze(spiral_grad_shape(2,:,1,1)),scanner,false)
     % title('Forbidden Frequencies Gy')
 
 
