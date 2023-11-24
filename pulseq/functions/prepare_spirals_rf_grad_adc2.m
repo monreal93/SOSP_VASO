@@ -1,5 +1,6 @@
-function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_grad_adc1(params,lims)
+function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_grad_adc2(params)
         
+lims = params.gen.lims;
         %% Readout Gradients
         % define k-space parameters
     %     deltak =1/params.gen.fov(1);
@@ -264,13 +265,10 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
 
     %% Checking forbidden frequencies
     scanner = params.gen.field_strength;
-    check_forbbiden_fq(squeeze(spiral_grad_shape(1,:,1,1)),scanner,true);
+    check_forbbiden_fq(squeeze(spiral_grad_shape(1,:,1,1)),scanner,false);
     % title('Forbidden Frequencies Gx')
-    check_forbbiden_fq(squeeze(spiral_grad_shape(2,:,1,1)),scanner,true);
+    check_forbbiden_fq(squeeze(spiral_grad_shape(2,:,1,1)),scanner,false);
     % title('Forbidden Frequencies Gy')
-
-
-    
 
 
 end
