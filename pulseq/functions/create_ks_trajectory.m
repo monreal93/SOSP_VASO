@@ -29,19 +29,19 @@ function ks_traj = create_ks_trajectory(seq,adc,params)
     % AMM ToDo : Fix this part so it works for more echos..
     if params.spi.type == 3 && params.gen.ro_type == 's'
         % Echo 1 (IN) trajectory
-        ks_traj_e1.kx = ks_traj.kx([1:(plane_samples/2)-1,plane_samples+1:end-(plane_samples/2)-1],:);
-        ks_traj_e1.ky = ks_traj.ky([1:(plane_samples/2)-1,plane_samples+1:end-(plane_samples/2)-1],:);
-        ks_traj_e1.kz = ks_traj.kz([1:(plane_samples/2)-1,plane_samples+1:end-(plane_samples/2)-1],:);
-        ks_traj_e1.kx = [padarray(ks_traj_e1.kx(1:end/2,:),[1 0],'post');padarray(ks_traj_e1.kx((end/2)+1:end,:),[1 0],'post')];
-        ks_traj_e1.ky = [padarray(ks_traj_e1.ky(1:end/2,:),[1 0],'post');padarray(ks_traj_e1.ky((end/2)+1:end,:),[1 0],'post')];
-        ks_traj_e1.kz = [padarray(ks_traj_e1.kz(1:end/2,:),[1 0],'post');padarray(ks_traj_e1.kz((end/2)+1:end,:),[1 0],'post')];
+        ks_traj.e1.kx = ks_traj.kx([1:(plane_samples/2)-1,plane_samples+1:end-(plane_samples/2)-1],:);
+        ks_traj.e1.ky = ks_traj.ky([1:(plane_samples/2)-1,plane_samples+1:end-(plane_samples/2)-1],:);
+        ks_traj.e1.kz = ks_traj.kz([1:(plane_samples/2)-1,plane_samples+1:end-(plane_samples/2)-1],:);
+        ks_traj.e1.kx = [padarray(ks_traj.e1.kx(1:end/2,:),[1 0],'post');padarray(ks_traj.e1.kx((end/2)+1:end,:),[1 0],'post')];
+        ks_traj.e1.ky = [padarray(ks_traj.e1.ky(1:end/2,:),[1 0],'post');padarray(ks_traj.e1.ky((end/2)+1:end,:),[1 0],'post')];
+        ks_traj.e1.kz = [padarray(ks_traj.e1.kz(1:end/2,:),[1 0],'post');padarray(ks_traj.e1.kz((end/2)+1:end,:),[1 0],'post')];
          % Echo 2 (OUT) trajectory
-        ks_traj_e2.kx = ks_traj.kx([(plane_samples/2):plane_samples-2,plane_samples+(plane_samples/2):end-2],:);
-        ks_traj_e2.ky = ks_traj.ky([(plane_samples/2):plane_samples-2,plane_samples+(plane_samples/2):end-2],:);
-        ks_traj_e2.kz = ks_traj.kz([(plane_samples/2):plane_samples-2,plane_samples+(plane_samples/2):end-2],:);
-        ks_traj_e2.kx = [padarray(ks_traj_e2.kx(1:end/2,:),[1 0],'pre');padarray(ks_traj_e2.kx((end/2)+1:end,:),[1 0],'pre')];
-        ks_traj_e2.ky = [padarray(ks_traj_e2.ky(1:end/2,:),[1 0],'pre');padarray(ks_traj_e2.ky((end/2)+1:end,:),[1 0],'pre')];
-        ks_traj_e2.kz = [padarray(ks_traj_e2.kz(1:end/2,:),[1 0],'pre');padarray(ks_traj_e2.kz((end/2)+1:end,:),[1 0],'pre')];
+        ks_traj.e2.kx = ks_traj.kx([(plane_samples/2):plane_samples-2,plane_samples+(plane_samples/2):end-2],:);
+        ks_traj.e2.ky = ks_traj.ky([(plane_samples/2):plane_samples-2,plane_samples+(plane_samples/2):end-2],:);
+        ks_traj.e2.kz = ks_traj.kz([(plane_samples/2):plane_samples-2,plane_samples+(plane_samples/2):end-2],:);
+        ks_traj.e2.kx = [padarray(ks_traj.e2.kx(1:end/2,:),[1 0],'pre');padarray(ks_traj.e2.kx((end/2)+1:end,:),[1 0],'pre')];
+        ks_traj.e2.ky = [padarray(ks_traj.e2.ky(1:end/2,:),[1 0],'pre');padarray(ks_traj.e2.ky((end/2)+1:end,:),[1 0],'pre')];
+        ks_traj.e2.kz = [padarray(ks_traj.e2.kz(1:end/2,:),[1 0],'pre');padarray(ks_traj.e2.kz((end/2)+1:end,:),[1 0],'pre')];
     end
     
     % % Plotting traj partition by partition

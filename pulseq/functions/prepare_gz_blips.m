@@ -36,6 +36,9 @@ lims = params.gen.lims;
             end
         end
         gz_blips = tmp;
-    end   
+    end
+
+    % Repeting for interlaves
+    gz_blips = repmat(gz_blips',[1,params.gen.seg]);
 
 end

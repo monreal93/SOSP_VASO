@@ -265,7 +265,7 @@ lims = params.gen.lims;
 
     %% Checking forbidden frequencies
     scanner = params.gen.field_strength;
-    check_forbbiden_fq(squeeze(spiral_grad_shape(1,:,1,1)),scanner,false);
+    check_forbbiden_fq(squeeze(spiral_grad_shape(1,:,1,1)),scanner,true);
     % title('Forbidden Frequencies Gx')
     check_forbbiden_fq(squeeze(spiral_grad_shape(2,:,1,1)),scanner,false);
     % title('Forbidden Frequencies Gy')
