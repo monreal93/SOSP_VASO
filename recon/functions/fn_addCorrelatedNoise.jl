@@ -25,7 +25,8 @@ function addCorrelatedNoise(x::Matrix, snr::Float64 ,cov::Matrix, scale_factor::
   noise = permutedims(noise,(2,1))
   noise = sqrt(cov)*noise
   noise = permutedims(noise,(2,1))
-  noise = noise.*scale_factor
+
+  # noise = noise.*scale_factor
 
   return x+noise
 end

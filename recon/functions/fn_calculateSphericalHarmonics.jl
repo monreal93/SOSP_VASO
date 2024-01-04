@@ -7,7 +7,7 @@ using SphericalHarmonicExpansions
 function getCalibrationMatrix(params::Dict{Symbol,Any},b0_init,fm)
     mtx_s = [Int64(params[:mtx_s][1]),Int64(params[:mtx_s][2]),Int64(params[:mtx_s][3])]
     fov = params[:fov]
-    l = 4
+    l = 3
     lmax = (l+1).^2
 
 
@@ -87,7 +87,7 @@ function getCalibrationMatrix(params::Dict{Symbol,Any},b0_init,fm)
     end
     
     # jim(ΔB0, "ΔB0"; color=:jet)
-    @infiltrate
+    # @infiltrate
 
     return A, B, sh_basis, ΔB0, b
 end
