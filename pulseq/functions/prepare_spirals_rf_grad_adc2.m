@@ -1,5 +1,6 @@
-function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_grad_adc(params,lims)
+function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_grad_adc2(params)
         
+lims = params.gen.lims;
         %% Readout Gradients
         % define k-space parameters
     %     deltak =1/params.gen.fov(1);
@@ -82,12 +83,19 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
                     % DORK correction
                     tmp = [g(1,:)/2; g(1,:)/4];
                     tmp1 = [g(end,:)/2; g(end,:)/4];
-                    g = [zeros(20,3); tmp ; g; tmp1; zeros(20,3)];
 
+                    if params.spi.type == 3
+                        tmp = flip(tmp);
+                        tmp = tmp(1,:);
+%                         g = [zeros(1,3); tmp ; g; tmp1; zeros(1,3)];
+                        g = [ g; zeros(1,3)];
+                    else
+                        g = [zeros(20,3); tmp ; g; tmp1; zeros(20,3)];
+                    end
 
                     time = round(time*1e-3,3);
                     tmp = linspace(0,time,length(g));
-                    tmp1 = linspace(0,time,floor(time(end)/lims.gradRasterTime));
+                    tmp1 = linspace(0,time,ceil(time(end)/lims.gradRasterTime));
 
                     for k=1:2
                         % g_new(k,:) = interp1(tmp,g(:,k).',linspace(0,time,length(kaa)));
@@ -103,6 +111,12 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
                         g_new = flip(g_new,2);
                     end
 
+                    if params.spi.type == 3
+                      g1 = [flip(g_new,2).*-1,g_new];
+                    else
+                        g1 = g_new;
+                    end
+
                     % ADC
                     % Round-down dwell time to adcRasterTime
                     adcDwell = floor((1./(params.spi.bw)/lims.adcRasterTime))*lims.adcRasterTime;
@@ -116,7 +130,7 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
                     % Trying to make the spirals finish at y=0
                     
 
-                    spiral_grad_shape(:,:,i,j) = g_new(1:2,:);
+                    spiral_grad_shape(:,:,i,j) = g1(1:2,:);
 
                 elseif params.spi.interl > 1 || contains('none',params.spi.rotate) == 1
                     spiral_grad_shape(:,:,i,j) = spiral_grad_shape(:,:,i,1);
@@ -251,9 +265,9 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
 
     %% Checking forbidden frequencies
     scanner = params.gen.field_strength;
-    check_forbbiden_fq(squeeze(spiral_grad_shape(1,:,1,1)),scanner,true)
+    check_forbbiden_fq(squeeze(spiral_grad_shape(1,:,1,1)),scanner,true);
     % title('Forbidden Frequencies Gx')
-    check_forbbiden_fq(squeeze(spiral_grad_shape(2,:,1,1)),scanner,false)
+    check_forbbiden_fq(squeeze(spiral_grad_shape(2,:,1,1)),scanner,false);
     % title('Forbidden Frequencies Gy')
 
 
