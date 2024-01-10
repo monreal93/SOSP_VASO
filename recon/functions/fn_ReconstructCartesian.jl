@@ -4,32 +4,56 @@ ReconCartesianData(RawData::RawAcquisitionData,params::Dict{Symbol,Any})
 
 Performs cartesian reconstruction, FFT, either 2D or 3D
 """
-function ReconCartesianData(acqData::AcquisitionData; interleaved=false)
+function ReconCartesianData(acqData::AcquisitionData,dims::Int; interleaved=false)
     ## AMM: ToDo:
     # - Add functionality to select if FFT 2D or 3D...
     #
 
-
     numEchos = size(acqData.kdata,1)
-    numSlices = size(acqData.kdata,2)             # Slices or Phase Enc 2 in 3D
+    # numSlices = size(acqData.kdata,2)             # Slices or Phase Enc 2 in 3D
     numRead = acqData.encodingSize[1]
     numPart = acqData.encodingSize[2]
+    numSlices = acqData.encodingSize[3]
     numChan = size(acqData.kdata[1],2)
 
     recon = Array{ComplexF32,5}(undef,numRead,numPart,numSlices,numChan,numEchos)
 
-    # Reshape the data and do FFT
-    for i_ech=1:numEchos
-        for i_sl=1:numSlices
+    if dims==2
+        # Reshape the data and do FFT
+        for i_ech=1:numEchos
+            for i_sl=1:numSlices
 
-            tmp = acqData.kdata[i_ech,i_sl,1]
-            tmp = reshape(tmp,numRead,numPart,numChan)
-            # FFT and scaling, for now 2D..
-            tmp = fftshift(ifft(tmp,1),1)
-            tmp = fftshift(ifft(tmp,2),2)
+                tmp = acqData.kdata[i_ech,i_sl,1]
+                tmp = reshape(tmp,numRead,numPart,numChan)
+                
+                # # FFT, only for 2D now, FFTW use:
+                # tmp = fftshift(ifft(tmp),1)
+                # tmp = fftshift(ifft(tmp),2)
+
+                # FFT, only for 2D now, MKL use:
+                tmp = fftshift(ifft(tmp))
+                # tmp = sqrt.(sum((abs.(tmp).^2),dims=3))
+
+                recon[:,:,i_sl,:,i_ech] = tmp
+            end
+        end
+
+    elseif dims==3
+        for i_ech=1:numEchos
+            tmp = acqData.kdata[i_ech,1,1]
+            tmp = reshape(tmp,numRead,numSlices,numPart,numChan)
+            
+            # # FFT, only for 2D now, FFTW use:
+            # tmp = fftshift(ifft(tmp),1)
+            # tmp = fftshift(ifft(tmp),2)
+
+            # FFT, only for 2D now, MKL use:
+            tmp = fftshift(ifft(tmp))
             # tmp = sqrt.(sum((abs.(tmp).^2),dims=3))
 
-            recon[:,:,i_sl,:,i_ech] = tmp
+            tmp = permutedims(tmp,[1,3,2,4])
+
+            recon[:,:,:,:,i_ech] = tmp
         end
     end
 

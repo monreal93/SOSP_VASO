@@ -60,6 +60,8 @@ function getCalibrationMatrix(params::Dict{Symbol,Any},b0_init,fm)
 
     sh_basis = reshape(sh_basis,:,lmax)
 
+    @infiltrate
+
     b = sh_basis \ vec(b0_init)
 
     # del_b0 is the lth-order aproximation of the initial b0 map

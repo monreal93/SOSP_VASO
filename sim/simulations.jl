@@ -16,11 +16,11 @@ include("../recon/functions/fn_calculateGfactor.jl")
 include("../recon/functions/fn_save_nii.jl")
 
 phn_sim = 0            # 1=brain, 0=point (psf), for point (PSF), set all to false
-cs_sim = true
-cs_recon = true
-b0_sim = true
+cs_sim = false
+cs_recon = false
+b0_sim = false
 b0_recon = false
-t2s_sim = true
+t2s_sim = false
 t2s_recon = false
 add_noise = false
 gfactor = false

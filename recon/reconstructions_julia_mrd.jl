@@ -7,7 +7,7 @@ using Revise
 using Infiltrator
 using MRIReco, MRIFiles, MRICoilSensitivities, MRIFieldmaps
 using MAT, NIfTI , JLD #, MriResearchTools
-# using StatsBase: mean
+using StatsBase: mean
 using Unitful: s, ustrip
 using MIRTjim: jim, prompt; jim(:prompt, true)
 using ImageTransformations
@@ -15,39 +15,35 @@ using NFFT
 using FLoops
 
 using FFTW
-# FFTW.set_provider!("mkl")
-FFTW.set_provider!("fftw")
+FFTW.set_provider!("mkl")
+# FFTW.set_provider!("fftw")
 
-include("./functions/fn_sv_recon.jl")
 include("./functions/fn_save_nii.jl")
-include("./functions/fn_prepare_mrd.jl")
-include("./functions/fn_cartesian_recon.jl")
+include("./functions/fn_Utilities.jl")
+include("./functions/fn_PrepareMRD.jl")
+include("./functions/fn_ReconstructCartesian.jl")
+include("./functions/fn_CorrectDORK.jl")
 include("./functions/fn_CalculateSensitivityOffresonanceMaps.jl")
 include("./functions/fn_calculateSphericalHarmonics.jl")
 include("../recon/functions/fn_motionCorrection.jl")
-# include("./functions/fn_ismrmd.jl")
 
 params = Dict{Symbol, Any}()
-params[:plt] = false
 params[:do_pi_recon] = true             # Perform PI reconstruction or direct recon
-params[:do_b0_corr] = true
-params[:do_t2s_corr] = false             
+params[:do_b0_corr] = false 
+params[:do_rDORK_corr] = false          
+params[:do_t2s_corr] = false
 params[:is2d] = false
-params[:rep_recon] = 5                # Range of rep to recon
+params[:rep_recon] = 1:1                      # Range of rep to recon, 0 for all rep, ex. (5:5)- rep 5 
 params[:contrasts] = ["b"]                  # Contrasts to recon v,b,abc or all
 params[:traj_type] = "nom"                 # Trajectory type nominal="nom",skope="sk",poet = "poet", corrected = "nom_corr"
 params[:save_ph] = 0                       # Save phase of recon as nifti
-params[:pdork] = ""                         # partition DORK "_pDORK" or ""
-params[:rdork] = ""                   # repetition DORK "_rDORK" or ""
-params[:idork] = ""                   # interleaves DORK "_iDORK" or ""n_ov
-params[:drift] = ""                   # DRIFT correction to B0 map? "_drift" or ""            
 params[:mcorr] = ""           # Motion correction with navigators "_mCorr"
+params[:recon_order] =  1;                  # Higher order recon (2,3)
 
 # Some parameters
-params[:scan] = "sb_01"            # For now: if multipe echos, include _e1.. _e2..
-params[:scan_b0] = "a01"           # Name of the ME-GRE to use for CS and B0map
-params[:directory] = "12062023_sk_abc"        # directory where the data is stored
-params[:plt] = false
+params[:scan] = "sb_43"            # For now: if multipe echos, include _e1.. _e2..
+params[:scan_b0] = "s41"           # Name of the ME-GRE to use for CS and B0map
+params[:directory] = "10162023_sb_7Ti"        # directory where the data is stored
 
 path_tmp = string(pwd(),'/')
 params[:path] = string(path_tmp,"data/",params[:directory])
@@ -61,15 +57,26 @@ rawData = RawAcquisitionData(file)
 
 # Getting some parameters from the raw data
 numRead = size(rawData.profiles[1].data,1) 
-numPar = maximum(unique([rawData.profiles[l].head.idx.kspace_encode_step_2+1 for l=1:length(rawData.profiles)]))
+numInterl = Int(params_pulseq["spi"]["interl"])
+# numPar = maximum(unique([rawData.profiles[l].head.idx.kspace_encode_step_2+1 for l=1:length(rawData.profiles)]))
+numPar = Int(params_pulseq["gen"]["n_ov"][3])
 numSet = maximum(unique([rawData.profiles[l].head.idx.set+1 for l=1:length(rawData.profiles)]))
 numCha = size(rawData.profiles[1].data,2)
-numRep = Int(length(rawData.profiles)/numPar/numSet)
+numRep = rawData.params["userParameters"]["sWipMemBlock.alFree[7]"]  # I think this is repetitions in special card
+# numRep = Int(length(rawData.profiles)/numPar/numSet)
+
+# Adding some extra parameters
 params[:numRead] = numRead*numSet
+params[:numInterl] = numInterl
 params[:numSet] = numSet
 params[:numPar] = numPar
 params[:numCha] = numCha
 params[:numRep] = numRep
+params[:kz_enc] = params_pulseq["gen"]["kz_enc"]
+params[:TE] = params_pulseq["gen"]["TE"]
+params[:acq_times] = params_pulseq["gen"]["t_vector"]
+params[:reconSize] = (params_pulseq["gen"]["n_ov"][1],params_pulseq["gen"]["n_ov"][2],params_pulseq["gen"]["n_ov"][3])
+params[:FieldOfView] = params_pulseq["gen"]["fov"]
 
 # Normalize k-space trajectory and create Trajectory object
 ks_traj = matread(string(params[:path],"/acq/",params[:scan],"_ks_traj_",params[:traj_type],".mat")); ks_traj = ks_traj["ks_traj"]
@@ -81,7 +88,7 @@ ks_traj = permutedims(ks_traj,[2,1])
 ks_traj = convert(AbstractMatrix{Float32},ks_traj)
 times = repeat(params_pulseq["gen"]["t_vector"][:],numPar)
 times = convert(Vector{Float32},times)
-ks_traj = Trajectory(ks_traj,1,Int(params_pulseq["gen"]["ro_samples"]); 
+ks_traj = Trajectory(ks_traj,1,Int(params_pulseq["gen"]["ro_samples"]*params_pulseq["spi"]["interl"]); 
         times=times,TE=params_pulseq["gen"]["TE"],AQ=params_pulseq["gen"]["ro_time"], 
         numSlices=Int(params_pulseq["gen"]["n_ov"][3]),circular=true)
 
@@ -100,9 +107,9 @@ rawData_b0 = RawAcquisitionData(file)
 # end
 
 if params_pulseq["gen"]["field_strength"] == 7
-    recon_b0 = ReconCartesianData(acqData_b0; interleaved=true)
-else
-    recon_b0 = ReconCartesianData(acqData_b0)
+    recon_b0 = ReconCartesianData(acqData_b0,2; interleaved=true)
+elseif params_pulseq["gen"]["field_strength"] == 7im
+    recon_b0 = ReconCartesianData(acqData_b0,3)
 end
 
 # recon_b0 = ReconCartesianData(rawData_b0; dims=2)
@@ -134,7 +141,7 @@ save_suffix = ""
 
 ### Option 2) We read the sensitivities from Matlab
 if params[:do_pi_recon]
-    save_suffix = string(save_suffix,"_cs_matlab")
+    save_suffix = string(save_suffix,"_cs")
     if isfile(string(params[:path],"/acq/cs_",file_name,".mat"))
         @info ("Loading Sensitivity maps ...")
         SensitivityMap = matread(string(params[:path],"/acq/cs_",file_name,".mat"))
@@ -165,20 +172,14 @@ if params[:do_b0_corr]
     end
 end
 
-# # Read B0 map, in matlab file (obtained from reconstrucions.jl)
-# OffResonanceMap = matread(string(params[:path],"/acq/b0_",file_name,".mat"))
-# OffResonanceMap = OffResonanceMap["b0"]
-
 # Reconstruction parameters
 params_recon = Dict{Symbol, Any}()
 params_recon = merge(defaultRecoParams(), params_recon)
 if params[:do_pi_recon]
-    params_recon[:reco] = "multiCoil"; # 'multiCoil'
-    # params_recon[:senseMaps] = convert(Array{ComplexF64},SensitivityMap)
+    params_recon[:reco] = "multiCoil"
     params_recon[:senseMaps] = SensitivityMap
 end
 if params[:do_b0_corr]
-    # params_recon[:correctionMap] = convert(Array{ComplexF64},OffResonanceMap)
     params_recon[:correctionMap] = OffResonanceMap
 end
 params_pulseq["gen"]["n_ov"] = Int.(params_pulseq["gen"]["n_ov"])
@@ -189,17 +190,38 @@ params_recon[:iterations] = 20; # (10)
 params_recon[:solver] = "cgnr"; # cgnr (L2), fista (L1), admm(L1)
 params_recon[:method] = "nfft"; # nfft, leastsquare
 
+# DORK correction
+if params[:do_rDORK_corr]
+    save_suffix = string(save_suffix,"_rDORK")
+    PartRef = 2         # DORK reference repetition
+    nav_ref = FormatRawData(rawData,params;single_rep=true,rep_format=PartRef)
+    if params[:kz_enc] == 0  # Linear
+        nav_ref = nav_ref[6:30,Int(params_pulseq["gen"]["n_ov"][3]/2)+1,:,1]
+        nav_ref = mean(nav_ref, dims=2)
+    elseif params[:kz_enc] == 1 # Center-out
+        nav_ref = nav_ref[6:30,1,:,1]
+        nav_ref = mean(nav_ref, dims=2)
+    end
+end
+
 # Reconstruct by repetition....
 kdata = Array{Array{ComplexF32,2},3}(undef,1,1,1)
+if params[:rep_recon] == 0:0 || params[:rep_recon] == 0 
+    params[:rep_recon] = 1:params[:numRep]
+end
 @time begin
-    for i_rep=1:params[:numRep]
+    for i_rep=params[:rep_recon]
         tmp = FormatRawData(rawData,params;single_rep=true,rep_format=i_rep)
-        tmp = dropdims(reshape(tmp,(:,numCha,1)),dims=3)
-        # kdata[1] = convert(Array{ComplexF64, 2},tmp)
-        kdata[1] = tmp
+
+        # DORK correction
+        if params[:do_rDORK_corr]
+            tmp = CorrectPartitionDORK(tmp,nav_ref,params)
+        end
+
+        kdata[1] = dropdims(reshape(tmp,(:,numCha,1)),dims=3)
 
         # Create AcqData object
-        acqData = AcquisitionData(ks_traj,kdata; encodingSize=(Int(params_pulseq["gen"]["ro_samples"]),1,Int(params_pulseq["gen"]["n_ov"][3])), fov=Tuple(params_pulseq["gen"]["fov"]))
+        acqData = AcquisitionData(ks_traj,kdata; encodingSize=(Int(params_pulseq["gen"]["ro_samples"]*params_pulseq["spi"]["interl"]),1,Int(params_pulseq["gen"]["n_ov"][3])), fov=Tuple(params_pulseq["gen"]["fov"]))
 
         @info("Stop... Before recon...")
         @infiltrate
@@ -228,6 +250,20 @@ kdata = Array{Array{ComplexF32,2},3}(undef,1,1,1)
         ## Save as MAT
         # matwrite(string(params[:path],"/tmp/recon.mat"),Dict("recon" => abs.(Ireco)))
     end
+    
+    # Merge all repetitions into one file
+    TimeSeries = MergeReconstrucion(params[:path],params[:scan],params[:rep_recon],params[:do_pi_recon],params[:do_b0_corr])
+    file = string(params[:path],"/recon/",params[:scan],save_suffix,".nii")
+    if isfile(file)
+        @info ("TimeSeries exists... Re-write? y/n")
+        input = readline()
+        if input == "y"
+            niwrite(file,NIVolume(TimeSeries)) 
+        end
+    else
+        niwrite(file,NIVolume(TimeSeries))
+    end
+
 end
 
 

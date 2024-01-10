@@ -75,8 +75,6 @@ function CalculateOffresonanceMap(recon_b0,SensitivityMap,EchoTimes::Vector{Floa
     b0 = 1im.*b0
     b0 = convert(Array{ComplexF32,3},b0)
 
-    # Scailing seems to give best results...
-    b0 = Array{ComplexF32}(b0.*(2))
 
     return b0
 end

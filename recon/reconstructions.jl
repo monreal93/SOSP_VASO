@@ -32,7 +32,7 @@ FFTW.set_provider!("fftw")
 
 include("./functions/fn_sv_recon.jl")
 include("./functions/fn_save_nii.jl")
-include("./functions/fn_prepare_mrd.jl")
+include("./functions/fn_PrepareMRD.jl")
 include("./functions/fn_calculateSphericalHarmonics.jl")
 include("../recon/functions/fn_motionCorrection.jl")
 # include("./functions/fn_ismrmd.jl")
@@ -53,7 +53,7 @@ params[:fmri] = 1                          # 1 for fMRI data will use separate c
 params[:pdork] = ""                         # partition DORK "_pDORK" or ""
 params[:rdork] = ""                   # repetition DORK "_rDORK" or ""
 params[:idork] = ""                   # interleaves DORK "_iDORK" or ""n_ov
-params[:drift] = ""                   # DRIFT correction to B0 map? "_drift" or ""            
+params[:drift] = "_drift"                   # DRIFT correction to B0 map? "_drift" or ""            
 params[:mcorr] = ""           # Motion correction with navigators "_mCorr"
 
 # Some parameters
