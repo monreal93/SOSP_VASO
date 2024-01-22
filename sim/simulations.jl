@@ -9,36 +9,42 @@ using ImageTransformations
 using Statistics
 using FLoops
 using PaddedViews
+using SphericalHarmonicExpansions
 # using Plots, ImageView
+using MRIOperators
 
 include("../recon/functions/fn_addCorrelatedNoise.jl")
 include("../recon/functions/fn_calculateGfactor.jl")
 include("../recon/functions/fn_save_nii.jl")
 
-phn_sim = 0            # 1=brain, 0=point (psf), for point (PSF), set all to false
-cs_sim = false
-cs_recon = false
+phn_sim = 1            # 1=brain, 0=point (psf), for point (PSF), set all to false
+cs_sim = true
+cs_recon = true
 b0_sim = false
 b0_recon = false
 t2s_sim = false
 t2s_recon = false
+high_order_recon = true
+order_recon =  1            # Recon order (1,2,3)
 add_noise = false
 gfactor = false
 is2d = false
 gfactor_replicas = 2
+channels = 4            # 0-channels from CS file, >0 less channels (it will be cropped)
 # For PSF only.. T2* and b0
 psf_t2s = 23e-3     # T2* in s
 psf_b0 = 20         # off-resonance in Hz
 
 # Folder and name of sequence to simulate
 folder_sim = "simulations_ismrm"
-scan_sim = ["sb_01"]
+scan_sim = ["sample_lowres"]
+traj_type = "sk"
 # scan_sim = ["sb_01","sb_02","sb_03","sb_04","sb_05","sb_06","sb_07","sb_08","sb_09","sb_10"]
 
 # Folder and name of sensitivity maps and b0 map to use for simulation
-folder = "10162023_sb_9T"
-scan = "sb_07"
-fieldmap = "s02"
+folder = "10252023_sv_paper"
+scan = "sv_81"
+fieldmap = "s81"
 path = string("/usr/share/5T4/Alejandro/sosp_vaso/data/",folder)
 path_sim = string("/usr/share/5T4/Alejandro/sosp_vaso/data/",folder_sim)
 
@@ -51,6 +57,12 @@ params["scan_suffix"] = scan_suffix
 params["path_sim"] = path_sim
 if phn_sim == 0
     gfactor = false
+end
+
+# Some constraints
+if high_order_recon
+    b0_sim = true  
+    traj_type = "sk"
 end
 
 ###### Load volume for simulation
@@ -91,14 +103,14 @@ cs_orig = deepcopy(cs)
 if b0_sim
     b0 = matread(string(path,"/acq/b0_",scan_suffix,".mat"))
     b0 = b0["b0"]
-    b0 = convert(Array{ComplexF64,3},b0)
+    # b0 = convert(Array{ComplexF64,3},b0)
     b0 = imresize(b0,(Int(params["gen"]["n"][1]),Int(params["gen"]["n"][2]),Int(params["gen"]["n"][3])))
     
     if phn_sim == 0
         b0 *= 0
         b0[Int(params["gen"]["n"][1]/2),Int(params["gen"]["n"][2]/2),Int(params["gen"]["n"][3]/2)] = psf_b0*2*pi*im
     end
-    
+
     b0_orig = deepcopy(b0)
 end
 
@@ -172,6 +184,10 @@ for i = 1:Int(length(scan_sim))
     params_pulseq = matread(string(path_sim,"/acq/",scan_sim[i],"_params.mat"))
     params_pulseq = params_pulseq["params"]
 
+    # Let's do the matrix size square
+    params_pulseq["gen"]["n_ov"][1] = params_pulseq["gen"]["n_ov"][2]
+    params_pulseq["gen"]["n"][1] = params_pulseq["gen"]["n"][2]
+
     params_pulseq["gen"]["n"][3] = params_pulseq["gen"]["n"][3]*params_pulseq["gen"]["kz"]
 
     ###### Load trajectory
@@ -196,21 +212,63 @@ for i = 1:Int(length(scan_sim))
     traj[2,:] = traj[2,:]./ky_fov 
     traj[3,:] = traj[3,:]./kz_fov
 
+    
+    # Normalize k-space trajectory and create Trajectory object
+    if traj_type == "sk"
+        ks_traj = matread(string(path_sim,"/acq/",scan_sim[i],"_ks_traj_sk.mat")); ks_traj = ks_traj["ks_traj"]
+        # ToDo: Sync Skope trajectory to raw data...
+
+        # Swap dimension 3 with 4, Spherical harmonics h2=z, Skope data h2=y.
+        ks_traj[4,:] , ks_traj[3,:] = ks_traj[3,:],ks_traj[4,:]
+
+        # ToDo: Do I want to repeat them, one per repetition??
+        ks_traj_high = ks_traj
+        ks_traj_high = repeat(ks_traj_high, outer=(1,Int(params_pulseq["gen"]["n_ov"][3])))
+        # Taking only the specified order 
+        ks_traj_high = ks_traj_high[1:Int((order_recon+1)^2),:]
+
+        # # Normalizing
+        # for i=axes(ks_traj_high,1)
+        #     ks_traj_high[i,:] = ks_traj_high[i,:]./(maximum([abs(minimum(ks_traj_high[i,:])),abs(maximum(ks_traj_high[i,:]))])*2)
+        # end
+
+        ks_traj = ks_traj[[2,4,3],:]
+
+        # Repeat trajectory to number of partitions
+        ks_traj[3,:] = ks_traj[3,:].-params_pulseq["gen"]["n_ov"][3]/2*(params_pulseq["gen"]["del_k"][3])
+
+        tmp = deepcopy(ks_traj)
+        for i=1:Int(params_pulseq["gen"]["n_ov"][3]-1)
+            tmp[3,:] = tmp[3,:].+(params_pulseq["gen"]["del_k"][3])
+            ks_traj = hcat(ks_traj,tmp)       
+        end
+
+        # Normalizing
+        for i=axes(ks_traj,1)
+            ks_traj[i,:] = ks_traj[i,:]./(maximum([abs(minimum(ks_traj[i,:])),abs(maximum(ks_traj[i,:]))])*2)
+        end
+        
+    elseif traj_type == "nom"
+        ks_traj = matread(string(path_sim,"/acq/",scan_sim[i],"_ks_traj_nom.mat")); ks_traj = ks_traj["ks_traj"]
+        # Normalizing
+        ks_traj["kx"] = ks_traj["kx"]./(maximum([abs(minimum(ks_traj["kx"])),abs(maximum(ks_traj["kx"]))])*2)
+        ks_traj["ky"] = ks_traj["ky"]./(maximum([abs(minimum(ks_traj["ky"])),abs(maximum(ks_traj["ky"]))])*2).*(-1)
+        ks_traj["kz"] = ks_traj["kz"]./(maximum([abs(minimum(ks_traj["kz"])),abs(maximum(ks_traj["kz"]))])*2)
+        ks_traj = hcat(ks_traj["kx"][:],ks_traj["ky"][:],ks_traj["kz"][:])
+        ks_traj = permutedims(ks_traj,[2,1])
+    end
+
+    ks_traj = convert(AbstractMatrix{Float32},ks_traj)
+    times = repeat(params_pulseq["gen"]["t_vector"][:],Int(params_pulseq["gen"]["n_ov"][3]))
+    times = convert(Vector{Float32},times)
+
+    ks = Trajectory(ks_traj,1,Int(params_pulseq["gen"]["ro_samples"]*params_pulseq["spi"]["interl"]); 
+            times=times,TE=params_pulseq["gen"]["TE"],AQ=params_pulseq["gen"]["ro_time"], 
+            numSlices=Int(params_pulseq["gen"]["n_ov"][3]),circular=true)
+
     if is2d
         traj = traj[1:2,:]
     end
-
-    # Creating/loading time vector
-    times = params_pulseq["gen"]["t_vector"][:]		    # Times vector for B0 correction
-
-    # if its 3D, repeat the times vector for each slice
-    if !is2d
-        times = repeat(times,Int(params_pulseq["gen"]["n_ov"][3]))
-        times = vec(times)
-    end
-
-    ks = permutedims(traj,(2,1))
-    ks = Trajectory(traj,Int64(params_pulseq["spi"]["interl"]),Int64(params_pulseq["gen"]["ro_samples"]);times = times)
 
     # # Resizing sensitivities and phantom to simulation matrix size
     # global cs = imresize(cs,(Int(params_pulseq["gen"]["n"][1]),Int(params_pulseq["gen"]["n"][2]),Int(params_pulseq["gen"]["n"][3])))
@@ -236,7 +294,7 @@ for i = 1:Int(length(scan_sim))
             tmp = zeros((mtx_pulseq...,size(cs,4)))
             tmp1 = Int.((mtx_pulseq.-mtx)./2)
             if tmp1[3] == 0; tmp1 = tmp1.+(0,0,1); end
-            if tmp1[2] == 0; tmp1 = tmp1.+(0,1,0); end
+            if tmp1[2] == 0; tmp1 = tmp1.+(0,1,0); end 
         else
             tmp = zeros((mtx...,size(cs,4)))
             tmp1 = (1,1,1)
@@ -246,7 +304,7 @@ for i = 1:Int(length(scan_sim))
             tmp1 = tmp1.-(0,0,1)
             tmp1 = tmp1.+(0,0,Int((mtx_pulseq[3].-mtx[3])./2))
         end
-        tmp = convert(Array{ComplexF64,4},tmp)
+        tmp = convert(Array{ComplexF32,4},tmp)
         if is2d
             tmp = tmp[:,:,1,:]
             tmp[tmp1[1]:tmp1[1]+mtx[1]-1,tmp1[2]:tmp1[2]+mtx[2]-1,:] = cs
@@ -256,9 +314,16 @@ for i = 1:Int(length(scan_sim))
             tmp[tmp1[1]:tmp1[1]+mtx[1]-1,tmp1[2]:tmp1[2]+mtx[2]-1,tmp1[3]:tmp1[3]+mtx[3]-1,:] = cs
         end
 
+        # Downsampling if requested:
+        if mtx_pulseq < mtx
+            tmp = imresize(tmp, mtx_pulseq)
+        end
+        if channels != 0
+            tmp = tmp[:,:,:,1:Int(floor(size(tmp,4)/channels)):end]
+        end
+
         global cs = deepcopy(tmp)
     end
-
 
     phn = deepcopy(phn_orig)
     if mtx_pulseq[1:2] > mtx[1:2]
@@ -267,7 +332,8 @@ for i = 1:Int(length(scan_sim))
         if tmp1[3] == 0; tmp1 = tmp1.+(0,0,1); end
         if tmp1[2] == 0; tmp1 = tmp1.+(0,1,0); end
     else
-        tmp = zeros((mtx...,size(cs,4)))
+        # tmp = zeros((mtx...,size(cs,4)))
+        tmp = zeros(mtx)
         tmp1 = (1,1,1)
     end
     if mtx_pulseq[3] > mtx[3]
@@ -275,13 +341,18 @@ for i = 1:Int(length(scan_sim))
         tmp1 = tmp1.-(0,0,1)
         tmp1 = tmp1.+(0,0,Int((mtx_pulseq[3].-mtx[3])./2))
     end
-    tmp = convert(Array{ComplexF64,3},tmp)
+
+    tmp = convert(Array{ComplexF32,3},tmp)
 
     if is2d
         tmp = tmp[:,:,1]
         tmp[tmp1[1]:tmp1[1]+mtx[1]-1,tmp1[2]:tmp1[2]+mtx[2]-1] = phn
     else
         tmp[tmp1[1]:tmp1[1]+mtx[1]-1,tmp1[2]:tmp1[2]+mtx[2]-1,tmp1[3]:tmp1[3]+mtx[3]-1] = phn
+    end
+    # Downsampling if requested:
+    if mtx_pulseq < mtx
+        tmp = imresize(tmp, mtx_pulseq)
     end
     global phn = deepcopy(tmp)
     global phn_abs = abs.(phn)
@@ -314,6 +385,10 @@ for i = 1:Int(length(scan_sim))
         else
             tmp[tmp1[1]:tmp1[1]+mtx[1]-1,tmp1[2]:tmp1[2]+mtx[2]-1,tmp1[3]:tmp1[3]+mtx[3]-1] = b0
         end
+        # Downsampling if requested:
+        if mtx_pulseq < mtx
+            tmp = imresize(tmp, mtx_pulseq)
+        end
         global b0 = deepcopy(tmp)
         t2s = deepcopy(t2s_orig)
         if is2d
@@ -322,17 +397,27 @@ for i = 1:Int(length(scan_sim))
         else
             tmp[tmp1[1]:tmp1[1]+mtx[1]-1,tmp1[2]:tmp1[2]+mtx[2]-1,tmp1[3]:tmp1[3]+mtx[3]-1] = t2s
         end
+        # Downsampling if requested:
+        if mtx_pulseq < mtx
+            tmp = imresize(tmp, mtx_pulseq)
+        end
         global t2s = deepcopy(tmp)
         acqData = simulation(ks, phn, t2s+b0; senseMaps=cs, params_sim)
     elseif b0_sim
         b0 = deepcopy(b0_orig)
-        if is2d
-            tmp = tmp[:,:,1]
-            tmp[tmp1[1]:tmp1[1]+mtx[1]-1,tmp1[2]:tmp1[2]+mtx[2]-1] = b0
+        # Downsampling if requested:
+        if mtx_pulseq < mtx
+            # tmp = imresize(tmp, mtx_pulseq)
+            b0 = imresize(b0, mtx_pulseq)
         else
-            tmp[tmp1[1]:tmp1[1]+mtx[1]-1,tmp1[2]:tmp1[2]+mtx[2]-1,tmp1[3]:tmp1[3]+mtx[3]-1] = b0
+            if is2d
+                tmp = tmp[:,:,1]
+                tmp[tmp1[1]:tmp1[1]+mtx[1]-1,tmp1[2]:tmp1[2]+mtx[2]-1] = b0
+            else
+                tmp[tmp1[1]:tmp1[1]+mtx[1]-1,tmp1[2]:tmp1[2]+mtx[2]-1,tmp1[3]:tmp1[3]+mtx[3]-1] = b0
+            end
+            b0 = deepcopy(tmp)
         end
-        b0 = deepcopy(tmp)
         acqData = simulation(ks, phn, b0; senseMaps=cs, params_sim)
     elseif t2s_sim
         t2s = deepcopy(t2s_orig)
@@ -342,6 +427,10 @@ for i = 1:Int(length(scan_sim))
         else
             tmp[tmp1[1]:tmp1[1]+mtx[1]-1,tmp1[2]:tmp1[2]+mtx[2]-1,tmp1[3]:tmp1[3]+mtx[3]-1] = t2s
         end
+        # Downsampling if requested:
+        if mtx_pulseq < mtx
+            tmp = imresize(tmp, mtx_pulseq)
+        end
         global t2s = deepcopy(tmp)
         acqData = simulation(ks, phn, t2s; senseMaps=cs, params_sim)
     elseif cs_sim
@@ -349,6 +438,9 @@ for i = 1:Int(length(scan_sim))
     else
         acqData = simulation(ks, phn; senseMaps=[], params_sim)
     end
+
+    # Adding extra parameters to acqData
+    acqData.fov =  Tuple(params_pulseq["gen"]["fov"])
 
     # Scaling down raw data, seems like simulation makes it into 0-1, but real scanner data is ~3e-4
     if phn_sim == 1
@@ -385,10 +477,23 @@ for i = 1:Int(length(scan_sim))
     end
 
     if cs_recon
+        # Temp: rotate and reverse CS maps to match simulation data
+        for j=1:size(cs,4)
+            for i=1:size(cs,3)
+                cs[:,:,i,j] = rotr90(cs[:,:,i,j]) 
+            end
+        end
+        cs = reverse(cs; dims=2)
         params_reco[:reco] = "multiCoil"
         params_reco[:senseMaps] = cs
     end
-
+    if high_order_recon
+        params_reco[:iterations] = 4
+        params_reco[:reco] = "expandedSignalModel"
+        params_reco[:higherOrderTrajectory] = convert(Matrix{Float32},ks_traj_high)
+        params_reco[:senseMaps] = cs
+        params_reco[:correctionMap] = b0
+    end
     if b0_recon || (b0_recon && t2s_recon)
         params_reco[:correctionMap] = b0
     elseif t2s_recon
@@ -418,6 +523,19 @@ for i = 1:Int(length(scan_sim))
         # @info ("Adding noise to k-space data ...")
         acqData.kdata[1] = addCorrelatedNoise(acqData.kdata[1],noise_snr,cov,Float64(1e1))
     end
+
+    # # #### Temp: trying some direct reconstruction by matrix inversion
+    # harmonics = MRIOperators.CalculateSphericalHarmonics((92,94,4),acqData.fov; l =1)
+    # E = exp.(im.*3*pi.*transpose(ks_traj_high[2:end,:])*transpose(harmonics[:,2:end]))
+    # y = acqData.kdata[1]
+    # x = y \ E
+    # x = reshape(transpose(x),(92,94,4,4))
+    # xx = conj(cs).*x
+    # jim(abs.(x))
+    # # #####
+
+    # @info("stop before recon...")
+    # @infiltrate
 
     # Do reconstruction
     @info ("Reconstruction ...")
@@ -463,6 +581,7 @@ for i = 1:Int(length(scan_sim))
     end
 
     if cs_sim == true && cs_recon ==false
+        Ireco = Ireco[:,:,:,1,:,1]
         Ireco = sqrt.(sum((Ireco.^2),dims=4))
         Ireco = Ireco[:,:,:,1]
     end

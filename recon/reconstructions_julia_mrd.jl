@@ -35,10 +35,10 @@ params[:do_t2s_corr] = false
 params[:is2d] = false
 params[:rep_recon] = 1:1                      # Range of rep to recon, 0 for all rep, ex. (5:5)- rep 5 
 params[:contrasts] = ["b"]                  # Contrasts to recon v,b,abc or all
-params[:traj_type] = "nom"                 # Trajectory type nominal="nom",skope="sk",poet = "poet", corrected = "nom_corr"
+params[:traj_type] = "sk"                 # Trajectory type nominal="nom",skope="sk",poet = "poet", corrected = "nom_corr"
 params[:save_ph] = 0                       # Save phase of recon as nifti
 params[:mcorr] = ""           # Motion correction with navigators "_mCorr"
-params[:recon_order] =  1;                  # Higher order recon (2,3)
+params[:recon_order] =  1                  # Higher order recon (2,3)
 
 # Some parameters
 params[:scan] = "sb_43"            # For now: if multipe echos, include _e1.. _e2..
@@ -47,6 +47,9 @@ params[:directory] = "10162023_sb_7Ti"        # directory where the data is stor
 
 path_tmp = string(pwd(),'/')
 params[:path] = string(path_tmp,"data/",params[:directory])
+
+# Some constraints
+if params[:recon_order] > 1; params[:traj_type] = "sk"; end
 
 # Read pulseq parameters
 params_pulseq = matread(string(params[:path],"/acq/",params[:scan],"_params.mat")); params_pulseq = params_pulseq["params"]
@@ -79,15 +82,45 @@ params[:reconSize] = (params_pulseq["gen"]["n_ov"][1],params_pulseq["gen"]["n_ov
 params[:FieldOfView] = params_pulseq["gen"]["fov"]
 
 # Normalize k-space trajectory and create Trajectory object
-ks_traj = matread(string(params[:path],"/acq/",params[:scan],"_ks_traj_",params[:traj_type],".mat")); ks_traj = ks_traj["ks_traj"]
-ks_traj["kx"] = ks_traj["kx"]./(maximum([abs(minimum(ks_traj["kx"])),abs(maximum(ks_traj["kx"]))])*2)
-ks_traj["ky"] = ks_traj["ky"]./(maximum([abs(minimum(ks_traj["ky"])),abs(maximum(ks_traj["ky"]))])*2).*(-1)
-ks_traj["kz"] = ks_traj["kz"]./(maximum([abs(minimum(ks_traj["kz"])),abs(maximum(ks_traj["kz"]))])*2)
-ks_traj = hcat(ks_traj["kx"][:],ks_traj["ky"][:],ks_traj["kz"][:])
-ks_traj = permutedims(ks_traj,[2,1])
+if params[:traj_type] == "sk"
+    ks_traj = matread(string(params[:path],"/acq/",params[:scan],"_ks_traj_",params[:traj_type],".mat")); ks_traj = ks_traj["ks_traj"]
+    # ToDo: Sync Skope trajectory to raw data...
+        # Swap dimension 3 with 4, Spherical harmonics h2=z, Skope data h2=y.
+        ks_traj[4,:] , ks_traj[3,:] = ks_traj[3,:],ks_traj[4,:]
+
+        # ToDo: Do I want to repeat them, one per repetition??
+        ks_traj_high = ks_traj
+        ks_traj_high = repeat(ks_traj_high, outer=(1,Int(params_pulseq["gen"]["n_ov"][3])))
+        # Taking only the specified order
+        ks_traj_high = ks_traj_high[1:Int((params[:recon_order]+1)^2),:]
+        
+        ks_traj = ks_traj[[2,4,3],:]
+        # Repeat trajectory to number of partitions
+        ks_traj[3,:] = ks_traj[3,:].-params_pulseq["gen"]["n_ov"][3]/2*(params_pulseq["gen"]["del_k"][3])
+        tmp = deepcopy(ks_traj)
+        for i=1:Int(params_pulseq["gen"]["n_ov"][3]-1)
+            tmp[3,:] = tmp[3,:].+(params_pulseq["gen"]["del_k"][3])
+            global ks_traj = hcat(ks_traj,tmp) 
+        end
+
+        # Normalizing
+        for i=axes(ks_traj,1)
+            ks_traj[i,:] = ks_traj[i,:]./(maximum([abs(minimum(ks_traj[i,:])),abs(maximum(ks_traj[i,:]))])*2)
+        end
+else
+    ks_traj = matread(string(params[:path],"/acq/",params[:scan],"_ks_traj_",params[:traj_type],".mat")); ks_traj = ks_traj["ks_traj"]
+    # Normalizing
+    ks_traj["kx"] = ks_traj["kx"]./(maximum([abs(minimum(ks_traj["kx"])),abs(maximum(ks_traj["kx"]))])*2)
+    ks_traj["ky"] = ks_traj["ky"]./(maximum([abs(minimum(ks_traj["ky"])),abs(maximum(ks_traj["ky"]))])*2).*(-1)
+    ks_traj["kz"] = ks_traj["kz"]./(maximum([abs(minimum(ks_traj["kz"])),abs(maximum(ks_traj["kz"]))])*2)
+    ks_traj = hcat(ks_traj["kx"][:],ks_traj["ky"][:],ks_traj["kz"][:])
+    ks_traj = permutedims(ks_traj,[2,1])
+end
+
 ks_traj = convert(AbstractMatrix{Float32},ks_traj)
 times = repeat(params_pulseq["gen"]["t_vector"][:],numPar)
 times = convert(Vector{Float32},times)
+
 ks_traj = Trajectory(ks_traj,1,Int(params_pulseq["gen"]["ro_samples"]*params_pulseq["spi"]["interl"]); 
         times=times,TE=params_pulseq["gen"]["TE"],AQ=params_pulseq["gen"]["ro_time"], 
         numSlices=Int(params_pulseq["gen"]["n_ov"][3]),circular=true)
@@ -153,7 +186,7 @@ if params[:do_pi_recon]
 end
 
 # Calculate B0 map
-if params[:do_b0_corr]
+if params[:do_b0_corr] || params[:traj_type] == "sk"
     save_suffix = string(save_suffix,"_b0")
     if isfile(string(params[:path],"/acq/b0_",file_name,".jld"))
         @info ("OffResonance map exists... Re-calculate? y/n")
@@ -180,6 +213,12 @@ if params[:do_pi_recon]
     params_recon[:senseMaps] = SensitivityMap
 end
 if params[:do_b0_corr]
+    params_recon[:correctionMap] = OffResonanceMap
+end
+if params[:recon_order] > 1 || params[:traj_type] == "sk"
+    params_recon[:reco] = "expandedSignalModel"
+    params_recon[:higherOrderTrajectory] = convert(Matrix{Float32},ks_traj_high)
+    params_recon[:senseMaps] = SensitivityMap
     params_recon[:correctionMap] = OffResonanceMap
 end
 params_pulseq["gen"]["n_ov"] = Int.(params_pulseq["gen"]["n_ov"])
@@ -265,84 +304,3 @@ end
     end
 
 end
-
-
-
-
-
-
-
-
-
-
-# #####################
-
-# @time begin
-#     for i=1:length(scans)
-
-#         params[:scan] = scans[i];
-
-#         params[:path] = string(path_tmp,params[:directory]);
-#         twix_params = matread(string(params[:path],"acq/",params[:scan],"_twix_params.mat")); twix_params = twix_params["twix_params"];
-#         twix_params_b0 = matread(string(params[:path],"acq/",params[:scan_b0],"_twix_params_b0.mat")); twix_params_b0 = twix_params_b0["twix_params_b0"];
-
-#         if params[:traj_type] == "sk"
-#             params_pulseq = matread(string(params[:path],"acq/",params[:scan],"_params_sk.mat")); params_pulseq = params_pulseq["params"];
-#         else
-#             params_pulseq = matread(string(params[:path],"acq/",params[:scan],"_params.mat")); params_pulseq = params_pulseq["params"];
-#         end
-
-#         # Some calculations
-#         params[:mtx_s] = params_pulseq["gen"]["n_ov"];
-#         params[:nx] = Int(params[:mtx_s][1]);
-#         params[:ny] = Int(params[:mtx_s][2]);
-#         params[:sl] = Int(params[:mtx_s][3].*params_pulseq["gen"]["kz"]) # number of slices
-#         params[:sl_no_ov] = Int(params_pulseq["gen"]["n"][3].*params_pulseq["gen"]["kz"])
-#         params[:nCoils] = Int(twix_params["ch"]);                   # number of receiver coils
-#         params[:kz] = Int(params_pulseq["gen"]["kz"]);
-#         params[:repetitions]  = Int(twix_params["repetitions"])    # Number of repetitions
-#         params[:dt] = twix_params["dwell"]                          # acquisition dwell time [s]
-#         params[:TE] = params_pulseq["gen"]["TE"]; 
-#         params[:times] = params_pulseq["gen"]["t_vector"]		    # Times vector for B0 correction
-#         params[:seq] = params_pulseq["gen"]["seq"]
-#         params[:b0_te] = twix_params_b0["TE"][1:5].*1e-3
-#         params[:fov] = params_pulseq["gen"]["fov"]
-#         params[:ro_samples] = params_pulseq["gen"]["ro_samples"]
-#         params[:field_strength] = params_pulseq["gen"]["field_strength"]
-#         params[:echos] = params_pulseq["gen"]["echos"]
-#         params[:set] = params_pulseq["gen"]["adc_segments"]
-#         # params[:b0_te] = twix_params_b0["TE"][1:9].*1e-3
-        
-#         # Temp: just for data 0914, to make sure sl are ok
-#         if params[:scan_b0] == "s03" && params[:directory] == "data/09142023_sb_9T/"
-#             params[:sl] = 142
-#         end
-
-#         if params[:seq] == 2
-#             params[:contrasts] = ["abc"];
-#         end
-#         if params[:plt]
-#             using Plots, ImageView
-#         end
-#         if params[:is2d]
-#             params[:id] = "2d";
-#         else 
-#             params[:id] = "3d";
-#         end
-
-#         # params[:scan] = string(params[:scan],"_e",Int(2))
-#         if params[:echos] > 1
-#             scan_orig = params[:scan]
-#             for i_ech=1:params[:echos]
-#                 params[:scan] = string(scan_orig,"_e",Int(i_ech))
-#                 @time fn_sv_recon(params)
-#             end
-#         else
-#             @time fn_sv_recon(params)
-#         end
-
-#         ccall(:malloc_trim, Cvoid, (Cint,), 0) 
-#         GC.gc()
-
-#     end
-# end
