@@ -1,5 +1,6 @@
 using Pkg
-Pkg.activate("/usr/share/5T4/Alejandro/sosp_vaso/sim/")
+# Pkg.activate("/usr/share/5T4/Alejandro/sosp_vaso/sim/")
+Pkg.activate("/usr/share/PhD_2024/sosp_vaso/sim/")
 
 using Revise
 using MRIReco, MRISimulation, MAT, NIfTI, ImagePhantoms
@@ -24,7 +25,7 @@ b0_sim = false
 b0_recon = false
 t2s_sim = false
 t2s_recon = false
-high_order_recon = true
+high_order_recon = false
 order_recon =  1            # Recon order (1,2,3)
 add_noise = false
 gfactor = false
@@ -36,9 +37,9 @@ psf_t2s = 23e-3     # T2* in s
 psf_b0 = 20         # off-resonance in Hz
 
 # Folder and name of sequence to simulate
-folder_sim = "simulations_ismrm"
-scan_sim = ["sample_lowres"]
-traj_type = "sk"
+folder_sim = "simulations_berkeley"
+scan_sim = ["sample"]
+traj_type = "nom"
 # scan_sim = ["sb_01","sb_02","sb_03","sb_04","sb_05","sb_06","sb_07","sb_08","sb_09","sb_10"]
 
 # Folder and name of sensitivity maps and b0 map to use for simulation

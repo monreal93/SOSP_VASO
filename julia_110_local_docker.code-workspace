@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"uri": "vscode-remote://attached-container+7b22636f6e7461696e65724e616d65223a222f6a756c69615f3131305f6d72695f7265636f6e5f677075227d/usr/share/PhD_2024/sosp_vaso"
+		},
+		{
+			"uri": "vscode-remote://attached-container+7b22636f6e7461696e65724e616d65223a222f6a756c69615f3131305f6d72695f7265636f6e5f677075227d/root/.julia"
+		}
+	],
+	"remoteAuthority": "attached-container+7b22636f6e7461696e65724e616d65223a222f6a756c69615f3131305f6d72695f7265636f6e5f677075227d"
+}
