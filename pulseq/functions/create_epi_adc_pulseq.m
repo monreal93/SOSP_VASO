@@ -47,4 +47,6 @@ function  [gx,gy_blips,gx_pre,gy_pre,gy_blip_up,gy_blip_down,adc,params] = creat
     [gy_blip_up,gy_blip_down,~] = mr.align('right',gy_blip_up,'left',gy_blip_down,gx);
     gy_blips = mr.addGradients({gy_blip_down, gy_blip_up},lims);
 
+    % tmp = [linspace(0,gx.amplitude*-1,gx.riseTime/lims.gradRasterTime),linspace(gx.amplitude*-1,gx.amplitude*-1,gx.flatTime/lims.gradRasterTime),linspace(gx.amplitude*-1,0,gx.riseTime/lims.gradRasterTime)];
+
 end

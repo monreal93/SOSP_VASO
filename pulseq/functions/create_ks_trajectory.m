@@ -5,7 +5,7 @@ function ks_traj = create_ks_trajectory(seq,adc,params)
     if params.gen.ro_type == 's'
         plane_samples = adc.numSamples;
     elseif params.gen.ro_type == 'c'
-        plane_samples = adc.numSamples*n_lines;
+        plane_samples = adc.numSamples*params.epi.n_lines;
         % Discarding the EPI navigator samples, here I have 3
         j = j+(adc.numSamples*3);
         tmp = ktraj_adc(1,j:j+adc.numSamples*3);
