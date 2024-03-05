@@ -20,11 +20,11 @@ function [gx,gy,gx_pre,gy_pre,adc,params] =  create_spirals_adc_pulseq(spiral_gr
 
                 % Readout gradients
                 % Temp: for Pulseq version 1.4.1
-                    gx(j,i) = mr.makeArbitraryGrad('x',spiral_grad_shape(1,:,i,j), lims, 'first', 0, 'last', 0);
-                    gy(j,i) = mr.makeArbitraryGrad('y',spiral_grad_shape(2,:,i,j), lims, 'first', 0, 'last', 0);
-%                 % For Pulseq version 1.4.0
-%                 gx(j,i) = mr.makeArbitraryGrad('x',spiral_grad_shape(1,:,i,j), lims);
-%                 gy(j,i) = mr.makeArbitraryGrad('y',spiral_grad_shape(2,:,i,j), lims);
+%                     gx(j,i) = mr.makeArbitraryGrad('x',spiral_grad_shape(1,:,i,j), lims, 'first', 0, 'last', 0);
+%                     gy(j,i) = mr.makeArbitraryGrad('y',spiral_grad_shape(2,:,i,j), lims, 'first', 0, 'last', 0);
+                % For Pulseq version 1.4.0
+                gx(j,i) = mr.makeArbitraryGrad('x',spiral_grad_shape(1,:,i,j), lims);
+                gy(j,i) = mr.makeArbitraryGrad('y',spiral_grad_shape(2,:,i,j), lims);
 
                 % ADC 
                 adc = mr.makeAdc(adcSamples,lims,'Dwell',adcDwell);

@@ -13,7 +13,11 @@ lims = params.gen.lims;
         if area ~= 0
             % I fix the duration of the blip to an even number
     %         gz_blips(i) = mr.makeTrapezoid('z',lims,'Area',area,'Duration',6e-4);
-            gz_blips(i) = mr.makeTrapezoid('z',lims,'Area',area);
+            if i == 1
+                gz_blips(i) = mr.makeTrapezoid('z',lims,'Area',area);
+            else
+                gz_blips(i) = mr.makeTrapezoid('z',lims,'Area',area,'Duration',mr.calcDuration(gz_blips(1)));
+            end
         end
     end
     % if mod(floor(params.gen.n(3)/params.gen.kz),2) == 1  % Original

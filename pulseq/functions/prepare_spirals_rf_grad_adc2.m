@@ -117,11 +117,11 @@ lims = params.gen.lims;
                         g1 = g_new;
                     end
 
-                    % ADC
-                    % Round-down dwell time to adcRasterTime
-                    adcDwell = floor((1./(params.spi.bw)/lims.adcRasterTime))*lims.adcRasterTime;
-                    % updating Spiral BW
-                    params.spi.bw = 1./adcDwell;
+%                     % ADC
+%                     % Round-down dwell time to adcRasterTime
+%                     adcDwell = floor((1./(params.spi.bw)/lims.adcRasterTime))*lims.adcRasterTime;
+%                     % updating Spiral BW
+%                     params.spi.bw = 1./adcDwell;
     
 %                     %%%%%% Safe spirals
 %                     [g_new(1,:),g_new(2,:),time] = fn_safe_spirals(C,params);
@@ -231,6 +231,11 @@ lims = params.gen.lims;
 % %         adcSamples = round(adcTime./adcDwell);
 % % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+% % Adjusting dwell time...
+adcDwell = (1/(params.gen.fov(1)*lims.gamma*params.spi.max_grad*1e-3));
+% adcDwell = floor(adcDwell/lims.adcRasterTime)*lims.adcRasterTime; % Originral
+adcDwell = floor(adcDwell/lims.adcRasterTime/2)*lims.adcRasterTime*2; 
+
 %%%%% Lusing approach %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         % Adding adc deadtime and 
         % time = time+lims.adcDeadTime;
@@ -239,11 +244,9 @@ lims = params.gen.lims;
         time_new = round(time_new/lims.gradRasterTime)*lims.gradRasterTime;
         adcSamples = round(time_new./adcDwell);
         % In SIEMENS number of ADC samples should be divisible by 4
-        adcSamples = ceil(adcSamples/4)*4;  
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        adcSamples = ceil(ceil(adcSamples/4)*4/1000)*1000;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
 
-
-        
         % AMM: Compensating for the 6 zeros I padded before
 %         adcSamples = adcSamples-6;
 %         adcSamples = floor(adcSamples/4)*4; % on Siemens the number of ADC samples need to be divisible by 4

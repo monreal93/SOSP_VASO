@@ -1,5 +1,6 @@
 using Pkg
-Pkg.activate("/usr/share/5T4/Alejandro/sosp_vaso/sim/")
+# Pkg.activate("/usr/share/5T4/Alejandro/sosp_vaso/sim/")
+Pkg.activate("/usr/share/PhD_2024/sosp_vaso/sim/")
 
 using Revise
 using MRIReco, MRISimulation, MAT, NIfTI, ImagePhantoms
@@ -39,8 +40,13 @@ psf_t2s = 23e-3     # T2* in s
 psf_b0 = 20         # off-resonance in Hz
 
 # Folder and name of sequence to simulate
+<<<<<<< HEAD
 folder_sim = "simulations_paper"
 scan_sim = ["cb_01"]
+=======
+folder_sim = "simulations_berkeley"
+scan_sim = ["sample"]
+>>>>>>> 969d95443a58b535831588d627a4c87a69509cfe
 traj_type = "nom"
 # scan_sim = ["sb_01","sb_02","sb_03","sb_04","sb_05","sb_06","sb_07","sb_08","sb_09","sb_10"]
 

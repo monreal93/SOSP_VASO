@@ -42,7 +42,7 @@ function params = prepare_add_parameters(seq,ks_traj,gx,rf,adc,te0,te1,tr0,tr1,p
     if params.gen.ro_type == 's'
         julia_time = repmat(params.gen.TE+(0:adc.dwell:adc.duration-adc.dwell),1,params.spi.interl);
     elseif params.gen.ro_type == 'c'
-        julia_time = params.gen.TE+(0:adc.dwell:(adc.duration*n_lines)-adc.dwell);
+        julia_time = params.gen.TE+(0:adc.dwell:(adc.duration*params.epi.n_lines)-adc.dwell);
     end
     params.gen.t_vector = julia_time;
     
