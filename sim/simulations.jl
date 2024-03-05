@@ -41,8 +41,13 @@ psf_b0 = 20         # off-resonance in Hz
 
 # Folder and name of sequence to simulate
 <<<<<<< HEAD
+<<<<<<< HEAD
 folder_sim = "simulations_paper"
 scan_sim = ["cb_01"]
+=======
+folder_sim = "simulations_berkeley"
+scan_sim = ["sample"]
+>>>>>>> 969d95443a58b535831588d627a4c87a69509cfe
 =======
 folder_sim = "simulations_berkeley"
 scan_sim = ["sample"]
