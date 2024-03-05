@@ -52,7 +52,8 @@ function FormatRawData(rawData,params;single_rep::Bool=false,rep_format::Int)
         for i_par=1:numPar
             for i_interl=1:numInterl
                 for i_set=1:numSet
-                    tmp[:,i_set,i_interl,i_par,:,i_rep] = rawData.profiles[i_prof].data
+                    tmp[:,i_set,i_interl,i_par,:,i_rep] = rawData.profiles[i_prof].data # Original
+                    # tmp[:,i_set,i_interl,i_par,:,i_rep] = rawData.profiles[i_prof].data[1:numRead,:]
                     i_prof += 1
                 end
             end

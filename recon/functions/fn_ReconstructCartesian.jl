@@ -5,19 +5,22 @@ ReconCartesianData(RawData::RawAcquisitionData,params::Dict{Symbol,Any})
 Performs cartesian reconstruction, FFT, either 2D or 3D
 """
 function ReconCartesianData(acqData::AcquisitionData,dims::Int; interleaved=false)
-    ## AMM: ToDo:
-    # - Add functionality to select if FFT 2D or 3D...
-    #
 
     numEchos = size(acqData.kdata,1)
     # numSlices = size(acqData.kdata,2)             # Slices or Phase Enc 2 in 3D
     numRead = acqData.encodingSize[1]
     numPart = acqData.encodingSize[2]
-    numSlices = acqData.encodingSize[3]
+
+    if dims==3
+        numSlices = acqData.encodingSize[3]
+    else
+        numSlices = size(acqData.kdata,2)
+    end
     numChan = size(acqData.kdata[1],2)
 
     recon = Array{ComplexF32,5}(undef,numRead,numPart,numSlices,numChan,numEchos)
 
+    # ToDo: For now I do FFT by Channel,Slice and Echo, not sure if with MKL I can do FFT selecting an specific dimension as in FFTW.
     if dims==2
         # Reshape the data and do FFT
         for i_ech=1:numEchos
@@ -25,16 +28,20 @@ function ReconCartesianData(acqData::AcquisitionData,dims::Int; interleaved=fals
 
                 tmp = acqData.kdata[i_ech,i_sl,1]
                 tmp = reshape(tmp,numRead,numPart,numChan)
-                
-                # # FFT, only for 2D now, FFTW use:
-                # tmp = fftshift(ifft(tmp),1)
-                # tmp = fftshift(ifft(tmp),2)
+                 
+                for i_ch = 1:numChan
+                    # # FFT, only for 2D now, FFTW use:
+                    # tmp = fftshift(ifft(tmp),1)
+                    # tmp = fftshift(ifft(tmp),2)
 
-                # FFT, only for 2D now, MKL use:
-                tmp = fftshift(ifft(tmp))
-                # tmp = sqrt.(sum((abs.(tmp).^2),dims=3))
+                    tmp1 = tmp[:,:,i_ch]
 
-                recon[:,:,i_sl,:,i_ech] = tmp
+                    # FFT, only for 2D now, MKL use:
+                    tmp1 = fftshift(ifft(tmp1))
+                    # tmp = sqrt.(sum((abs.(tmp).^2),dims=3))
+
+                    recon[:,:,i_sl,i_ch,i_ech] = tmp1
+                end
             end
         end
 

@@ -1,2 +1,2 @@
 [FFTW]
-provider = "mkl"
+provider = "fftw"

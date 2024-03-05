@@ -10,35 +10,38 @@ using Statistics
 using FLoops
 using PaddedViews
 using SphericalHarmonicExpansions
-# using Plots, ImageView
+# using Plots, ImageView,
 using MRIOperators
+
+using FFTW
+FFTW.set_provider!("mkl")
 
 include("../recon/functions/fn_addCorrelatedNoise.jl")
 include("../recon/functions/fn_calculateGfactor.jl")
 include("../recon/functions/fn_save_nii.jl")
 
-phn_sim = 1            # 1=brain, 0=point (psf), for point (PSF), set all to false
+phn_sim = 0            # 1=brain, 0=point (psf), for point (PSF), set all to false
 cs_sim = true
 cs_recon = true
 b0_sim = false
 b0_recon = false
 t2s_sim = false
 t2s_recon = false
-high_order_recon = true
+high_order_recon = false
 order_recon =  1            # Recon order (1,2,3)
 add_noise = false
 gfactor = false
 is2d = false
 gfactor_replicas = 2
-channels = 4            # 0-channels from CS file, >0 less channels (it will be cropped)
+channels = 32            # 0-channels from CS file, >0 less channels (it will be cropped)
 # For PSF only.. T2* and b0
 psf_t2s = 23e-3     # T2* in s
 psf_b0 = 20         # off-resonance in Hz
 
 # Folder and name of sequence to simulate
-folder_sim = "simulations_ismrm"
-scan_sim = ["sample_lowres"]
-traj_type = "sk"
+folder_sim = "simulations_paper"
+scan_sim = ["cb_01"]
+traj_type = "nom"
 # scan_sim = ["sb_01","sb_02","sb_03","sb_04","sb_05","sb_06","sb_07","sb_08","sb_09","sb_10"]
 
 # Folder and name of sensitivity maps and b0 map to use for simulation
@@ -79,6 +82,8 @@ if phn_sim == 1
     # phn_nii = NIVolume(phn_abs)
     # niwrite(string(path_sim,"/sim/reference_phn.nii"),phn_nii)
 else
+    # phn = zeros(Int(params_pulseq["gen"]["n_ov"][1]),Int(params_pulseq["gen"]["n_ov"][2]),Int(params_pulseq["gen"]["n_ov"][3]))
+    # phn[Int(params_pulseq["gen"]["n_ov"][1]/2),Int(params_pulseq["gen"]["n_ov"][2]/2),Int(params_pulseq["gen"]["n_ov"][3]/2)] = 1
     phn = zeros(Int(params["gen"]["n"][1]),Int(params["gen"]["n"][2]),Int(params["gen"]["n"][3]))
     phn[Int(params["gen"]["n"][1]/2),Int(params["gen"]["n"][2]/2),Int(params["gen"]["n"][3]/2)] = 1
     phn = Array{ComplexF64}(phn)
@@ -116,14 +121,14 @@ end
 
 ##### Load t2s map
 if t2s_sim
-    t2s = matread(string(path,"/acq/t2s_",scan_suffix,".mat"))
-    t2s = t2s["t2str_map"]
-    t2s = convert(Array{ComplexF64,3},t2s)
-    t2s = imresize(t2s,(Int(params["gen"]["n"][1]),Int(params["gen"]["n"][2]),Int(params["gen"]["n"][3])))
-
     if phn_sim == 0
-        t2s *= 0
+        t2s = zeros(size(phn))
         t2s[Int(params["gen"]["n"][1]/2),Int(params["gen"]["n"][2]/2),Int(params["gen"]["n"][3]/2)] += 1/psf_t2s
+    else
+        t2s = matread(string(path,"/acq/t2s_",scan_suffix,".mat"))
+        t2s = t2s["t2str_map"]
+        t2s = convert(Array{ComplexF64,3},t2s)
+        t2s = imresize(t2s,(Int(params["gen"]["n"][1]),Int(params["gen"]["n"][2]),Int(params["gen"]["n"][3])))
     end
 
     t2s_orig = deepcopy(t2s)
@@ -343,6 +348,7 @@ for i = 1:Int(length(scan_sim))
     end
 
     tmp = convert(Array{ComplexF32,3},tmp)
+    tmp_orig = deepcopy(tmp)
 
     if is2d
         tmp = tmp[:,:,1]
@@ -376,6 +382,7 @@ for i = 1:Int(length(scan_sim))
     @info ("Simulating k-space data ...")
     if b0_sim && t2s_sim
         b0 = deepcopy(b0_orig)
+        tmp = deepcopy(tmp_orig)
         if is2d
             b0 = b0[:,:,sl]
             b0 = reshape(b0,(size(b0)...,1))
@@ -391,6 +398,7 @@ for i = 1:Int(length(scan_sim))
         end
         global b0 = deepcopy(tmp)
         t2s = deepcopy(t2s_orig)
+        tmp = deepcopy(tmp_orig)
         if is2d
             tmp = tmp[:,:,1]
             tmp[tmp1[1]:tmp1[1]+mtx[1]-1,tmp1[2]:tmp1[2]+mtx[2]-1] = t2s
@@ -405,6 +413,7 @@ for i = 1:Int(length(scan_sim))
         acqData = simulation(ks, phn, t2s+b0; senseMaps=cs, params_sim)
     elseif b0_sim
         b0 = deepcopy(b0_orig)
+        tmp = deepcopy(tmp_orig)
         # Downsampling if requested:
         if mtx_pulseq < mtx
             # tmp = imresize(tmp, mtx_pulseq)
@@ -421,6 +430,8 @@ for i = 1:Int(length(scan_sim))
         acqData = simulation(ks, phn, b0; senseMaps=cs, params_sim)
     elseif t2s_sim
         t2s = deepcopy(t2s_orig)
+        tmp = deepcopy(tmp_orig)
+        @infiltrate
         if is2d
             tmp = tmp[:,:,1]
             tmp[tmp1[1]:tmp1[1]+mtx[1]-1,tmp1[2]:tmp1[2]+mtx[2]-1] = t2s
@@ -534,8 +545,8 @@ for i = 1:Int(length(scan_sim))
     # jim(abs.(x))
     # # #####
 
-    # @info("stop before recon...")
-    # @infiltrate
+    @info("stop before recon...")
+    @infiltrate
 
     # Do reconstruction
     @info ("Reconstruction ...")

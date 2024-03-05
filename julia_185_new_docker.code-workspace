@@ -10,6 +10,6 @@
 		}
 	],
 	"settings": {
-		"julia.environmentPath": "/root/.julia/dev/MRIReco/MRIOperators"
+		"julia.environmentPath": "/usr/share/5T4/Alejandro/sosp_vaso/recon"
 	}
 }

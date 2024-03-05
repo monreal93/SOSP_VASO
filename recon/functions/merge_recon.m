@@ -1,22 +1,22 @@
 clear all; clc
 
-cd /mnt/5T3/Alejandro/sosp_vaso/
+cd /mnt/5T4/Alejandro/sosp_vaso/
 addpath(genpath('../tools/as'))
 
-folder = '05192023_sv';
-scan = 'sv_11';
-b0 = 'fessler';           % b0='','fessler','romeo','gilad','skope','fessler'
+folder = '02232024_abc';
+scan = 'abc_10_fs_rfsp_+650';
+b0 = '';           % b0='','fessler','romeo','gilad','skope','fessler'
 traj = 'nom';           % 'nom', 'sk'
-rep_recon = 1:136;          % Range or repetitions to merge
+rep_recon = 1:40;          % Range or repetitions to merge
 is2d = 0;
-contrasts = ["b","v"];  % "v","b","abc"
+contrasts = ["abc"];  % "v","b","abc"
 p_dork = "";              % Partition DORK "_pDORK"
 r_dork = "_rDORK";              % Repetition DORK "_rDORK"
-drift = "_drift";               % Drift "_drift"
+drift = "";               % Drift "_drift"
 rotate = false;
 
 % root = '/mnt/ssh/var/www/dabeast/5T3/Alejandro/sosp_vaso';
-root = '/mnt/5T3/Alejandro/sosp_vaso';
+root = '/mnt/5T4/Alejandro/sosp_vaso';
 
 if contains(scan,'sv') || contains(scan,'abc') || contains(scan,'sb')
     load(sprintf('%s/data/%s/acq/%s_params.mat',root,folder,scan))
