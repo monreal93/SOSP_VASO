@@ -133,6 +133,7 @@ tmp=$(echo $block_dur | bc -l)
 tmp=$(echo ${tmp%%.*})
 ublock=$(echo "UBLOCK($tmp,1)")
 
+# VASO based on difference
 echo "VASO based on difference"
 tmp=$(echo $block_trs/4 | bc -l)
 tmp=$(echo ${tmp%.*})

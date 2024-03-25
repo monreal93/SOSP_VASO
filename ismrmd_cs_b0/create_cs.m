@@ -23,10 +23,10 @@ end
 
 cd ./sosp_vaso
 
-folder = '12062023_sk_abc';
+folder = '02142024_abc';
 cs_b0_file = 'b0_a01_fieldmap';
-scan = 'abc_01_MT_NOfs_NOrfsp';
-% repetitions = 1; %4,50        % AMM: ToDo: find a way to get this param from somewhere
+scan = 'abc_02_NOfs_NOrfsp';
+repetitions = 10; %4,50        % AMM: ToDo: find a way to get this param from somewhere
 
 % Reading some parameters from Pulseq
 load(sprintf('./data/%s/acq/%s_params.mat',folder,scan));
@@ -42,7 +42,8 @@ elseif params.gen.field_strength == 9
     params.ch = 31;  %  9.4T=31, Tubingen coil
 %     params.ch = 32;   % 9T visual coil
 elseif params.gen.field_strength == 7i
-   params.ch = 71;
+%    params.ch = 71;   % 64 Channels Coil
+   params.ch = 16;   % 16 Channels visua coil
 end
 params.nx = params.gen.ro_samples;
 params.ny = 1; 

@@ -23,10 +23,10 @@ end
 
 cd ./sosp_vaso
 
-folder = '12062023_sk_abc';
-cs_b0_file = 'b0_a01_fieldmap';
-scan = 'sb_01';
-repetitions = 1; %4,50        % AMM: ToDo: find a way to get this param from somewhere
+folder = '05192023_sv_paper';
+cs_b0_file = 'b0_s01_fieldmap';
+scan = 'sv_01';
+repetitions = 140; %4,50        % AMM: ToDo: find a way to get this param from somewhere
 
 % Reading some parameters from Pulseq
 load(sprintf('./data/%s/acq/%s_params.mat',folder,scan));
@@ -37,7 +37,7 @@ params.is2d = 0;                   % 1 if 3D dataset saved as 2D
 params.traj = 1;                   % Trajectory input: 1 (matlab simulation), 2 (poet), 3 (skope), 4 (nom corrected)
 params.plot = 0;                   % Plot stuff
 params.ncc = 0;              	   % Coil compression coils... 0 for no compression
-params.reps_to_save = 1:1;         % Repetitions to create ismrmd files (range or 1 number)
+params.reps_to_save = 1:40;         % Repetitions to create ismrmd files (range or 1 number)
 params.part_dork = 0;              % Partition DORK
 params.gen.dork = 1;                % DORK, 0=no,1=partial,2=full
 params.rep_dork = 1;               % Repetition DORK

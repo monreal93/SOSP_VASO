@@ -1,6 +1,6 @@
 using Pkg
-# Pkg.activate("/usr/share/5T4/Alejandro/sosp_vaso/sim/")
-Pkg.activate("/usr/share/PhD_2024/sosp_vaso/sim/")
+Pkg.activate("/usr/share/5T4/Alejandro/sosp_vaso/sim/")
+# Pkg.activate("/usr/share/PhD_2024/sosp_vaso/sim/")
 
 using Revise
 using MRIReco, MRISimulation, MAT, NIfTI, ImagePhantoms
@@ -11,8 +11,11 @@ using Statistics
 using FLoops
 using PaddedViews
 using SphericalHarmonicExpansions
-# using Plots, ImageView
+# using Plots, ImageView,
 using MRIOperators
+
+using FFTW
+FFTW.set_provider!("mkl")
 
 include("../recon/functions/fn_addCorrelatedNoise.jl")
 include("../recon/functions/fn_calculateGfactor.jl")
@@ -21,8 +24,8 @@ include("../recon/functions/fn_save_nii.jl")
 phn_sim = 1            # 1=brain, 0=point (psf), for point (PSF), set all to false
 cs_sim = true
 cs_recon = true
-b0_sim = false
-b0_recon = false
+b0_sim = true
+b0_recon = true
 t2s_sim = false
 t2s_recon = false
 high_order_recon = false
@@ -31,21 +34,21 @@ add_noise = false
 gfactor = false
 is2d = false
 gfactor_replicas = 2
-channels = 4            # 0-channels from CS file, >0 less channels (it will be cropped)
+channels = 32            # 0-channels from CS file, >0 less channels (it will be cropped)
 # For PSF only.. T2* and b0
 psf_t2s = 23e-3     # T2* in s
 psf_b0 = 20         # off-resonance in Hz
 
 # Folder and name of sequence to simulate
-folder_sim = "simulations_berkeley"
-scan_sim = ["sample"]
+folder_sim = "simulations_paper"
+scan_sim = ["sb_01"]
 traj_type = "nom"
 # scan_sim = ["sb_01","sb_02","sb_03","sb_04","sb_05","sb_06","sb_07","sb_08","sb_09","sb_10"]
 
 # Folder and name of sensitivity maps and b0 map to use for simulation
-folder = "10252023_sv_paper"
-scan = "sv_81"
-fieldmap = "s81"
+folder = "05192023_sv_paper"
+scan = "sv_01"
+fieldmap = "s01"
 path = string("/usr/share/5T4/Alejandro/sosp_vaso/data/",folder)
 path_sim = string("/usr/share/5T4/Alejandro/sosp_vaso/data/",folder_sim)
 
@@ -80,6 +83,8 @@ if phn_sim == 1
     # phn_nii = NIVolume(phn_abs)
     # niwrite(string(path_sim,"/sim/reference_phn.nii"),phn_nii)
 else
+    # phn = zeros(Int(params_pulseq["gen"]["n_ov"][1]),Int(params_pulseq["gen"]["n_ov"][2]),Int(params_pulseq["gen"]["n_ov"][3]))
+    # phn[Int(params_pulseq["gen"]["n_ov"][1]/2),Int(params_pulseq["gen"]["n_ov"][2]/2),Int(params_pulseq["gen"]["n_ov"][3]/2)] = 1
     phn = zeros(Int(params["gen"]["n"][1]),Int(params["gen"]["n"][2]),Int(params["gen"]["n"][3]))
     phn[Int(params["gen"]["n"][1]/2),Int(params["gen"]["n"][2]/2),Int(params["gen"]["n"][3]/2)] = 1
     phn = Array{ComplexF64}(phn)
@@ -117,14 +122,14 @@ end
 
 ##### Load t2s map
 if t2s_sim
-    t2s = matread(string(path,"/acq/t2s_",scan_suffix,".mat"))
-    t2s = t2s["t2str_map"]
-    t2s = convert(Array{ComplexF64,3},t2s)
-    t2s = imresize(t2s,(Int(params["gen"]["n"][1]),Int(params["gen"]["n"][2]),Int(params["gen"]["n"][3])))
-
     if phn_sim == 0
-        t2s *= 0
+        t2s = zeros(size(phn))
         t2s[Int(params["gen"]["n"][1]/2),Int(params["gen"]["n"][2]/2),Int(params["gen"]["n"][3]/2)] += 1/psf_t2s
+    else
+        t2s = matread(string(path,"/acq/t2s_",scan_suffix,".mat"))
+        t2s = t2s["t2str_map"]
+        t2s = convert(Array{ComplexF64,3},t2s)
+        t2s = imresize(t2s,(Int(params["gen"]["n"][1]),Int(params["gen"]["n"][2]),Int(params["gen"]["n"][3])))
     end
 
     t2s_orig = deepcopy(t2s)
@@ -344,6 +349,7 @@ for i = 1:Int(length(scan_sim))
     end
 
     tmp = convert(Array{ComplexF32,3},tmp)
+    tmp_orig = deepcopy(tmp)
 
     if is2d
         tmp = tmp[:,:,1]
@@ -377,6 +383,7 @@ for i = 1:Int(length(scan_sim))
     @info ("Simulating k-space data ...")
     if b0_sim && t2s_sim
         b0 = deepcopy(b0_orig)
+        tmp = deepcopy(tmp_orig)
         if is2d
             b0 = b0[:,:,sl]
             b0 = reshape(b0,(size(b0)...,1))
@@ -392,6 +399,7 @@ for i = 1:Int(length(scan_sim))
         end
         global b0 = deepcopy(tmp)
         t2s = deepcopy(t2s_orig)
+        tmp = deepcopy(tmp_orig)
         if is2d
             tmp = tmp[:,:,1]
             tmp[tmp1[1]:tmp1[1]+mtx[1]-1,tmp1[2]:tmp1[2]+mtx[2]-1] = t2s
@@ -406,6 +414,7 @@ for i = 1:Int(length(scan_sim))
         acqData = simulation(ks, phn, t2s+b0; senseMaps=cs, params_sim)
     elseif b0_sim
         b0 = deepcopy(b0_orig)
+        tmp = deepcopy(tmp_orig)
         # Downsampling if requested:
         if mtx_pulseq < mtx
             # tmp = imresize(tmp, mtx_pulseq)
@@ -422,6 +431,8 @@ for i = 1:Int(length(scan_sim))
         acqData = simulation(ks, phn, b0; senseMaps=cs, params_sim)
     elseif t2s_sim
         t2s = deepcopy(t2s_orig)
+        tmp = deepcopy(tmp_orig)
+        @infiltrate
         if is2d
             tmp = tmp[:,:,1]
             tmp[tmp1[1]:tmp1[1]+mtx[1]-1,tmp1[2]:tmp1[2]+mtx[2]-1] = t2s
@@ -466,10 +477,10 @@ for i = 1:Int(length(scan_sim))
         # params_reco[:reconSize] = Int(params_pulseq["gen"]["n"][1]),Int(params_pulseq["gen"]["n"][2]),Int(params_pulseq["gen"]["n"][3])
         params_reco[:reconSize] = size(phn)
     end
-    params_reco[:regularization] = "L2"
-    params_reco[:λ] = 1.e-3
+    params_reco[:regularization] = "L1"
+    params_reco[:λ] = 1.e-2
     params_reco[:iterations] = 20
-    params_reco[:solver] = "cgnr"
+    params_reco[:solver] = "admm"
     params_reco[:method] = "nfft"
     if scan_sim[i][1] == 's'
         params_reco[:rxyz] = params_pulseq["gen"]["kz"]*params_pulseq["spi"]["rxy"]
@@ -477,14 +488,19 @@ for i = 1:Int(length(scan_sim))
         params_reco[:rxyz] = params_pulseq["gen"]["kz"]*params_pulseq["epi"]["ry"]/params_pulseq["epi"]["pf"]
     end
 
+    # AMM: Temp: Rescaling the B0 map before reconstruction, to have a missmatch btw sim and recon
+    @info("Temp.... Reescaling B0 map before recon...")
+    @infiltrate
+    b0 .= b0*(0.5)
+
     if cs_recon
-        # Temp: rotate and reverse CS maps to match simulation data
-        for j=1:size(cs,4)
-            for i=1:size(cs,3)
-                cs[:,:,i,j] = rotr90(cs[:,:,i,j]) 
-            end
-        end
-        cs = reverse(cs; dims=2)
+        # # Amm: Temp: rotate and reverse CS maps to match simulation data
+        # for j=1:size(cs,4)
+        #     for i=1:size(cs,3)
+        #         cs[:,:,i,j] = rotr90(cs[:,:,i,j]) 
+        #     end
+        # end
+        # cs = reverse(cs; dims=2)
         params_reco[:reco] = "multiCoil"
         params_reco[:senseMaps] = cs
     end
@@ -535,8 +551,8 @@ for i = 1:Int(length(scan_sim))
     # jim(abs.(x))
     # # #####
 
-    # @info("stop before recon...")
-    # @infiltrate
+    @info("stop before recon...")
+    @infiltrate
 
     # Do reconstruction
     @info ("Reconstruction ...")
@@ -590,25 +606,25 @@ for i = 1:Int(length(scan_sim))
     # save phn
     phn_abs = abs.(phn)
     phn_abs = (phn_abs.- minimum(last,phn_abs))./(maximum(last,phn_abs)-minimum(last,phn_abs))
-    phn_nii = NIVolume(phn_abs)
+    phn_nii = NIVolume(phn_abs; voxel_size=Tuple(params["gen"]["res"].*1e3),time_step=params["gen"]["volTR"])
     if phn_sim == 1
         path_save_recon = string(path_sim,"/sim/",scan_sim[i],"_phn",".nii")
     else phn_sim == 0
         path_save_recon = string(path_sim,"/sim/",scan_sim[i],"_phn_point",".nii")
     end
     niwrite(path_save_recon,phn_nii)
-    
+
     # save recon
     if phn_sim == 0
-        Ireco_nii = NIVolume(real.(Ireco))
+        Ireco_nii = NIVolume(real.(Ireco); voxel_size=Tuple(params["gen"]["res"].*1e3),time_step=params["gen"]["volTR"])
     else
-        Ireco_nii = NIVolume(abs.(Ireco))
+        Ireco_nii = NIVolume(abs.(Ireco); voxel_size=Tuple(params["gen"]["res"].*1e3),time_step=params["gen"]["volTR"])
     end
     path_save_recon = string(path_sim,"/sim/",scan_sim[i],"_sim",suffix,".nii")
     niwrite(path_save_recon,Ireco_nii)
     
     # save error
-    recon_error = NIVolume(recon_error);
+    recon_error = NIVolume(recon_error; voxel_size=Tuple(params["gen"]["res"].*1e3),time_step=params["gen"]["volTR"]);
     path_save_error = string(path_sim,"/sim/",scan_sim[i],"_error",suffix,".nii")
     niwrite(path_save_error,recon_error)
 end

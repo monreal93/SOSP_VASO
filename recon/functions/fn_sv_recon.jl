@@ -309,10 +309,10 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
                         # file=ISMRMRDFile(string(params_sv[:path],"ismrmd/3d/",params_sv[:scan],"_",contrasts[j],"_r",i,"_",params_sv[:id],"_",params_sv[:traj_type] ,".h5"));
                     end
                 end
-                
-                acqData = AcquisitionData(file)
 
                 @infiltrate
+                
+                acqData = AcquisitionData(file)
 
                 # # get the number of samples per readout, if its 3d, need to divide by # of slices
                 # if params_sv[:is2d]
