@@ -1,5 +1,23 @@
 
 """
+CorrectFFTShift(RawData::RawAcquisitionData,k0::AbstractVector,params::Dict{Symbol,Any})
+
+Performs FFT shift
+"""
+
+function CorrectFFTShift(tmp,fftShift::Tuple,ksTraj::Matrix{Float32},params::Dict{Symbol,Any})
+    
+    ksTraj = ksTraj[:,1:params[:numRead]]'
+
+    tmp = tmp.*exp.(1im*2*π.*ksTraj[:,1].*(fftShift[2]./2))  # kx shift
+    tmp = tmp.*exp.(1im*2*π.*ksTraj[:,2].*(fftShift[1]./2))  # ky shift
+    # tmp = tmp.*exp.(1im*2*π.*ksTraj[3,:].*fftShift[3])  # kz shift
+    
+    return tmp
+end
+
+
+"""
 CorrectPartitionDORK(RawData::RawAcquisitionData,params::Dict{Symbol,Any})
 
 Performs partition DORK correction
@@ -29,10 +47,16 @@ Correctk0(RawData::RawAcquisitionData,k0::AbstractVector,params::Dict{Symbol,Any
 Performs partition DORK correction
 """
 
-function Correctk0(tmp,k0::AbstractVector{Float64},params::Dict{Symbol,Any})
+function Correctk0(tmp,k0_sk::AbstractVector{Float64},k0_sim::AbstractMatrix{Float64},params::Dict{Symbol,Any})
     
-    k0 = reshape(k0,size(tmp)[1],size(tmp)[2])
-    tmp = tmp.*exp.(1im.*-k0)
+    @infiltrate
+    
+    # Un-do Siemens ECC
+    tmp = tmp./exp.(1im.*k0_sim)
+
+    # Apply Skope K0
+    tmp = tmp.*exp.(1im.*k0_sk.*-2π)
 
     return tmp
 end
+

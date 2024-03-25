@@ -23,9 +23,9 @@ end
 
 cd ./sosp_vaso
 
-folder = '05222023_sv_paper';
-cs_b0_file = 'b0_s21_fieldmap';
-scan = 'sv_21';
+folder = '05192023_sv_paper';
+cs_b0_file = 'b0_s01_fieldmap';
+scan = 'sv_01';
 repetitions = 140; %4,50        % AMM: ToDo: find a way to get this param from somewhere
 
 % Reading some parameters from Pulseq

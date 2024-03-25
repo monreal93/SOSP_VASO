@@ -27,6 +27,9 @@ function CalculateSensitivityMap(recon,MtxSize::Tuple;calib_size::Int=12)
     SensitivityMap = espirit(calibration,MtxSize)
     SensitivityMap = fftshift(fftshift(SensitivityMap,1),2)
 
+    # ToDo: Sometimes I need to do fftshift in 3 dim also
+    SensitivityMap = fftshift(SensitivityMap,3)
+
     SensitivityMap = dropdims(SensitivityMap; dims = 5)
 
     return SensitivityMap
@@ -48,9 +51,9 @@ function CalculateOffresonanceMap(recon_b0,SensitivityMap,EchoTimes::Vector{Floa
     # Lowering resolution of sensitivities
     smap = imresize(SensitivityMap,size(recon_b0)[1:4])
 
-    # Taking only the first 3 echos
-    ydata = recon_b0[:,:,:,:,1:3] .*1e3
-    echotime = EchoTimes[1:3].*1e-3 *1s
+    # Taking only the first 2 echos
+    ydata = recon_b0[:,:,:,:,1:size(recon_b0,5)] .*1e3
+    echotime = EchoTimes[1:size(recon_b0,5)].*1e-3 *1s   # Original
 
     # ToDo: Do I need to flip diemension?
     # ydata = reverse(ydata, dims=1)
@@ -66,15 +69,16 @@ function CalculateOffresonanceMap(recon_b0,SensitivityMap,EchoTimes::Vector{Floa
     @info ("Stop... B0 map...")
     @infiltrate
 
-    # # Original:
-    # fmap_run = (niter, precon, track; kwargs...) ->
-    #     b0map(yik_scale, echotime; finit, smap, mask,
-    #     order=1, l2b=0.002, gamma_type=:PR, niter, precon, track, kwargs...)
-
-    # New:
+    # Original "Low smoothing":
     fmap_run = (niter, precon, track; kwargs...) ->
         b0map(yik_scale, echotime; finit, smap, mask,
-        order=1, l2b=4, gamma_type=:PR, niter, precon, track, kwargs...)
+        order=1, l2b=0.002, gamma_type=:PR, niter, precon, track, kwargs...)
+
+    # # A lot of smoothing:
+    # fmap_run = (niter, precon, track; kwargs...) ->
+    #     b0map(yik_scale, echotime; finit, smap, mask,
+    #     order=1, l2b=4, gamma_type=:PR, niter, precon, track, kwargs...)
+
 
     function runner(niter, precon; kwargs...)
         (fmap, times, out) = fmap_run(niter, precon, true; kwargs...)
@@ -90,10 +94,13 @@ function CalculateOffresonanceMap(recon_b0,SensitivityMap,EchoTimes::Vector{Floa
 
     b0 = fmap_cg_d
 
-    b0 = b0.*2π.*-1    # Original 
+    # b0 = b0.*2π.*-1    # Original 
+    b0 = b0.*-1
 
     # Temp: Trying to rescale
-    # b0 = b0.*0.5
+    # ToDo: Are the maps in MRIFieldmaps.jl off by 10? 
+    # B0 correction is optimal after rescaling... Also values are as expected ~100Hz 
+    b0 = b0.*10
 
     b0 = ustrip.(b0)
     b0 = imresize(b0,size(SensitivityMap)[1:3])
