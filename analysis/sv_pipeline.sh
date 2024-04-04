@@ -13,10 +13,10 @@ cp /home/amonreal/Documents/PhD/PhD_2022/sosp_vaso/analysis/youtube/gnuplot_laye
 # cp /home/amonreal/Documents/PhD/PhD_2022/sosp_vaso/analysis/youtube/
 
 #### 2) MOTION CORRECTION (modify cp path in mocobatch.m):
-file=../*sv_02_bv*
-vol=140  # s=160 / c=140
-tr=1.87  # s=1.66 / c=1.81
-r_a_tr=7  # TRs for rest and activity s=8 / c=7
+file=../*sv_01_bv*
+vol=160  # s=160 / c=140
+tr=1.66  # s=1.66 / c=1.81
+r_a_tr=8  # TRs for rest and activity s=8 / c=7
 
 blocks=$(echo $vol/$r_a_tr/2 | bc -l)
 blocks=$(echo ${blocks%.*})
