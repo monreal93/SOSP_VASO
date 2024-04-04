@@ -10,7 +10,7 @@ using MAT, NIfTI , JLD #, MriResearchTools
 using StatsBase: mean
 using Unitful: s, ustrip
 using MIRTjim: jim, prompt; jim(:prompt, true)
-using ImageTransformations
+using ImageTransformations, Interpolations
 using NFFT
 using FLoops
 using Statistics
@@ -35,19 +35,21 @@ params[:do_k0_corr] = true              # Perform K0 demodulation of raw data, o
 params[:do_rDORK_corr] = true          
 params[:do_t2s_corr] = false
 params[:is2d] = false
-params[:rep_recon] = 1:320                      # Range of rep to recon, 0 for all rep, ex. (5:5)- rep 5 
+params[:rep_recon] = 0                     # Range of rep to recon, 0 for all rep, ex. (5:5)- rep 5 
 params[:traj_type] = "nom"                 # Trajectory type nominal="nom",skope="sk",poet = "poet", corrected = "nom_corr"
 params[:save_ph] = false                       # Save phase of recon as nifti
 params[:mcorr] = ""           # Motion correction with navigators "_mCorr"
 params[:recon_order] =  1                  # Higher order recon (2,3)
 
 # Some parameters3
-params[:scan] = "sv_01"            # For now: if multipe echos, include _e1.. _e2..
-params[:scan_b0] = "s01"           # Name of the ME-GRE to use for CS and B0map
-params[:directory] = "05192023_sv_paper"        # directory where the data is stored
+params[:scan] = "sv_71"            # For now: if multipe echos, include _e1.. _e2..
+params[:scan_b0] = "s71"           # Name of the ME-GRE to use for CS and B0map
+params[:directory] = "09192023_sv_abc_paper"        # directory where the data is stored
 
 path_tmp = string(pwd(),'/')
 params[:path] = string(path_tmp,"data/",params[:directory])
+
+@infiltrate
 
 # Some constraints
 if params[:recon_order] > 1; params[:traj_type] = "sk"; end
@@ -83,11 +85,16 @@ params[:TE] = params_pulseq["gen"]["TE"]
 params[:acq_times] = params_pulseq["gen"]["t_vector"]
 params[:reconSize] = (params_pulseq["gen"]["n_ov"][1],params_pulseq["gen"]["n_ov"][2],params_pulseq["gen"]["n_ov"][3])
 params[:FieldOfView] = params_pulseq["gen"]["fov"]
+
 if params_pulseq["gen"]["seq"] == 1
+    # SS-SI-VASO
     params[:contrasts] = ["v","b"]
+    params[:numRep] = params[:numRep]*2
 elseif params_pulseq["gen"]["seq"] == 2
+    # ABC
     params[:contrasts] = ["abc"]
 elseif params_pulseq["gen"]["seq"] == 4
+    # BOLD
     params[:contrasts] = ["b"]
 end
 
@@ -95,30 +102,6 @@ end
 if params[:traj_type] == "sk"
     ks_traj = matread(string(params[:path],"/acq/",params[:scan],"_ks_traj_",params[:traj_type],".mat")); ks_traj = ks_traj["ks_traj"]
     # ToDo: Sync Skope trajectory to raw data...
-
-    # ## Approach 1) different structure as nominal traj
-    # # Swap dimension 3 with 4, Spherical harmonics h2=z, Skope data h2=y.
-    # ks_traj[4,:] , ks_traj[3,:] = ks_traj[3,:],ks_traj[4,:]
-
-    # # ToDo: Do I want to repeat them, one per repetition??
-    # ks_traj_high = ks_traj
-    # ks_traj_high = repeat(ks_traj_high, outer=(1,Int(params_pulseq["gen"]["n_ov"][3])))
-    # # Taking only the specified order
-    # ks_traj_high = ks_traj_high[1:Int((params[:recon_order]+1)^2),:]
-    
-    # ks_traj = ks_traj[[2,4,3],:]
-    # # Repeat trajectory to number of partitions
-    # ks_traj[3,:] = ks_traj[3,:].-params_pulseq["gen"]["n_ov"][3]/2*(params_pulseq["gen"]["del_k"][3])
-    # tmp = deepcopy(ks_traj)
-    # for i=1:Int(params_pulseq["gen"]["n_ov"][3]-1)
-    #     tmp[3,:] = tmp[3,:].+(params_pulseq["gen"]["del_k"][3])
-    #     global ks_traj = hcat(ks_traj,tmp) 
-    # end
-
-    # # Normalizing
-    # for i=axes(ks_traj,1)
-    #     ks_traj[i,:] = ks_traj[i,:]./(maximum([abs(minimum(ks_traj[i,:])),abs(maximum(ks_traj[i,:]))])*2)
-    # end
 
     ## Approach 2) same structure as nominal
     # Normalizing
@@ -172,8 +155,8 @@ if params_pulseq["gen"]["field_strength"] == 7im
     recon_b0 = ReconCartesianData(acqData_b0,3; interleaved=true)
 elseif params_pulseq["gen"]["field_strength"] == 7
     recon_b0 = ReconCartesianData(acqData_b0,2; interleaved=true)
-else
-     recon_b0 = ReconCartesianData(acqData_b0,2) 
+elseif params_pulseq["gen"]["field_strength"] == 9
+     recon_b0 = ReconCartesianData(acqData_b0,2; interleaved=true) 
 end
 
 # recon_b0 = ReconCartesianData(rawData_b0; dims=2)
@@ -188,39 +171,39 @@ niwrite(string(params[:path],"/tmp/",params[:scan],"_1ech.nii"),NIVolume(b0_nii)
 file_name = string(params[:scan_b0],"_",Int(params_pulseq["gen"]["n_ov"][1]),"_",Int(params_pulseq["gen"]["n_ov"][2]),"_",Int(params_pulseq["gen"]["n_ov"][3]))
 save_suffix = string("_",params[:traj_type]) 
 
-# ###### Option 1) We create the sensitivities with MRIReco
-# # Sensitivity maps
-# if params[:do_pi_recon]
-#     save_suffix = string(save_suffix,"_cs")
-#     if isfile(string(params[:path],"/acq/cs_",file_name,".jld"))
-#         @info ("Sensitivity map exists... Re-calculate? y/n")
-#         input = readline()
-#     else
-#         input = ""
-#     end
-#     if input == "n"
-#         @info ("Loading Sensitivity maps ...")
-#         SensitivityMap = load(string(params[:path],"/acq/cs_",file_name,".jld"))
-#         SensitivityMap = SensitivityMap["SensitivityMap"]
-#     else
-#         @info("Calculating Sensitivity Maps...")
-#         SensitivityMap = CalculateSensitivityMap(recon_b0,Tuple(Int.(params_pulseq["gen"]["n_ov"])))
-#         save(string(params[:path],"/acq/cs_",file_name,".jld"),"SensitivityMap",SensitivityMap)
-#     end
-# end
-
-### Option 2) We read the sensitivities from Matlab
+###### Option 1) We create the sensitivities with MRIReco
+# Sensitivity maps
 if params[:do_pi_recon]
     save_suffix = string(save_suffix,"_cs")
-    if isfile(string(params[:path],"/acq/cs_",file_name,".mat"))
-        @info ("Loading Sensitivity maps ...")
-        SensitivityMap = matread(string(params[:path],"/acq/cs_",file_name,".mat"))
-        SensitivityMap = SensitivityMap["coil_sens"]
-        SensitivityMap = convert(Array{ComplexF32},SensitivityMap)
+    if isfile(string(params[:path],"/acq/cs_",file_name,".jld"))
+        @info ("Sensitivity map exists... Re-calculate? y/n")
+        input = readline()
     else
-        error("Sensitivity maps haven't been created... get them and then run script again")
+        input = ""
+    end
+    if input == "n"
+        @info ("Loading Sensitivity maps ...")
+        SensitivityMap = load(string(params[:path],"/acq/cs_",file_name,".jld"))
+        SensitivityMap = SensitivityMap["SensitivityMap"]
+    else
+        @info("Calculating Sensitivity Maps...")
+        SensitivityMap = CalculateSensitivityMap(recon_b0,Tuple(Int.(params_pulseq["gen"]["n_ov"])))
+        save(string(params[:path],"/acq/cs_",file_name,".jld"),"SensitivityMap",SensitivityMap)
     end
 end
+
+# ### Option 2) We read the sensitivities from Matlab
+# if params[:do_pi_recon]
+#     save_suffix = string(save_suffix,"_cs")
+#     if isfile(string(params[:path],"/acq/cs_",file_name,".mat"))
+#         @info ("Loading Sensitivity maps ...")
+#         SensitivityMap = matread(string(params[:path],"/acq/cs_",file_name,".mat"))
+#         SensitivityMap = SensitivityMap["coil_sens"]
+#         SensitivityMap = convert(Array{ComplexF32},SensitivityMap)
+#     else
+#         error("Sensitivity maps haven't been created... get them and then run script again")
+#     end
+# end
 
 # Calculate B0 map
 if params[:do_b0_corr] || (params[:traj_type] == "sk" && params[:recon_order] > 1)
@@ -313,25 +296,6 @@ end
             tmp = CorrectPartitionDORK(tmp,nav_ref,params)
         end
 
-        # ####################### Temp: Trying to get rid of the spikes
-        # # Set sampling points with spikes and low SNR coils to zero
-        # # spikes = abs.(mean(tmp[:,Int(params_pulseq["gen"]["n_ov"][3]/2+1),:,1]; dims=2))  # Mean Channels
-        # spikes = abs.((tmp[:,Int(params_pulseq["gen"]["n_ov"][3]/2+1),:,:]))  # Per Channels
-        # spikes = abs.(tmp[:,:,:,1])  # Per Channels
-        # tmp_mean = mean(spikes[600:end,:,:,:]; dims=2)
-        # tmp_std = std(spikes[end-500:end,:,:,:]; dims=1)  # Std of only last 500 samples
-        # # tmp_std = std(spikes[600:end,:,:,:]; dims=1)
-        # # ToDo: Need to check how to find the threshold...
-        # spikes_idx = spikes .> tmp_std*20
-        # spikes_idx[1:600,:,:,:] .= 0        
-        # # plot(abs.(tmp[:,13,1,1]))
-        # # plot!(spikes_idx[:,13,1,1]*1e-4)
-
-        # @infiltrate
-
-        # # tmp[spikes_idx] *= 0
-        # #######################
-
         kdata[1] = dropdims(reshape(tmp,(:,numCha,1)),dims=3)
 
         # Create AcqData object
@@ -364,8 +328,6 @@ end
         ccall(:malloc_trim, Cvoid, (Cint,), 0) 
         GC.gc()
 
-        ## Save as MAT
-        # matwrite(string(params[:path],"/tmp/recon.mat"),Dict("recon" => abs.(Ireco)))
     end
     
     # Merge all repetitions into one file

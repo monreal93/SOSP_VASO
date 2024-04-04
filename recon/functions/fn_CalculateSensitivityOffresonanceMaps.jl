@@ -51,9 +51,9 @@ function CalculateOffresonanceMap(recon_b0,SensitivityMap,EchoTimes::Vector{Floa
     # Lowering resolution of sensitivities
     smap = imresize(SensitivityMap,size(recon_b0)[1:4])
 
-    # Taking only the first 2 echos
-    ydata = recon_b0[:,:,:,:,1:size(recon_b0,5)] .*1e3
-    echotime = EchoTimes[1:size(recon_b0,5)].*1e-3 *1s   # Original
+    # Taking only the first 3 echos
+    ydata = recon_b0[:,:,:,:,1:3] .*1e3
+    echotime = EchoTimes[1:3].*1e-3 *1s   # Original
 
     # ToDo: Do I need to flip diemension?
     # ydata = reverse(ydata, dims=1)
@@ -82,28 +82,28 @@ function CalculateOffresonanceMap(recon_b0,SensitivityMap,EchoTimes::Vector{Floa
 
     function runner(niter, precon; kwargs...)
         (fmap, times, out) = fmap_run(niter, precon, true; kwargs...)
-        # (fmap, _, out) = fmap_run(niter, precon, true; kwargs...) # tracking run
-        # (_, times, _) = fmap_run(niter, precon, false; kwargs...) # timing run
         return (fmap, out.fhats, out.costs, times)
     end;
-    # if !@isdefined(fmap_cg_d)
-        niter_cg_d = 200  # 300, 120
+    if !@isdefined(fmap_cg_d)
+        niter_cg_d = 200  # (400)
         (fmap_cg_d, fhat_cg_d, cost_cg_d, time_cg_d) = runner(niter_cg_d, :diag)
         # (fmap_cg_d, fhat_cg_d, cost_cg_d, time_cg_d) = runner(niter_cg_d, :ichol)
-    # end
+    end
 
     b0 = fmap_cg_d
 
-    # b0 = b0.*2π.*-1    # Original 
-    b0 = b0.*-1
+    b0 = b0.*2π.*-1    # Original 
+    # b0 = b0.*-1
 
     # Temp: Trying to rescale
     # ToDo: Are the maps in MRIFieldmaps.jl off by 10? 
-    # B0 correction is optimal after rescaling... Also values are as expected ~100Hz 
-    b0 = b0.*10
+    # B0 correction is optimal after rescaling... (and not converting to rada/s) Also values are as expected ~100Hz 
+    # This seems to be the case only for sv_01
+    # b0 = b0.*10
 
     b0 = ustrip.(b0)
-    b0 = imresize(b0,size(SensitivityMap)[1:3])
+
+    b0 = imresize(b0,size(SensitivityMap)[1:3],method=BSpline(Cubic()))
     b0 = 1im.*b0
     b0 = convert(Array{ComplexF32,3},b0)
 

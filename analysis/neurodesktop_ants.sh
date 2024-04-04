@@ -3,7 +3,8 @@ cd /neurodesktop-storage/5T4/Alejandro/sosp_vaso/data
 folder="05192023_sv_paper"
 
 scan="cv_01"
-scan_t1="dicom_mp2rage_iso0.7mm_iPAT3_20230519112423_17"
+# scan_t1="dicom_mp2rage_iso0.7mm_iPAT3_20230519112423_17"
+scan_t1="brain"
 
 ##### Before running this script do a intial registration in ITKsnap... save the values in a file called initial_matrix_$scan
 
@@ -16,20 +17,20 @@ cd ./ants
 ml ants
 ml afni
 
-t1_file=../../raw/nifti/${scan_t1}.nii
-t1_vaso_file=../${scan}/T1_weighted_masked.nii
-mask=../${scan}/mask_t1_${scan}.nii
+t1_file=../t1/${scan_t1}.nii
+t1_vaso_file=../${scan}/T1_weighted_masked.nii.gz # original
+# t1_vaso_file=../${scan}/mean_v_msk.nii # original
+mask=../${scan}/mask_t1_${scan}.nii     # Mask created from ITKsnap..
 output1=registered_Warped_${scan}.nii
 output2=registered_InverseWarped_${scan}.nii
-initial_mtx=initial_matrix_${scan}.txt
-mask=mask_${scan}.txt                       # Mask created from ITKsnap..
+initial_mtx=initial_matrix_${scan}.txt                     
 
-# Basic registration after registration in ITKsnap... save the values in a file called initial_matrix
-antsApplyTransforms --interpolation BSpline[5] -d 3 \
--i "${t1_file}" \
--r "${t1_vaso_file}" \
--t "${initial_mtx}" \
--o T1_VASO_registered_sample.nii
+# # Basic registration after registration in ITKsnap... save the values in a file called initial_matrix
+# antsApplyTransforms --interpolation BSpline[5] -d 3 \
+# -i "${t1_file}" \
+# -r "${t1_vaso_file}" \
+# -t "${initial_mtx}" \
+# -o T1_VASO_registered_sample.nii
 
 # # ANTs registration fMRI to Anatomical
 # antsRegistration \
@@ -71,7 +72,7 @@ antsRegistration \
 --verbose 1 \
 --dimensionality 3 \
 --float 1 \
---output [registered_,"${output1}","${output2}"] \
+--output ["${scan}"_,"${output1}","${output2}"] \
 --interpolation Linear \
 --use-histogram-matching 0 \
 --winsorize-image-intensities [0.005,0.995] \
@@ -92,6 +93,27 @@ antsRegistration \
 --shrink-factors 2x1 \
 --smoothing-sigmas 1x0vox \
 -x "${mask}"
+
+cp ./${output1} ../${scan}/${scan}_t1.nii
+
+transform=${scan}_0GenericAffine.mat   
+# GM mask Aplying advanced transform obrained from antsRegistration
+antsApplyTransforms --interpolation BSpline[5] -d 3 \
+-i ../t1/gm_msk.nii \
+-r "${t1_vaso_file}" \
+-t "${transform}" \
+-o "${scan}"_gm_msk_reg.nii
+
+cp "${scan}"_gm_msk_reg.nii ../${scan}/${scan}_gm_msk.nii
+
+# WM mask Aplying advanced transform obrained from antsRegistration
+antsApplyTransforms --interpolation BSpline[5] -d 3 \
+-i ../t1/wm_msk.nii \
+-r "${t1_vaso_file}" \
+-t "${transform}" \
+-o "${scan}"_wm_msk_reg.nii
+
+cp "${scan}"_wm_msk_reg.nii ../${scan}/${scan}_wm_msk.nii
 
 # Remove warp from T1 registered to EPI sapce dataset...
 # 3drefit -nowarp registered_Warped_cv.nii.gz
