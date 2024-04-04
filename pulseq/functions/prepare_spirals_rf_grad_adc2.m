@@ -24,7 +24,12 @@ lims = params.gen.lims;
         tetha = 0:2*pi/1e2:last_tetha;
         
         fov_vd = linspace(params.gen.fov(1)*params.spi.vd,params.gen.fov(1),length(tetha));
-        ka = (tetha./(2*pi*fov_vd)).*exp(1i.*(tetha./params.spi.rxy./params.spi.interl));
+
+        if params.spi.type == 4
+            ka = (tetha./(2*pi*fov_vd)).*exp(1i.*(tetha./(params.spi.rxy*2)./params.spi.interl));
+        else
+            ka = (tetha./(2*pi*fov_vd)).*exp(1i.*(tetha./params.spi.rxy./params.spi.interl));
+        end
         
 %         % Trying to make it finish at 0...
 %         idx = and(imag(ka)<1e-3,imag(ka)>-1e-3);
@@ -37,14 +42,29 @@ lims = params.gen.lims;
 %         ka = ka.';
 %         ka = (tetha./(2*pi*fov_vd))*params.spi.rxy.*exp(1i.*tetha);
         % figure; hold on; plot(ka)
+    
+        % If IN-OUT with shift between, loop again in interleaves...
+        if params.spi.type == 4
+            in_out_rot = 2;
+        else
+            in_out_rot = 1;
+        end
         
         % Partitions loop
         for j=1:params.gen.n(3)
             % Spiral segments
-            for i=1:params.spi.interl
+            for i=1:params.spi.interl*in_out_rot
                 % Getting k-space trajectory
                 tmp = (2*pi/params.spi.interl)*i;
-                kaa = ka.*exp(1i*tmp);  % Interleave rotations
+                % Interleave rotations
+                kaa = ka.*exp(1i*tmp); 
+                
+                % If spiral IN/OUT, rotate the OUT part
+                % ToDo: Properly find how when to enter this if... 
+                if  params.spi.type == 4 && i == params.spi.interl*in_out_rot
+                    tmp = 2*pi;
+                    kaa = kaa.*exp(1i*tmp); 
+                end
                 
                 if contains(params.spi.rotate,'golden')
                     tmp1 = (10*pi/13)*(j-1);
@@ -89,6 +109,12 @@ lims = params.gen.lims;
                         tmp = tmp(1,:);
 %                         g = [zeros(1,3); tmp ; g; tmp1; zeros(1,3)];
                         g = [ g; zeros(1,3)];
+                    elseif params.spi.type == 4
+                        if i > 1
+                            tmp = g1(:,end)/42.58e6*100;
+                            tmp = [tmp; 0]';
+                            g(1,:) = tmp;
+                        end
                     else
                         g = [zeros(20,3); tmp ; g; tmp1; zeros(20,3)];
                     end
@@ -112,9 +138,18 @@ lims = params.gen.lims;
                     end
 
                     if params.spi.type == 3
-                      g1 = [flip(g_new,2).*-1,g_new];
+                        g1 = [flip(g_new,2).*-1,g_new];
+                        spiral_grad_shape(:,:,i,j) = g1(1:2,:);
+                    elseif params.spi.type == 4
+                        if i == 1
+                            g1 = [flip(g_new,2)];
+                        else
+                            g1 = [g1,g_new];
+                            spiral_grad_shape(:,:,i-1,j) = g1(1:2,:);
+                        end
                     else
                         g1 = g_new;
+                        spiral_grad_shape(:,:,i,j) = g1(1:2,:);
                     end
 
 %                     % ADC
@@ -130,10 +165,14 @@ lims = params.gen.lims;
                     % Trying to make the spirals finish at y=0
                     
 
-                    spiral_grad_shape(:,:,i,j) = g1(1:2,:);
+%                     spiral_grad_shape(:,:,i,j) = g1(1:2,:);
 
                 elseif params.spi.interl > 1 || contains('none',params.spi.rotate) == 1
-                    spiral_grad_shape(:,:,i,j) = spiral_grad_shape(:,:,i,1);
+                    if params.spi.type == 4
+                        spiral_grad_shape(:,:,1,j) = spiral_grad_shape(:,:,1,1);
+                    else
+                        spiral_grad_shape(:,:,i,j) = spiral_grad_shape(:,:,i,1);
+                    end
                 end
                 
 %                 if params.spi.interl > 1 || contains('none',params.spi.rotate) == 1
@@ -232,8 +271,9 @@ lims = params.gen.lims;
 % % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % % Adjusting dwell time...
-adcDwell = (1/(params.gen.fov(1)*lims.gamma*params.spi.max_grad*1e-3));
-% adcDwell = floor(adcDwell/lims.adcRasterTime)*lims.adcRasterTime; % Originral
+adcDwell = (1/(params.gen.fov(1)*lims.gamma*params.spi.max_grad*1e-3)); % Nyquist limit
+adcDwell = adcDwell*params.spi.rxy_az;                                  % Nyquist undersampled
+% adcDwell = floor(adcDwell/lims.adcRasterTime)*lims.adcRasterTime; %cus BW
 adcDwell = floor(adcDwell/lims.adcRasterTime/2)*lims.adcRasterTime*2; 
 
 %%%%% Lusing approach %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -244,7 +284,10 @@ adcDwell = floor(adcDwell/lims.adcRasterTime/2)*lims.adcRasterTime*2;
         time_new = round(time_new/lims.gradRasterTime)*lims.gradRasterTime;
         adcSamples = round(time_new./adcDwell);
         % In SIEMENS number of ADC samples should be divisible by 4
+        % ToDo: Not sure if I need multiples of 200 or 1000
         adcSamples = ceil(ceil(adcSamples/4)*4/1000)*1000;
+%         adcSamples = floor(ceil(adcSamples/4)*4/200)*200;
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
 
         % AMM: Compensating for the 6 zeros I padded before

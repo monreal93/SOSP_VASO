@@ -1,8 +1,10 @@
 function [gx,gy,gx_pre,gy_pre,adc,params] =  create_spirals_adc_pulseq(spiral_grad_shape,adcSamples,adcDwell,params)
         
         lims = params.gen.lims;
-        gx_pre = [];
-        gy_pre = [];
+
+        % Dummy trapezoid for pre-allocation
+        gx_pre = mr.makeTrapezoid('x',lims,'maxGrad',25e-3*lims.gamma,'Area',0);
+        gy_pre = mr.makeTrapezoid('x',lims,'maxGrad',25e-3*lims.gamma,'Area',0);
         
         for j=1:params.gen.n(3)
             for i=1:params.spi.interl
@@ -20,11 +22,12 @@ function [gx,gy,gx_pre,gy_pre,adc,params] =  create_spirals_adc_pulseq(spiral_gr
 
                 % Readout gradients
                 % Temp: for Pulseq version 1.4.1
-%                     gx(j,i) = mr.makeArbitraryGrad('x',spiral_grad_shape(1,:,i,j), lims, 'first', 0, 'last', 0);
-%                     gy(j,i) = mr.makeArbitraryGrad('y',spiral_grad_shape(2,:,i,j), lims, 'first', 0, 'last', 0);
-                % For Pulseq version 1.4.0
-                gx(j,i) = mr.makeArbitraryGrad('x',spiral_grad_shape(1,:,i,j), lims);
-                gy(j,i) = mr.makeArbitraryGrad('y',spiral_grad_shape(2,:,i,j), lims);
+                gx(j,i) = mr.makeArbitraryGrad('x',spiral_grad_shape(1,:,i,j), lims, 'first', 0, 'last', 0);
+                gy(j,i) = mr.makeArbitraryGrad('y',spiral_grad_shape(2,:,i,j), lims, 'first', 0, 'last', 0);
+                
+%                 % For Pulseq version 1.4.0
+%                 gx(j,i) = mr.makeArbitraryGrad('x',spiral_grad_shape(1,:,i,j), lims);
+%                 gy(j,i) = mr.makeArbitraryGrad('y',spiral_grad_shape(2,:,i,j), lims);
 
                 % ADC 
                 adc = mr.makeAdc(adcSamples,lims,'Dwell',adcDwell);
@@ -57,30 +60,30 @@ function [gx,gy,gx_pre,gy_pre,adc,params] =  create_spirals_adc_pulseq(spiral_gr
                         tmp = tmp./lims.gamma*100;   
                         area = ((tmp(1)-tmp(end))*4)+(((tmp(1)-tmp(end))*4)*6.5/100);
 %                         gx_pre(i) = mr.makeTrapezoid('x',lims,'maxGrad',25e-3*lims.gamma,'Area',area);
-                        gx_pre(i) = mr.makeTrapezoid('x',lims,'Area',area);
+                        gx_pre(j,i) = mr.makeTrapezoid('x',lims,'Area',area);
                         tmp = cumsum(gy(j,i).waveform);
                         tmp = tmp./lims.gamma*100;   
                         area = ((tmp(1)-tmp(end))*4)+(((tmp(1)-tmp(end))*4)*6.5/100);
 %                         gy_pre(i) = mr.makeTrapezoid('y',lims,'maxGrad',25e-3*lims.gamma,'Area',area);
-                        gy_pre(i) = mr.makeTrapezoid('y',lims,'Area',area);
+                        gy_pre(j,i) = mr.makeTrapezoid('y',lims,'Area',area);
                     end
-                elseif params.spi.type == 1 || params.spi.type == 3
+                elseif params.spi.type == 1 || params.spi.type == 3 || params.spi.type == 4
 %                     gx_ramp(j,i) = mr.makeExtendedTrapezoid('x','times',[0 0.0001],'amplitudes',[0,spiral_grad_shape(1,1,i,j)]);
 %                     gy_ramp(j,i) = mr.makeExtendedTrapezoid('y','times',[0 0.0001],'amplitudes',[0,spiral_grad_shape(2,1,i,j)]);
 
                     % Pre-phasing gradients, I adjust for 6.5% trajectory
                     % error to be closer to zero at center of k-space
                     % for rxy=3=6.5, rxy=4=
-                    err = 6.5;
+                    err = 6.5; % (6.5)
                     tmp = cumsum(gx(j,i).waveform);
                     tmp = tmp./lims.gamma*100;  
                     if params.spi.type == 1
                         area = ((tmp(1)-tmp(end))*4)+(((tmp(1)-tmp(end))*4)*err/100);
 %                         area = ((tmp(1)-tmp(end))*4);
-                    elseif params.spi.type == 3
+                    elseif params.spi.type == 3 || params.spi.type == 4
                         area = ((tmp(1)-tmp(end/2))*4)+(((tmp(1)-tmp(end/2))*4)*err/100);
                     end
-                    gx_pre = mr.makeTrapezoid('x',lims,'maxGrad',25e-3*lims.gamma,'Area',area);
+                    gx_pre(j,i) = mr.makeTrapezoid('x',lims,'maxGrad',25e-3*lims.gamma,'Area',area);
 %                     area = (max(abs(cumsum(gy(j,i) .waveform)))./lims.gamma*1000-abs((sum(gy_ramp(j,i).first:-1e4:gy_ramp(j,i).last)./1e3)))/2;
 %                     area = (abs(min(cumsum(gy(j,i).waveform))) + abs(max(cumsum(gy(j,i).waveform))))/2./lims.gamma*1000;
                     tmp = cumsum(gy(j,i).waveform);
@@ -88,10 +91,10 @@ function [gx,gy,gx_pre,gy_pre,adc,params] =  create_spirals_adc_pulseq(spiral_gr
                     if params.spi.type == 1
                         area = ((tmp(1)-tmp(end))*4)+(((tmp(1)-tmp(end))*4)*err/100);
 %                         area = ((tmp(1)-tmp(end))*4);
-                    elseif params.spi.type == 3
+                    elseif params.spi.type == 3 || params.spi.type == 4
                         area = ((tmp(1)-tmp(end/2))*4)+(((tmp(1)-tmp(end/2))*4)*err/100);
                     end
-                    gy_pre = mr.makeTrapezoid('y',lims,'maxGrad',25e-3*lims.gamma,'Area',area);
+                    gy_pre(j,i) = mr.makeTrapezoid('y',lims,'maxGrad',25e-3*lims.gamma,'Area',area);
 
                 end
             end
