@@ -17,13 +17,24 @@ lims = params.gen.lims;
         if params.spi.rxy == 3
 %             last_tetha = last_tetha+20;
         end
+
+        % Temp: Variable density in the center and outer of k-space
+        % last_tetha = last_tetha*params.spi.vd;
         
         last_tetha = floor(last_tetha/(2*pi))*2*pi;
 %         last_tetha = floor(last_tetha/2*pi)*2*pi;
         
         tetha = 0:2*pi/1e2:last_tetha;
         
-        fov_vd = linspace(params.gen.fov(1)*params.spi.vd,params.gen.fov(1),length(tetha));
+        % Positive of negative VD
+        if params.spi.vd > 0
+            fov_vd = linspace(params.gen.fov(1)*params.spi.vd,params.gen.fov(1),length(tetha));
+        else
+            fov_vd = linspace(params.gen.fov(1),params.gen.fov(1)*params.spi.vd*-1,length(tetha));
+        end
+%         Temp: Variable density in the center and outer of k-space
+%         fov_vd = [linspace(params.gen.fov(1)*params.spi.vd,params.gen.fov(1),(length(tetha)/2)+1) linspace(params.gen.fov(1),params.gen.fov(1)*params.spi.vd,length(tetha)/2)];
+%         fov_vd = fov_vd-0.03;
 
         if params.spi.type == 4
             ka = (tetha./(2*pi*fov_vd)).*exp(1i.*(tetha./(params.spi.rxy*2)./params.spi.interl));
@@ -271,9 +282,15 @@ lims = params.gen.lims;
 % % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % % Adjusting dwell time...
-adcDwell = (1/(params.gen.fov(1)*lims.gamma*params.spi.max_grad*1e-3)); % Nyquist limit
-adcDwell = adcDwell*params.spi.rxy_az;                                  % Nyquist undersampled
-% adcDwell = floor(adcDwell/lims.adcRasterTime)*lims.adcRasterTime; %cus BW
+if params.spi.bw == 0
+    % Nyquist
+    adcDwell = (1/(params.gen.fov(1)*lims.gamma*params.spi.max_grad*1e-3)); % Nyquist limit
+    adcDwell = adcDwell*params.spi.rxy_az;                                  % Nyquist undersampled
+else
+    % Custom
+    adcDwell = 1/params.spi.bw; %custom BW
+end
+
 adcDwell = floor(adcDwell/lims.adcRasterTime/2)*lims.adcRasterTime*2; 
 
 %%%%% Lusing approach %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

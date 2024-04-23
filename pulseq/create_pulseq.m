@@ -11,10 +11,10 @@ addpath(genpath("/home/amonreal/Documents/PhD/tools/check_grad_idea_Des/"))     
 warning('OFF', 'mr:restoreShape')
 
 %% Define parameters
-folder_name = '03282024_sb_9T';        % Day I am scanning
+folder_name = 'tmp';        % Day I am scanning
 seq_name = 'sample';                % use sv/abc/sb_n (n for the diff scans at each day)
 params.gen.seq = 4;                 % 1-VASO 2-ABC 3-Multi-Echo 4- BOLD
-params.gen.field_strength = 9;      % Field Strength (7=7T,7i=7T-impuse_grad,9=9.4T,11=11.7T)
+params.gen.field_strength = 7;      % Field Strength (7=7T,7i=7T-impuse_grad,9=9.4T,11=11.7T)
 params.gen.plot = 0;                % Plot frequencies, PNS, etc...
 
 % General parameters
@@ -39,17 +39,17 @@ params.gen.ph_oversampling = 0;     % Partition phase oversampling in %, to avoi
 params.gen.echos = 1;               % Echos per RF pulse
          
 % Spiral parameters
-params.spi.type = 4;                % spiral type 0=spiral-Out , 1=spiral-In, 3=In-Out, 4=In-Out kspace interleavead
+params.spi.type = 0;                % spiral type 0=spiral-Out , 1=spiral-In, 3=In-Out, 4=In-Out kspace interleavead
 params.spi.in_out_order = 1;        % 0=In-Out same k-space path (separate vol.), 1=In-Out k-space path shift
 params.spi.rotate = 'none';         % Spiral rotation ('none','golden','180','120','linear'), linear not implemented
 params.spi.increment = 'linear';    % Spiral increment mode (for now only linear)
-params.spi.max_grad  = 50;          % Peak gradient amplitude for spiral (mT/m)  (7T=35) (9T=50) (7i=75) (7T/6int=40)
-params.spi.max_sr = 250;            % Max gradient slew rate for spiral (mT/m/ms) (7T=155) (9T=250) (7i=750) (7T/6int=155)
-params.spi.interl = 1;              % Spiral interleaves
-params.spi.vd = 1.3;                % Variability density
+params.spi.max_grad  = 40;          % Peak gradient amplitude for spiral (mT/m)  (7T=35) (9T=50) (7i=75) (7T/6int=40)
+params.spi.max_sr = 155;            % Max gradient slew rate for spiral (mT/m/ms) (7T=155) (9T=250) (7i=750) (7T/6int=155)
+params.spi.interl = 6;              % Spiral interleaves
+params.spi.vd = 1.6;                % Variability density
 params.spi.rxy = 3;                 % In-plane (radial) undersampling
 params.spi.rxy_az = 1;              % In-plane (azimuthal) undersampling
-params.spi.bw = 500e3;              % Spiral BW in Hz (Max value 1,000e3) (500e3) - DOESN'T DO anything atm
+params.spi.bw = 0e3;              % Spiral BW in Hz 0=Nyquist 
 
 % MT pulse parameters
 params.mt.mt = 0;                   % Add MT pulse, 0 for reference scan without MT
@@ -67,7 +67,7 @@ params.epi.pf = 6/8;                % In-plane PF, (1,7/8,6/8)
 params.epi.te = [33.6 36.6 38.6 40]*1e-3+0.07; % Echo times for field map
 params.epi.seg = 1;                 % EPI Segments
 params.epi.tr_delay = 0;            % Delay after each TR, needed to reduce SAR
-params.epi.bw_px = 1046;             % BW in Hz rxy=3,pf=6/8->960 (1046)
+params.epi.bw_px = 1096;             % BW in Hz rxy=3,pf=6/8->960 (1046)
 
 % VASO parameters
 params.vaso.foci = 1;               % FOCI inversion?
@@ -82,7 +82,7 @@ params.vaso.f_v_delay = 600e-3;     % FOCI-VASO delay (600e-3)
 params.vaso.v_b_delay = 10e-3;      % VASO-BOLD delay (10e-3)
 params.vaso.b_f_delay = 5e-3;       % BOLD-FOCI delay (5e-3)
 
-% Set system limits
+%% Set system limits
 if params.gen.field_strength == 7
     % 7T
     lims = mr.opts('MaxGrad',65,'GradUnit','mT/m',...
@@ -463,7 +463,7 @@ for i_ro_blocks = 1:ro_blocks
                         else
                             seq.addBlock(gx,gy_blips,adc);
                         end
-                        if i==1 && k==ceil((params.epi.n_lines/2)+1); te1 = seq.duration(); end                           % save seq dur to calc TE
+                        if i==1 && k==ceil((params.epi.n_lines/2*params.epi.pf)+1); te1=seq.duration(); end                           % save seq dur to calc TE
                     end
                     if gx.amplitude > 0
                         gx.amplitude = -gx.amplitude;
@@ -505,9 +505,7 @@ ks_traj = create_ks_trajectory(seq,adc,params);
 params = prepare_add_parameters(seq,ks_traj,gx,rf,adc,te0,te1,tr0,tr1,params);
 
 %% Check accoustic resonance frequencies, Des script
-if params.gen.plot
-    check_accoustic_fq_pns(seq,params,grad_file)
-end
+check_accoustic_fq_pns(seq,params,grad_file)
 
 %% Set definitions
 seq.setDefinition('MaxAdcSegmentLength',params.gen.adc_split);
