@@ -45,7 +45,7 @@ params.spi.rotate = 'none';         % Spiral rotation ('none','golden','180','12
 params.spi.increment = 'linear';    % Spiral increment mode (for now only linear)
 params.spi.max_grad  = 40;          % Peak gradient amplitude for spiral (mT/m)  (7T=35) (9T=50) (7i=75) (7T/6int=40)
 params.spi.max_sr = 155;            % Max gradient slew rate for spiral (mT/m/ms) (7T=155) (9T=250) (7i=750) (7T/6int=155)
-params.spi.interl = 6;              % Spiral interleaves
+params.spi.interl = 1;              % Spiral interleaves
 params.spi.vd = 1.6;                % Variability density
 params.spi.rxy = 3;                 % In-plane (radial) undersampling
 params.spi.rxy_az = 1;              % In-plane (azimuthal) undersampling
