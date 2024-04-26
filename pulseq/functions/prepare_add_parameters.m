@@ -55,7 +55,6 @@ function params = prepare_add_parameters(seq,ks_traj,gx,rf,adc,te0,te1,tr0,tr1,p
     elseif params.spi.type == 3
         params.gen.TE = params.gen.TE+(mr.calcDuration(gx)/2);
         params.gen.ro_samples = params.gen.ro_samples/2;
-    %     params.gen.t_vector = params.gen.t_vector([1:plane_samples/2,plane_samples+1:(plane_samples)+(plane_samples/2)]);
     end
 
 end

@@ -2,8 +2,7 @@ function  [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_gr
         
 lims = params.gen.lims;
         %% Readout Gradients
-        % define k-space parameters
-    %     deltak =1/params.gen.fov(1);
+
         kRadius = round(params.gen.n(1)/2);
         kSamples=round(2*pi*kRadius)*2;
 %         kSamples = floor(kSamples./1024)*1024;

@@ -23,7 +23,6 @@ function [B1,phase,rf_complex,Gz,fa] = tr_foci(params)
     
     % Timing for RF pulse
     dt = 2/((rf_dur*1e6)-1);
-%     dt = 1e-6;   % AMM: trying to make dt same as RF raster time
     t=-rf_dur/rf_dur:dt:(rf_dur/rf_dur);
 
     % Timing for gradient
@@ -48,13 +47,7 @@ function [B1,phase,rf_complex,Gz,fa] = tr_foci(params)
     freq2 = @(t) (-A2(t).*beta.*mytanh(beta*T(t)));
     
     dummy = 0;
-    
-    % Temp
-    renzo_dummyphase = 401.* 2.* 3.141596;
-%     renzo_Shift = -0.2* psRF1.LarmorConst * psRF1.GSAmplitude * abs_offset / dTwoPi * 2;
-    renzo_Shift = 0;
-    %%%
-    
+   
     % Checking the timing for RF segments
     tt1=t(t<=(w-1));
     tt2=t(t>(w-1)); tt2=tt2(tt2<(1-w)); % flat area of pulse
@@ -97,12 +90,6 @@ function [B1,phase,rf_complex,Gz,fa] = tr_foci(params)
     freq3_A1 = freq2(tt3);
     gz_3 = flip(gz_1);
     
-%     % AMM: Trying to make ampl_A3 and grad3_A1 match
-%     if length(ampl_A3) ~=  length(grad3_A1)
-%         tmp = min(length(ampl_A3),length(grad3_A1));
-%         ampl_A3 = ampl_A3(1,1:tmp);
-%     end
-        
     % Gz Rampup
     tmp = 0:ramp_samples-1;
     gz_ramp = tmp./ramp_samples;
@@ -129,11 +116,6 @@ function [B1,phase,rf_complex,Gz,fa] = tr_foci(params)
 %    phase = padarray(phase,[0 1],'both');  % AMM: trying to pad the zero...
    rf_complex = B1.*exp(1i.*phase);
    
-   % AMM, Temp: Trying to pad some zeros
-%    rf_complex = padarray(rf_complex,[0 90],'both');
-   
-   % Generating z gradient
-
    % Here I want to calculate the FA taking into account the amplitude
    m_dBW_kHz = 1.0E-3 * mu * beta* Amax / pi()* 1/(1.0E-6 *length(t));
    ampl = 2*pi*m_dBW_kHz/(267522209. * params.vaso.foci_ampl);

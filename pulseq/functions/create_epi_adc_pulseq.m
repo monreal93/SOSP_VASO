@@ -38,7 +38,7 @@ function  [gx,gy_blips,gx_pre,gy_pre,gy_blip_up,gy_blip_down,adc,params] = creat
     gx.amplitude = -gx.amplitude;
 
     % Pulseq (and siemens) define the samples to happen in the center of the dwell period
-    time_to_center=adc.dwell*((adcSamples-1)/2+0.5);
+%     time_to_center=adc.dwell*((adcSamples-1)/2+0.5);
     adc.delay = round(adc.delay/lims.rfRasterTime)*lims.rfRasterTime;
 
     % Let's split the gy_blip
@@ -46,7 +46,5 @@ function  [gx,gy_blips,gx_pre,gy_pre,gy_blip_up,gy_blip_down,adc,params] = creat
     gy_blip_down = mr.makeExtendedTrapezoid('y',lims,'times',[0 gy_blip.riseTime],'amplitude',[gy_blip.amplitude 0]);
     [gy_blip_up,gy_blip_down,~] = mr.align('right',gy_blip_up,'left',gy_blip_down,gx);
     gy_blips = mr.addGradients({gy_blip_down, gy_blip_up},lims);
-
-    % tmp = [linspace(0,gx.amplitude*-1,gx.riseTime/lims.gradRasterTime),linspace(gx.amplitude*-1,gx.amplitude*-1,gx.flatTime/lims.gradRasterTime),linspace(gx.amplitude*-1,0,gx.riseTime/lims.gradRasterTime)];
 
 end

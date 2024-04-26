@@ -44,22 +44,23 @@ function ks_traj = create_ks_trajectory(seq,adc,params)
         ks_traj.e2.kz = [padarray(ks_traj.e2.kz(1:end/2,:),[1 0],'pre');padarray(ks_traj.e2.kz((end/2)+1:end,:),[1 0],'pre')];
     end
     
-    % % Plotting traj partition by partition
+    % Plotting traj partition by partition
     figure(17);
     plot3(ks_traj.kx(:),ks_traj.ky(:),ks_traj.kz(:),'DisplayName',sprintf('Kz = %i',i)); title('3D K-space'); xlabel('Kx (1/m)'); ylabel('Ky (1/m)'); zlabel('Kz (1/m)');
     hold on
     view(2)
 
-    % % Plotting trajectory by segment
-    % figure(15);
-    % hold on
-    % for i = 1:params.gen.n(3)
-    %     idx=1;
-    %     for j=1:params.spi.interl                                    
-    %         plot3(ks_traj.kx(idx:idx+adcSamples-1,i),ks_traj.ky(idx:idx+adcSamples-1,i),ks_traj.kz(idx:idx+adcSamples-1,i)); title('3D K-space');
-    %         idx = idx+adcSamples;
-    %     end
-    % end
-    % view(2)
+%     % Plotting trajectory by segment
+%     figure(15);
+%     hold on
+%     adcSamples = params.gen.adc_segments*params.gen.adc_split;
+%     for i = 1:params.gen.n(3)
+%         idx=1;
+%         for j=1:params.spi.interl                                    
+%             plot3(ks_traj.kx(idx:idx+adcSamples-1,i),ks_traj.ky(idx:idx+adcSamples-1,i),ks_traj.kz(idx:idx+adcSamples-1,i)); title('3D K-space');
+%             idx = idx+adcSamples;
+%         end
+%     end
+%     view(2)
 
 end
