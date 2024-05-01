@@ -4,99 +4,97 @@ cd /home/amonreal/Documents/PhD/PhD_2024/sosp_vaso/
 addpath(genpath("./pulseq/functions"))
 
 %% Adding paths 
-addpath(genpath("/home/amonreal/Documents/PhD/tools/pulseq_1.4.0/"))                                    % Pulseq toolbox
+addpath(genpath("/home/amonreal/Documents/PhD/tools/pulseq_1.4.1/"))                                    % Pulseq toolbox
 addpath(genpath("/home/amonreal/Documents/PhD/tools/tOptGrad_V0.2/minTimeGradient/mex_interface/"))     % Minminue time gradieng Lusitg
 addpath(genpath("/home/amonreal/Documents/PhD/tools/pns_prediction/"))                                  % PNS prediction
 addpath(genpath("/home/amonreal/Documents/PhD/tools/check_grad_idea_Des/"))                             % Check Forbidden Fq
 warning('OFF', 'mr:restoreShape')
 
 %% Define parameters
-folder_name = '03252024_sb_9T';        % Day I am scanning
-seq_name = 'sample';                % use sv/abc/sb_n (n for the diff scans at each day).. sb_04_OUT_08mm_2seg
-params.gen.seq = 4;                 % 1-VASO 2-ABC 3-Multi-Echo 4- BOLD
-params.gen.field_strength = 9;      % Field Strength (7=7T,7i=7T-impuse_grad,9=9.4T,11=11.7T)
+folder_name = 'tmp';        % Day I am scanning
+seq_name = 'sample';                % use sv/abc/sb_n (n for the diff scans at each day)
+params.gen.seq = 1;                 % 1-VASO 2-ABC 3-Multi-Echo 4-BOLD
+params.gen.field_strength = 7;      % Field Strength (7=7T,7i=7T-impuse_grad,9=9.4T,11=11.7T)
 params.gen.plot = 0;                % Plot frequencies, PNS, etc...
 
 % General parameters
-params.gen.fov = [192 192 24].*1e-3;% (192,192,24), reduced FOV=(140,140,24)
-params.gen.res = [0.8 0.8 1].*1e-3; % Target resoultion  (0.56)
+params.gen.fov = [192 192 24].*1e-3;% FOV
+params.gen.res = [0.8 0.8 1].*1e-3; % Nominal resolution
 params.gen.fa = 0;                  % Set to 0, to use Ernst Angle
 params.gen.ernst_t1 = 2100e-3;      % T1 to calculate Ernst Angle (s) 7T=(WM-1220e-3)(GM-1800e-3)(blood=2587e-3) 9T=(1425e-3)(2100e-3)
 params.gen.te = 0e-3;               % Set to 0 to shortest TE possible
-params.gen.tr_delay = 0e-3;         % Delay between acquisitions in sec (22.9e-3)
-params.gen.ro_type = 's';           % 's'-Spiral, 'c'-Cartesiaen
+params.gen.tr_delay = 0e-3;         % Delay between acquisitions in sec
+params.gen.ro_type = 's';           % 's'-Spiral, 'c'-Cartesiaen (WIP)
 params.gen.kz = 1;                  % Acceleration in Kz
 params.gen.pf = 1;                  % Partial fourier in Kz
-params.gen.fat_sat = 0;             % Fat saturation (1=yes,0=no)
-params.gen.fs_angle = 0;            % Fat sat angle (0=default for scanner)
-params.gen.vfa = 0;                 % Variable FA, demo
+params.gen.fat_sat = 1;             % Fat saturation (1=yes,0=no)
+params.gen.fs_angle = 0;            % Fat sat angle (0=default)
+params.gen.vfa = 0;                 % Variable FA (WIP)
 params.gen.skope = 0;               % Add skope sync scan and triggers, 0=N0, 1=sep scan, 2=concurrent(center partition), 3=1&2
-params.gen.skope_sync = 0;         % Skope pre-scans, only added in skope seq not actual scan
-params.gen.dork = 0;                % extra adc's for DORK correction
+params.gen.skope_sync = 0;          % Skope pre-scans, only added in skope seq
+params.gen.dork = 0;                % extra adc's for DORK correction (WIP)
 params.gen.kz_enc = 0;              % k-space partition encoding 0=linear,1=center-out For Cartesian now only linear encoding
 params.gen.interl_enc = 0;          % Interleave encoding, 0=1-interl 1-plane -> 2-interl 1-plane, 1=1-inter 1-plane -> 1-interl 2-plane
-params.gen.ph_oversampling = 0;     % Partition phase oversampling in %, to avoid partition phase-wrap (10)
-params.gen.echos = 1;               % Echos per RF pulse
+params.gen.ph_oversampling = 0;     % Partition phase oversampling in %, to avoid partition phase-wrap
+params.gen.echos = 1;               % Echos per RF pulse (WIP)
          
 % Spiral parameters
-params.spi.type = 1;                % spiral type 0=spiral-Out , 1=spiral-In, 3=In-Out
+params.spi.type = 0;                % spiral type 0=spiral-Out , 1=spiral-In, 3=In-Out (WIP), 4=In-Out kspace interleavead (WIP)
 params.spi.in_out_order = 1;        % 0=In-Out same k-space path (separate vol.), 1=In-Out k-space path shift
-params.spi.rotate = '180';         % Spiral rotation ('none','golden','180','120','linear'), linear not implemented
-params.spi.increment = 'linear';    % Spiral increment mode (for now only linear)
-params.spi.max_grad  = 50;          % Peak gradient amplitude for spiral (mT/m)  (7T=35) (9T=50) (7i=75) (7T/6int=40)
-params.spi.max_sr = 250;            % Max gradient slew rate for spiral (mT/m/ms) (7T=155) (9T=250) (7i=750) (7T/6int=155)
-params.spi.interl = 2;              % Spiral interleaves
-params.spi.vd = 1.3;                % Variability density
-params.spi.rxy = 4;                 % In-plane undersampling
-params.spi.bw = 500e3;              % Spiral BW in Hz (Max value 1,000e3) (500e3) - DOESN'T DO anything atm
+params.spi.rotate = 'none';         % Spiral rotation ('none','golden','180','120')
+params.spi.increment = 'linear';    % Spiral increment mode (for now only 'linear') (WIP)
+params.spi.max_grad  = 27;          % Peak gradient amplitude for spiral (mT/m)
+params.spi.max_sr = 155;            % Max gradient slew rate for spiral (mT/m/ms)
+params.spi.interl = 1;              % Spiral interleaves
+params.spi.vd = 1.3;                % Variability density (accepts negative values)
+params.spi.rxy = 3.5;               % In-plane (radial) undersampling
+params.spi.rxy_az = 1;              % In-plane (azimuthal) undersampling (WIP)
+params.spi.bw = 0e3;                % Spiral BW in Hz 0=Nyquist 
 
 % MT pulse parameters
 params.mt.mt = 0;                   % Add MT pulse, 0 for reference scan without MT
-params.mt.mt_prep = 0;             % MT (pre) dummy scans
+params.mt.mt_prep = 0;              % MT (pre) dummy scans
 params.mt.rf_spoil = 1;             % RF spoliing
-params.mt.alpha = 225;  %225
-params.mt.delta = -650;  %650      % for Pulseq approach should be 650 to match Viktors phase, normally -650
+params.mt.alpha = 225;              % default=225
+params.mt.delta = -650;             % default=-650
 params.mt.trf = 0.004;
-params.mt.mt_rep = 100e-3;          % How often to play the mt pulse (130e-3)
-params.mt.bold = 0;                 % Get BOLD reference acq after mt one
+params.mt.mt_rep = 100e-3;          % How often to play the MT pulse
+params.mt.bold = 0;                 % Get BOLD reference acq after MT one (WIP)
 
 % EPI parameters
-params.epi.ry = 3;
+params.epi.ry = 3;                  % In-plane undersampling
 params.epi.pf = 6/8;                % In-plane PF, (1,7/8,6/8)
 params.epi.te = [33.6 36.6 38.6 40]*1e-3+0.07; % Echo times for field map
 params.epi.seg = 1;                 % EPI Segments
 params.epi.tr_delay = 0;            % Delay after each TR, needed to reduce SAR
-params.epi.bw_px = 1046;             % BW in Hz rxy=3,pf=6/8->960 (1046)
+params.epi.bw_px = 1096;            % BW in Hz
 
 % VASO parameters
 params.vaso.foci = 1;               % FOCI inversion?
 params.vaso.bold_ref = 1;           % BOLD reference volume
-% params.vaso.tr = 4500e-3*2;         % volume TR (4500e-3)
-% params.vaso.ti1 = 1800e-3;          % VASO TI1, 
-% params.vaso.ti2 = params.vaso.ti1+(params.vaso.tr/2);
-params.vaso.foci_ampl = 270;        % FOCI amplitude (140/270)
-params.vaso.foci_dur = 10410e-6;    % FOCI duration
+params.vaso.foci_ampl = 270;        % FOCI amplitude (270)
+params.vaso.foci_dur = 10410e-6;    % FOCI duration (10410e-6)
 params.vaso.foci_bw = 150;          % FOCI Bandwidth (150)
 params.vaso.f_v_delay = 600e-3;     % FOCI-VASO delay (600e-3)
 params.vaso.v_b_delay = 10e-3;      % VASO-BOLD delay (10e-3)
 params.vaso.b_f_delay = 5e-3;       % BOLD-FOCI delay (5e-3)
 
-% Set system limits
+%% Set system limits
 if params.gen.field_strength == 7
-    % 7T
+    % 7T, SC72 gradient
     lims = mr.opts('MaxGrad',65,'GradUnit','mT/m',...
         'MaxSlew',200,'SlewUnit','T/m/s',...
         'rfRingdownTime', 20e-6,'rfDeadtime', 100e-6,'adcDeadTime', 10e-6, 'B0',6.98);  % To read it in VM I need rfDeadtime = 180e-6, 100e-6 for scanner
 elseif params.gen.field_strength == 9
-    % 9.4T
+    % 9.4T, AC84 gradient
     lims = mr.opts('MaxGrad',80,'GradUnit','mT/m',...
         'MaxSlew',333,'SlewUnit','T/m/s',...
-        'rfRingdownTime', 20e-6,'rfDeadtime', 150e-6,'adcDeadTime', 10e-6, 'B0',9.38);  % To read it in VM I need rfDeadtime = 180e-6
+        'rfRingdownTime', 20e-6,'rfDeadtime', 150e-6,'adcDeadTime', 10e-6, 'B0',9.38); 
 elseif params.gen.field_strength == 7i
-    % 7T impuse gradient
+    % 7T, impuse gradient
     lims = mr.opts('MaxGrad',198,'GradUnit','mT/m',...
-        'MaxSlew',900,'SlewUnit','T/m/s',...
-        'rfRingdownTime', 20e-6,'rfDeadtime', 100e-6,'adcDeadTime', 10e-6, 'B0',6.98);  % To read it in VM I need rfDeadtime = 180e-6
+        'MaxSlew',910,'SlewUnit','T/m/s',...
+        'rfRingdownTime', 20e-6,'rfDeadtime', 100e-6,'adcDeadTime', 10e-6, 'B0',6.98); 
 end
 params.gen.lims = lims;
 
@@ -105,7 +103,7 @@ if params.gen.field_strength == 7
     grad_file = '/home/amonreal/Documents/PhD/IDEA/gradient_files/MP_GPA_K2259_2000V_650A_SC72CD_EGA.asc';
 elseif params.gen.field_strength == 7i
     grad_file = '/home/amonreal/Documents/PhD/IDEA/gradient_files/MP_GPA_K2298_2250V_1250A_AC207_Base.asc';
-elseif params.gen.field_strength == 9
+else
     grad_file = '';
 end
 
@@ -121,10 +119,6 @@ end
 
 % MT pulse
 if params.gen.seq == 2
-%     % Using Viktor's code
-%     vpulse = VPF_gaussian_pulse_4_Maastricht(params.mt.alpha,params.mt.delta,params.mt.trf);
-%     MT = mr.makeArbitraryRf(vpulse.b1,params.mt.alpha*pi/180, 'system', lims);%, 'Delay',2e-4);
-    % Using Pulseq
     MT = mr.makeGaussPulse(params.mt.alpha*pi/180,lims,'Duration',params.mt.trf,'FreqOffset',params.mt.delta);
 end
 
@@ -145,18 +139,20 @@ sr_spoil = 180;        % mT/m/s
 %% Preparing readout elements
 [rf_phase_offset,adc_phase_offset] = rf_adc_phase(params);
 if params.gen.ro_type == 's'
-    [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_grad_adc2(params);
+    [spiral_grad_shape,adcSamples,adcDwell,params] = prepare_spirals_rf_grad_adc(params);
         if params.spi.type == 0
             [gx,gy,~,~,adc,params] =  create_spirals_adc_pulseq(spiral_grad_shape,adcSamples,adcDwell,params);
-        elseif params.spi.type == 1 || params.spi.type == 3
+        elseif params.spi.type == 1 || params.spi.type == 3 || params.spi.type == 4
             [gx,gy,gx_pre,gy_pre,adc,params] =  create_spirals_adc_pulseq(spiral_grad_shape,adcSamples,adcDwell,params);
         end
 elseif params.gen.ro_type == 'c'
     [gx,gy_blips,gx_pre,gy_pre,gy_blip_up,gy_blip_down,adc,params]  = create_epi_adc_pulseq(params);
 end
 
-% Flip angle
-params = prepare_flip_angle(gx, params);
+% Flip angle, 3.5e-3 (approx rf + rephasing time)
+tr_tmp = 3.5e-3+mr.calcDuration(gz_blips(1))+mr.calcDuration(mr.calcDuration(gx)*params.gen.echos)+mr.calcDuration(gx_spoil)+params.gen.te+params.gen.tr_delay; % aprox TR
+if and(params.gen.ro_type=='s',or(params.spi.type == 1,params.spi.type == 2)); tr_tmp=tr_tmp+mr.calcDuration(gx_pre(1));end 
+params = prepare_flip_angle(tr_tmp,gx, params);
 
 % Create RF and Gz
 [rf0,gz,gzReph,params] =  create_rf_gz_pulseq(params);
@@ -173,9 +169,10 @@ if params.gen.ro_type == 'c'
         tr_delay_epi = mr.makeDelay(params.epi.tr_delay);  
     end
 end
+
 % Skope delays
 if params.gen.skope ~= 0
-    % AMM: Todo Need to confirm the times of this delays
+    % ToDo: Need to confirm the times of this delays
     sk_pre_delay    = mr.makeDelay(0.5);
 %     sk_int_delay    = mr.makeDelay(200e-6);  % original
     sk_int_delay = mr.makeDelay(mr.calcDuration(gz_blips(1))-10e-6); % To compensate for missing gz blip in center partition
@@ -194,6 +191,7 @@ if params.gen.skope ~= 0
     end   
     
 end
+
 % Fieldmap scan delays
 if params.gen.seq == 3
     if params.epi.te > 0
@@ -204,14 +202,18 @@ if params.gen.seq == 3
         end
     end
 end
+
 % Delay for repetitions without MT pulse, only for ABC (seq=2)
 if params.gen.seq == 2
     no_mt_delay = mr.makeDelay(mr.calcDuration(MT)+mr.calcDuration(gx_spoil));
 end
+
 % No Gz blip delay
 no_blip_delay = mr.makeDelay(mr.calcDuration(gz_blips(1)));
+
 % No FatSat delay...
 % fs_delay = mr.makeDelay(mr.calcDuration(rf_fs)+mr.calcDuration(gx_fs));
+
 % External trigger for fMRI
 ext_trig = mr.makeDigitalOutputPulse('ext1','duration',10e-6,'system',lims);        % External trigger
 dummy_delay = mr.makeDelay(10e-3);                                                  % Delay to use as dummy anywhere
@@ -223,7 +225,7 @@ last_seg = params.gen.seg;
 %% Add blocks to Skope seq
 if params.gen.skope == 1 || params.gen.skope == 3
     seq_sk=mr.Sequence();          % Create a new sequence object
-%     seq_sk.addBlock(sk_pre_delay); % Skope initial delay, % Do I need this???
+%     seq_sk.addBlock(sk_pre_delay); % Skope initial delay
     % Skope sync scans
     for i_sk_pre = 1:params.gen.skope_sync
 %         seq_sk.addBlock(mr.makeLabel('SET','ONCE',1));
@@ -231,8 +233,8 @@ if params.gen.skope == 1 || params.gen.skope == 3
         seq_sk.addBlock(skope_trig);
         seq_sk.addBlock(sk_int_delay);     % Gradient free interval
         seq_sk.addBlock(no_blip_delay);
-        if params.spi.type == 1 || params.spi.type == 3
-            tmp_delay = mr.makeDelay(mr.calcDuration(gx_pre));
+        if params.spi.type == 1 || params.spi.type == 3 || params.spi.type == 4
+            tmp_delay = mr.makeDelay(mr.calcDuration(gx_pre(1)));
             seq_sk.addBlock(tmp_delay);                       
         end
         tmp_delay = mr.makeDelay(mr.calcDuration(gx(1)));
@@ -241,7 +243,7 @@ if params.gen.skope == 1 || params.gen.skope == 3
         seq_sk.addBlock(tmp_delay);
         % rewinder if multiple echos
         if params.gen.echos > 1
-            tmp_delay = mr.makeDelay(mr.calcDuration(gx_pre));
+            tmp_delay = mr.makeDelay(mr.calcDuration(gx_pre(1)));
             seq_sk.addBlock(tmp_delay)
         end
         % Delay after sync scans
@@ -264,8 +266,7 @@ if params.gen.skope == 1 || params.gen.skope == 3
                     end
                 end
                 seq_sk.addBlock(sk_no_rf_delay);      % Delay to account for the missing RF pulses... 
-                % AMM: skope here I only add the trigger in the center
-                % part, remove if if I want it in all partitions
+                % We only add the trigger in the center partition, remove if if I want it in all partitions
                 if i == floor((params.gen.n(3)/2)+1)
                     sk0 = seq_sk.duration();           % To get Skope triger-ADC delay
                     seq_sk.addBlock(skope_trig);
@@ -286,25 +287,14 @@ if params.gen.skope == 1 || params.gen.skope == 3
                         end
 %                     end
                     % if spiral-in or in-out, we need in-plane pre-phasing
-                    if params.spi.type == 1 || params.spi.type == 3 
-                        if params.spi.interl > 1
-                            if j > 1
-                                if params.gen.interl_enc == 0
-                                    gx_pre.amplitude = gx_pre.amplitude*-1;
-                                    gy_pre.amplitude = gy_pre.amplitude*-1;
-                                elseif params.gen.interl_enc == 1 && i == params.gen.n_ov(3)
-                                    gx_pre.amplitude = gx_pre.amplitude*-1;
-                                    gy_pre.amplitude = gy_pre.amplitude*-1;
-                                end
-                            end
-                        end
-                        seq_sk.addBlock(gx_pre,gy_pre);                       
+                    if params.spi.type == 1 || params.spi.type == 3 || params.spi.type == 4
+                        seq_sk.addBlock(gx_pre(i,j),gy_pre(i,j));                       
                     end
                     if i == floor((params.gen.n(3)/2)+1); sk1 = seq_sk.duration();    end                % To get Skope triger-ADC delay
                     seq_sk.addBlock(gx(i,j),gy(i,j),adc);
                     seq_sk.addBlock(gz_spoil);
                     % rewinder if multiple echos
-                    if params.gen.echos > 1; seq_sk.addBlock(gx_pre(j),gy_pre(j)); end
+                    if params.gen.echos > 1; seq_sk.addBlock(gx_pre(i,j),gy_pre(i,j)); end
                     if params.gen.tr_delay > 0; seq_sk.addBlock(tr_delay); end % TR delay
                 elseif params.gen.ro_type == 'c'
                     if i == floor((params.gen.n(3)/2)+1)
@@ -346,7 +336,7 @@ if params.gen.skope == 2 || params.gen.skope == 3
         seq.addBlock(skope_trig);
         seq.addBlock(sk_int_delay);     % Gradient free interval
         seq.addBlock(no_blip_delay);
-        if params.spi.type == 1 || params.spi.type == 3 
+        if params.spi.type == 1 || params.spi.type == 3 || params.spi.type == 4
             tmp_delay = mr.makeDelay(mr.calcDuration(gx_pre));
             seq.addBlock(tmp_delay);                       
         end
@@ -389,7 +379,6 @@ end
 
 for i_ro_blocks = 1:ro_blocks
     for i=1:last_part
-%         if params.gen.fat_sat; seq.addBlock(rf_fs,gx_fs,gy_fs,gz_fs);   end      % fat-sat
         % Adding MT pulse every specified time
         if params.gen.seq == 2
             if params.mt.mt == 1 
@@ -443,29 +432,18 @@ for i_ro_blocks = 1:ro_blocks
                     if and(params.gen.seq == 3, params.epi.te > 0); seq.addBlock(fm_te_delay(i_ro_blocks)); end
                     if params.gen.te > 0; seq.addBlock(te_delay); end       % TE delay
                     % if spiral-in or in-out, we need in-plane pre-phasing
-                    if params.spi.type == 1 || params.spi.type == 3 
-                        if params.spi.interl > 1
-                            if j > 1
-                                if params.gen.interl_enc == 0
-                                    gx_pre.amplitude = gx_pre.amplitude*-1;
-                                    gy_pre.amplitude = gy_pre.amplitude*-1;
-                                elseif params.gen.interl_enc == 1 && i == params.gen.n_ov(3)
-                                    gx_pre.amplitude = gx_pre.amplitude*-1;
-                                    gy_pre.amplitude = gy_pre.amplitude*-1;
-                                end
-                            end
-                        end
-                        seq.addBlock(gx_pre,gy_pre);                       
+                    if params.spi.type == 1 || params.spi.type == 3 || params.spi.type == 4
+                        seq.addBlock(gx_pre(i,j),gy_pre(i,j));                       
                     end
                     if i==1; te1 = seq.duration(); end                           % save seq dur to calc TE
                     seq.addBlock(gx(i,j),gy(i,j),adc);
 %                     seq.addBlock(gx_ramp(i,j),gy_ramp(i,j));
                     if params.gen.dork; seq.addBlock(adc_post); end
-                    % AMM:Spoil
+                    % Spoil
 %                     if k==params.gen.echos; seq.addBlock(gz_spoil); end  % Original
                     if k==params.gen.echos; seq.addBlock(gz_spoil,gx_spoil);end
                     % rewinder if multiple echos
-                    if params.gen.echos > 1; seq.addBlock(gx_pre(j),gy_pre(j)); end
+                    if params.gen.echos > 1; seq.addBlock(gx_pre(i,j),gy_pre(i,j)); end
                     if params.gen.tr_delay > 0; seq.addBlock(tr_delay); end % TR delay
                 elseif params.gen.ro_type == 'c'
                     if i == floor((params.gen.n(3)/2)+1)
@@ -482,7 +460,7 @@ for i_ro_blocks = 1:ro_blocks
                         else
                             seq.addBlock(gx,gy_blips,adc);
                         end
-                        if i==1 && k==ceil((params.epi.n_lines/2)+1); te1 = seq.duration(); end                           % save seq dur to calc TE
+                        if i==1 && k==ceil((params.epi.n_lines/2*params.epi.pf)+1); te1=seq.duration(); end                           % save seq dur to calc TE
                     end
                     if gx.amplitude > 0
                         gx.amplitude = -gx.amplitude;
@@ -524,9 +502,7 @@ ks_traj = create_ks_trajectory(seq,adc,params);
 params = prepare_add_parameters(seq,ks_traj,gx,rf,adc,te0,te1,tr0,tr1,params);
 
 %% Check accoustic resonance frequencies, Des script
-if params.gen.plot
-    check_accoustic_fq_pns(seq,params,grad_file)
-end
+check_accoustic_fq_pns(seq,params,grad_file)
 
 %% Set definitions
 seq.setDefinition('MaxAdcSegmentLength',params.gen.adc_split);
@@ -540,7 +516,6 @@ if exist(sprintf('./data/%s',folder_name)) == 0
     tmp = sprintf('./data/%s',folder_name);
     system(sprintf('mkdir %s',tmp));
     system(sprintf('mkdir %s/acq',tmp));
-%     system(sprintf('mkdir %s/acq/romeo',tmp));
     system(sprintf('mkdir %s/analysis',tmp));
     system(sprintf('mkdir %s/ismrmd',tmp));
     system(sprintf('mkdir %s/ismrmd/2d',tmp));
@@ -562,7 +537,7 @@ if params.gen.skope == 1 || params.gen.skope == 3
     seq_sk.write(strcat(namestr,'_sk.seq'));
 end
 if params.spi.type == 3 && params.gen.ro_type == 's'
-    % AMM ToDo : Fix this part so it works for more echos..
+    % ToDo : Fix this part so it works for more echos..
     ks_traj_full = ks_traj;
     ks_traj = ks_traj_full.e1;
     save(strcat(namestr,'_e1_ks_traj_nom.mat'),'ks_traj')

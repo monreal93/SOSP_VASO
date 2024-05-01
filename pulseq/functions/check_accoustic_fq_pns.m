@@ -5,7 +5,7 @@ function check_accoustic_fq_pns(seq,params, grad_file)
     gradients = seq.gradient_waveforms1()/lims.gamma*1000;   % Full sequence
     gradients = gradients(1:2,:);               % taking only gx and gy
 
-    % Full sequence
+    % Full sequence (all readouts)
     time = linspace(0,seq.duration(),size(gradients,2)).*1e6; % Full sequence
     
 %     % Only 1 readout
@@ -14,9 +14,15 @@ function check_accoustic_fq_pns(seq,params, grad_file)
 
     gaxes = ['X' 'Y'];
     for i=1:length(gaxes)   
-        gradFreqPlot_pulseq(time,gradients(i,:),Fs,gaxes(i),params.gen.field_strength);
+        [~, ~, ~, ~, bpass(i)] = gradFreqPlot_pulseq(time,gradients(i,:),Fs,gaxes(i),params.gen.field_strength);
     end
     
+    % For safety reasons if test fails, the script will stop and
+    % sequence won't be written....
+    if ~bpass(1) || ~bpass(2)
+        error(sprintf('########################################## \n Sequence failed resonance test,Please modify Spiral/EPI gradient Amplitde and Slew Rate and try again \n##########################################'))
+    end
+
     seq.calcPNS(grad_file);
 
 end
