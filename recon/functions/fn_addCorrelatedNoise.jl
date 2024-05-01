@@ -8,7 +8,7 @@ using Infiltrator
 * 'snr::Float64'  - target SNR
 
 """
-function addCorrelatedNoise(x::Matrix, snr::Float64 ,cov::Matrix, scale_factor::Float64, complex= true)
+function addCorrelatedNoise(x::Matrix, snr::Float64 ,cov::Matrix; scale_factor=1, complex= true)
   signalAmpl = sum(abs.(x))/length(x)
 
   # target noise amplitude
@@ -26,7 +26,7 @@ function addCorrelatedNoise(x::Matrix, snr::Float64 ,cov::Matrix, scale_factor::
   noise = sqrt(cov)*noise
   noise = permutedims(noise,(2,1))
 
-  # noise = noise.*scale_factor
+  noise = noise.*scale_factor
 
   return x+noise
 end

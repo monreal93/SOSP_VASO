@@ -13,6 +13,7 @@ using PaddedViews
 using SphericalHarmonicExpansions
 # using Plots, ImageView,
 using MRIOperators
+using Interpolations
 
 using FFTW
 FFTW.set_provider!("mkl")
@@ -24,24 +25,25 @@ include("../recon/functions/fn_save_nii.jl")
 phn_sim = 1            # 1=brain, 0=point (psf), for point (PSF), set all to false
 cs_sim = true
 cs_recon = true
-b0_sim = true
-b0_recon = true
+b0_sim = false
+b0_recon = false
 t2s_sim = false
 t2s_recon = false
 high_order_recon = false
 order_recon =  1            # Recon order (1,2,3)
-add_noise = false
+add_noise = true
 gfactor = false
 is2d = false
 gfactor_replicas = 2
-channels = 32            # 0-channels from CS file, >0 less channels (it will be cropped)
+channels = 32            # 0-channels from CS file, >0 less channels (it will be cropped)]
+changeBW = 0             # Integer to change the value of the BW.. (ex. 2 = half the BW)
 # For PSF only.. T2* and b0
-psf_t2s = 23e-3     # T2* in s
+psf_t2s = 25e-3     # T2* in s
 psf_b0 = 20         # off-resonance in Hz
 
 # Folder and name of sequence to simulate
 folder_sim = "simulations_paper"
-scan_sim = ["sb_01"]
+scan_sim = ["sb_08_nyquistBW_NOvd"]
 traj_type = "nom"
 # scan_sim = ["sb_01","sb_02","sb_03","sb_04","sb_05","sb_06","sb_07","sb_08","sb_09","sb_10"]
 
@@ -116,6 +118,9 @@ if b0_sim
         b0 *= 0
         b0[Int(params["gen"]["n"][1]/2),Int(params["gen"]["n"][2]/2),Int(params["gen"]["n"][3]/2)] = psf_b0*2*pi*im
     end
+
+    # ## Temp: Scaling B0
+    b0 =convert(Array{ComplexF32,3},b0.*1.5)
 
     b0_orig = deepcopy(b0)
 end
@@ -428,6 +433,7 @@ for i = 1:Int(length(scan_sim))
             end
             b0 = deepcopy(tmp)
         end
+        @infiltrate
         acqData = simulation(ks, phn, b0; senseMaps=cs, params_sim)
     elseif t2s_sim
         t2s = deepcopy(t2s_orig)
@@ -489,9 +495,9 @@ for i = 1:Int(length(scan_sim))
     end
 
     # AMM: Temp: Rescaling the B0 map before reconstruction, to have a missmatch btw sim and recon
-    @info("Temp.... Reescaling B0 map before recon...")
-    @infiltrate
-    b0 .= b0*(0.5)
+    # @info("Temp.... Reescaling B0 map before recon...")
+    # @infiltrate
+    # b0 .= b0*(0.5)
 
     if cs_recon
         # # Amm: Temp: rotate and reverse CS maps to match simulation data
@@ -538,7 +544,18 @@ for i = 1:Int(length(scan_sim))
     ##### Add Correlated noise
     if add_noise && cs_sim
         # @info ("Adding noise to k-space data ...")
-        acqData.kdata[1] = addCorrelatedNoise(acqData.kdata[1],noise_snr,cov,Float64(1e1))
+        acqData.kdata[1] = addCorrelatedNoise(acqData.kdata[1],noise_snr,cov;scale_factor=0.05)
+    end
+
+    ##### Changing BW of data to see if we get a boost in SNR...
+    if changeBW > 0
+        @info("Changing BW is requested....")
+        @infiltrate
+        itp = interpolate(acqData.kdata[1],(BSpline(Constant()),NoInterp()))
+        tmp = itp(1:changeBW:size(acqData.kdata[1],1),1:size(acqData.kdata[1],2))
+        acqData.kdata[1] = tmp
+        acqData.traj[1].nodes = acqData.traj[1].nodes[:,1:changeBW:end]
+        acqData.traj[1].times = acqData.traj[1].times[1:changeBW:end]
     end
 
     # # #### Temp: trying some direct reconstruction by matrix inversion
@@ -550,6 +567,9 @@ for i = 1:Int(length(scan_sim))
     # xx = conj(cs).*x
     # jim(abs.(x))
     # # #####
+
+    # # save_suffix = string(save_suffix_orig,"_rawinterp")
+    # # ##########
 
     @info("stop before recon...")
     @infiltrate
@@ -595,6 +615,9 @@ for i = 1:Int(length(scan_sim))
     end
     if t2s_recon
         suffix = string(suffix,"_t2srecon")
+    end
+    if changeBW > 0
+        suffix = string(suffix,"_BW_scale_",changeBW)
     end
 
     if cs_sim == true && cs_recon ==false

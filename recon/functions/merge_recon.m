@@ -3,13 +3,13 @@ clear all; clc
 cd /mnt/5T4/Alejandro/sosp_vaso/
 addpath(genpath('../tools/as'))
 
-folder = '02232024_abc';
-scan = 'abc_10_fs_rfsp_+650';
+folder = '08232023_sv_abc_paper';
+scan = 'cv_51';
 b0 = '';           % b0='','fessler','romeo','gilad','skope','fessler'
 traj = 'nom';           % 'nom', 'sk'
 rep_recon = 1:40;          % Range or repetitions to merge
 is2d = 0;
-contrasts = ["abc"];  % "v","b","abc"
+contrasts = ["b","v"];  % "v","b","abc"
 p_dork = "";              % Partition DORK "_pDORK"
 r_dork = "_rDORK";              % Repetition DORK "_rDORK"
 drift = "";               % Drift "_drift"

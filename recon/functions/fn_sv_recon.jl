@@ -26,11 +26,11 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
             fieldmap_ft = convert(Array{ComplexF32, 5},fieldmap_ft)
 
             # Saving reshaped calibration scan for reference
-            fieldmap = fftshift(ifft(ifftshift(fieldmap_ft,[1,2]),[1,2]),[1,2])
-            fieldmap = reverse(fieldmap,dims = 1)
+            # fieldmap = fftshift(ifft(ifftshift(fieldmap_ft,[1,2]),[1,2]),[1,2])
+            # fieldmap = reverse(fieldmap,dims = 1)
 
 
-            matwrite(string(params_sv[:path],"acq/fm_",params_sv[:scan],".mat"), Dict("fieldmap" => fieldmap))
+            # matwrite(string(params_sv[:path],"acq/fm_",params_sv[:scan],".mat"), Dict("fieldmap" => fieldmap))
 
             if params_sv[:fmri] == 1
                 fm = matread(string("./",params_sv[:directory],"acq/fm_", params_sv[:scan],".mat"))
@@ -274,7 +274,7 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
     # AMM: Temp, trying to scale B0...
     if params_sv[:do_b0_corr]
         @infiltrate
-        b0 = Array{ComplexF32}(b0.*(2))
+        b0 = Array{ComplexF32}(b0.*(1.5))
         # b0 = Array{ComplexF32}(b0.*(pi/2))
         # b0 = Array{ComplexF32}(b0.-((20*2*pi)*im))
     end
@@ -394,8 +394,8 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
                         @infiltrate
 
                         
-                        tmp = ((params_sv[:b0_te][1].*1e-3)+nav_times[1]) .<= nav_times
-                        tmp = findall(isone,tmp)[1]
+                        # tmp = ((params_sv[:b0_te][1].*1e-3)+nav_times[1]) .<= nav_times
+                        # tmp = findall(isone,tmp)[1]
                         
                         
                         # nav_range = findall(nav_times -> nav_times>params_sv[:b0_te][tmp-1].*1e-3, nav_times)[tmp-1]-5:findall(nav_times -> nav_times>params_sv[:b0_te][tmp-1].*1e-3, nav_times)[tmp-1]+5

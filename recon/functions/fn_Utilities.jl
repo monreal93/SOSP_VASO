@@ -1,9 +1,9 @@
 """
-MergeReconstrucion(RawData::RawAcquisitionData,params::Dict{Symbol,Any})
+MergeReconstrucion(path::String,scan::String,Repetitions::Any,ParallelRecon::Bool,OffResonanceCorrection::Bool, k0Correction::Bool,rDORKCorrection::Bool; TrajectoryType::String="", Suffix="")
 
 Merge each repetition of the fMRI series into a timeseries
 """
-function MergeReconstrucion(path::String,scan::String,Repetitions::Any,ParallelRecon::Bool,OffResonanceCorrection::Bool, k0Correction::Bool,rDORKCorrection::Bool; TrajectoryType::String="")
+function MergeReconstrucion(path::String,scan::String,Repetitions::Any,ParallelRecon::Bool,OffResonanceCorrection::Bool, k0Correction::Bool,rDORKCorrection::Bool; TrajectoryType::String="", Suffix="")
 
     file_prefix = string(path,"/recon/3d/",scan)
     file_suffix = string("_",TrajectoryType) 
@@ -20,6 +20,7 @@ function MergeReconstrucion(path::String,scan::String,Repetitions::Any,ParallelR
     if rDORKCorrection
         file_suffix = string(file_suffix,"_rDORK")
     end
+    file_suffix = string(file_suffix,Suffix)
 
     # Read one, to get the volume dimensions
     tmp = niread(string(file_prefix,"_rep_",Repetitions[1],file_suffix,".nii"))
