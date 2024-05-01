@@ -22,8 +22,8 @@ using FLoops
 # using MriResearchTools: makehomogeneous
 
 using FFTW
-# FFTW.set_provider!("mkl")
-FFTW.set_provider!("fftw")
+FFTW.set_provider!("mkl")
+# FFTW.set_provider!("fftw")
 
 # This packages are used for the motion correction
 # using ImageCore, CoordinateTransformations, Rotations
@@ -40,27 +40,27 @@ include("../recon/functions/fn_motionCorrection.jl")
 params = Dict{Symbol, Any}()
 params[:plt] = false
 params[:do_pi_recon] = true             # Perform PI reconstruction or direct recon
-params[:do_b0_corr] = false
+params[:do_b0_corr] = true
 params[:do_t2s_corr] = false
 params[:b0_type] = "fessler"               # B0 from: "fessler", "romeo" , "gilad", "skope"               
 params[:is2d] = false
 # params[:multiRepetitions] = true;         # Reconstruct multiple repetitions, if false = 2nd rep will be reconstructed
-params[:rep_recon] = 1:40                # Range of rep to recon
-params[:contrasts] = ["abc"]                  # Contrasts to recon v,b,abc or all
+params[:rep_recon] = 2               # Range of rep to recon
+params[:contrasts] = ["b"]                  # Contrasts to recon v,b,abc or all
 params[:traj_type] = "nom"                 # Trajectory type nominal="nom",skope="sk",poet = "poet", corrected = "nom_corr"
 params[:save_ph] = 0                       # Save phase of recon as nifti
 params[:fmri] = 1                          # 1 for fMRI data will use separate cs and b0 maps per scan
 params[:pdork] = ""                         # partition DORK "_pDORK" or ""
 params[:rdork] = "_rDORK"                   # repetition DORK "_rDORK" or ""
 params[:idork] = ""                   # interleaves DORK "_iDORK" or ""n_ov
-params[:drift] = ""                   # DRIFT correction to B0 map? "_drift" or ""            
+params[:drift] = "_drift"                   # DRIFT correction to B0 map? "_drift" or ""            
 params[:mcorr] = ""           # Motion correction with navigators "_mCorr"
 
 # Some parameters
-scans = ["abc_09_MT_fs_rfsp_+650","abc_10_fs_rfsp_+650"]            # For now: if multipe echos, include _e1.. _e2..
-params[:fieldmap] = "a01"           # Name of the ME-GRE to use for CS and B0map
+scans = ["sv_01"]            # For now: if multipe echos, include _e1.. _e2..
+params[:fieldmap] = "s01"           # Name of the ME-GRE to use for CS and B0map
 # scans = ["abc_01","abc_02","abc_03","abc_04","abc_05","abc_06","abc_07","abc_08","abc_09","abc_10","abc_11","abc_12"]; #,"sv_02","sv_04","sv_06","sv_08","sv_09","sv_10"];
-params[:directory] = "data/02232024_abc/"        # directory where the data is stored
+params[:directory] = "data/05192023_sv_paper/"        # directory where the data is stored
 
 # Find out if script is running in laptop/dabeast/docker
 

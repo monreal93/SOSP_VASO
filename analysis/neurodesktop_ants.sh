@@ -1,16 +1,20 @@
 cd /neurodesktop-storage/5T4/Alejandro/sosp_vaso/data
 
-folder="05192023_sv_paper"
+folder="05252023_sv_paper"
 
-scan="cv_01"
+scan="cv_41"
 # scan_t1="dicom_mp2rage_iso0.7mm_iPAT3_20230519112423_17"
 scan_t1="brain"
 
-##### Before running this script do a intial registration in ITKsnap... save the values in a file called initial_matrix_$scan
+##### README.... 
+# Before running this script:
+# - do an intial registration in ITKsnap... save the values in a file called initial_matrix_$scan
+# - Also create a ROI mask, that will be used for registration... save it as ./scan/scan_roi_msk.nii
 
 cd ${folder}
 cd ./analysis/
 mkdir ./ants
+chmod ugo+rwx ./ants/
 cd ./ants
 
 # Neurodesktop tools to use:
@@ -18,9 +22,9 @@ ml ants
 ml afni
 
 t1_file=../t1/${scan_t1}.nii
-t1_vaso_file=../${scan}/T1_weighted_masked.nii.gz # original
+t1_vaso_file=../${scan}/T1_msk.nii # original
 # t1_vaso_file=../${scan}/mean_v_msk.nii # original
-mask=../${scan}/mask_t1_${scan}.nii     # Mask created from ITKsnap..
+mask=../${scan}/${scan}_roi_msk.nii     # Mask created from ITKsnap..
 output1=registered_Warped_${scan}.nii
 output2=registered_InverseWarped_${scan}.nii
 initial_mtx=initial_matrix_${scan}.txt                     
@@ -94,6 +98,8 @@ antsRegistration \
 --smoothing-sigmas 1x0vox \
 -x "${mask}"
 
+
+#####  Applying transformation to T1, GM and WM mask
 cp ./${output1} ../${scan}/${scan}_t1.nii
 
 transform=${scan}_0GenericAffine.mat   

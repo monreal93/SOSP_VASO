@@ -49,8 +49,6 @@ Performs partition DORK correction
 
 function Correctk0(tmp,k0_sk::AbstractVector{Float64},k0_sim::AbstractMatrix{Float64},params::Dict{Symbol,Any})
     
-    @infiltrate
-    
     # Un-do Siemens ECC
     tmp = tmp./exp.(1im.*k0_sim)
 

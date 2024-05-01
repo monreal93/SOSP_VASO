@@ -37,7 +37,8 @@ function ReconCartesianData(acqData::AcquisitionData,dims::Int; interleaved=fals
                     tmp1 = tmp[:,:,i_ch]
 
                     # FFT, only for 2D now, MKL use:
-                    tmp1 = fftshift(ifft(tmp1))
+                    tmp1 = fftshift(ifft(ifftshift(tmp1)))
+                    tmp1 = sqrt(size(tmp1,1)).*tmp1
                     # tmp = sqrt.(sum((abs.(tmp).^2),dims=3))
 
                     recon[:,:,i_sl,i_ch,i_ech] = tmp1
@@ -47,21 +48,28 @@ function ReconCartesianData(acqData::AcquisitionData,dims::Int; interleaved=fals
 
     elseif dims==3
         for i_ech=1:numEchos
+
             tmp = acqData.kdata[i_ech,1,1]
             tmp = reshape(tmp,numRead,numSlices,numPart,numChan)
-            
-            # # FFT, only for 2D now, FFTW use:
-            # tmp = fftshift(ifft(tmp),1)
-            # tmp = fftshift(ifft(tmp),2)
 
-            # FFT, only for 2D now, MKL use:
-            tmp = fftshift(ifft(tmp))
-            # tmp = sqrt.(sum((abs.(tmp).^2),dims=3))
+            for i_ch = 1:numChan
 
-            tmp = permutedims(tmp,[1,3,2,4])
+                tmp1 = tmp[:,:,:,i_ch]
+                # # FFT, only for 2D now, FFTW use:
+                # tmp = fftshift(ifft(tmp),1)
+                # tmp = fftshift(ifft(tmp),2)
 
-            recon[:,:,:,:,i_ech] = tmp
+                # FFT, only for 2D now, MKL use:
+                tmp1 = fftshift(ifft(ifftshift(tmp1)))
+                tmp1 = sqrt(size(tmp1,1)).*tmp1
+
+                tmp1 = permutedims(tmp1,[1,3,2])
+
+                recon[:,:,:,i_ch,i_ech] = tmp1
+            end
         end
+        # The Fieldmap from Berkely (NeruoSpin sequence) seems to have the second echo reversed in dim 1
+        recon[:,:,:,:,2] = reverse(recon[:,:,:,:,2]; dims=1)
     end
 
     # Removing oversampling

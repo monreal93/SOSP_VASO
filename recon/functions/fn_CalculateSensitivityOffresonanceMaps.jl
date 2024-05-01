@@ -14,7 +14,7 @@ function CalculateSensitivityMap(recon,MtxSize::Tuple;calib_size::Int=12)
     numChan = size(recon)[4]
 
     for i_ch = 1:numChan
-        calibration[:,:,:,i_ch] = fftshift(fft(recon[:,:,:,i_ch,1]),3)
+        calibration[:,:,:,i_ch] = fftshift(fftshift(fftshift(fft(recon[:,:,:,i_ch,1]),1),2),3)
     end
 
     # # Back to k-space
@@ -69,10 +69,15 @@ function CalculateOffresonanceMap(recon_b0,SensitivityMap,EchoTimes::Vector{Floa
     @info ("Stop... B0 map...")
     @infiltrate
 
-    # Original "Low smoothing":
+    # # Original "Low smoothing":
+    # fmap_run = (niter, precon, track; kwargs...) ->
+    #     b0map(yik_scale, echotime; finit, smap, mask,
+    #     order=1, l2b=0.002, gamma_type=:PR, niter, precon, track, kwargs...)
+
+    # Different smoothing values:
     fmap_run = (niter, precon, track; kwargs...) ->
-        b0map(yik_scale, echotime; finit, smap, mask,
-        order=1, l2b=0.002, gamma_type=:PR, niter, precon, track, kwargs...)
+    b0map(yik_scale, echotime; finit, smap, mask,
+    order=1, l2b=0.002, gamma_type=:PR, niter, precon, track, kwargs...)
 
     # # A lot of smoothing:
     # fmap_run = (niter, precon, track; kwargs...) ->
@@ -85,7 +90,7 @@ function CalculateOffresonanceMap(recon_b0,SensitivityMap,EchoTimes::Vector{Floa
         return (fmap, out.fhats, out.costs, times)
     end;
     if !@isdefined(fmap_cg_d)
-        niter_cg_d = 200  # (400)
+        niter_cg_d = 100  # (400)
         (fmap_cg_d, fhat_cg_d, cost_cg_d, time_cg_d) = runner(niter_cg_d, :diag)
         # (fmap_cg_d, fhat_cg_d, cost_cg_d, time_cg_d) = runner(niter_cg_d, :ichol)
     end
@@ -93,7 +98,7 @@ function CalculateOffresonanceMap(recon_b0,SensitivityMap,EchoTimes::Vector{Floa
     b0 = fmap_cg_d
 
     b0 = b0.*2π.*-1    # Original 
-    # b0 = b0.*-1
+    # b0 = b0.*1.5  # Temp: only for sv_01
 
     # Temp: Trying to rescale
     # ToDo: Are the maps in MRIFieldmaps.jl off by 10? 

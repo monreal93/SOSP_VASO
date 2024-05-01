@@ -1,5 +1,3 @@
-### ToDO:
-
 # Neurodesktop tools to use:
 ml afni
 ml fsl
@@ -7,16 +5,18 @@ ml laynii
 
 cd /neurodesktop-storage/5T4/Alejandro/sosp_vaso/data
 
-folder="05192023_sv_paper"
-scan="cv_01"
+folder="05252023_sv_paper"
+scan="cv_41"
 r_a_tr=7     # rest/activity TRs paper=sv(8), cv(7)
-tr=1.81      # volume TR paper=sv(1.66), cv(1.81)
+tr=1.66    # volume TR paper=sv(1.66), cv(1.81)
 
 # Spiral reconstruction options
 traj="_nom" && cs="_cs" && b0="_b0" && k0="_k0" && rDORK="_rDORK"
 
 cd ${folder}
+
 mkdir ./analysis/${scan}
+chmod ugo+rwx ./analysis/${scan}
 cd ./analysis/${scan}
 
 if [ "${scan:0:2}" = "sv" ]; then
@@ -62,6 +62,18 @@ block_trs=$(echo ${block_trs%.*})
 3dWarp -deoblique ${b_file}
 3dWarp -deoblique ${gre1}
 
+# ) Making sure orientation is LPI
+3drefit -orient LPI ${v_file}
+3drefit -orient LPI ${b_file}
+3drefit -orient LPI ${gre1}
+3drefit -orient LPI ${v_file}
+3drefit -orient LPI ${b_file}
+3drefit -orient LPI ${gre1}
+
+# # # Sometimes I need to Flip in y direction for CV
+# 3dLRflip -X -prefix ${v_file} ${v_file} -overwrite
+# 3dLRflip -X -prefix ${b_file} ${b_file} -overwrite
+
 # 1) Creating Mask
 #--- with FSL
 # bet $gre1 ./tmp -Z -f 0.4 -g 0 -n -m
@@ -69,9 +81,9 @@ block_trs=$(echo ${block_trs%.*})
 # gzip -d mask.nii.gz
 #--- with AFNI
 if [ "${scan:0:2}" = "sv" ]; then
-    3dAutomask -prefix mask.nii -peels 3 -dilate 2 ${gre1}
+    3dAutomask -prefix mask.nii -peels 3 -dilate 2 ${gre1} -overwrite
 else
-    3dAutomask -prefix mask.nii -peels 3 -dilate 2 ${v_file}
+    3dAutomask -prefix mask.nii -peels 3 -dilate 2 ${v_file} -overwrite
 fi
 3drefit -xdel $(3dinfo -adi ${b_file}) mask.nii
 3drefit -ydel $(3dinfo -adj ${b_file}) mask.nii
@@ -111,6 +123,7 @@ echo "Motion correction... VASO..."
 3drefit -TR $tr ./${scan}_v_mc_ups.nii
 
 #### ) Temporal filtering
+# This commands can be used for Tmporal filtering in AFNI 3dDetrend, 3dBandpass
 echo "Temporal High-pass filter..."
 bptf=$(echo $block_dur/$tr/2 | bc -l)
 bptf=$(echo ${bptf%.*})
@@ -124,23 +137,12 @@ fslchfiletype NIFTI ${scan}_v_mc_ups_hpf.nii
 #### ) BOLD correction
 LN_BOCO -Nulled ./${scan}_v_mc_ups_hpf.nii -BOLD ./${scan}_b_mc_ups_hpf.nii -trialBOCO $block_trs
 
-# #### ) Calculating T1
-# echo "calculating T1 ..."
-# # 3dcalc -a sample.nii -expr '0' -prefix combined.nii
-# # 3dcalc -prefix combined.nii -a combined.nii'[0..$(2)]' -b ${b_file} -expr 'a+b' -overwrite
-
-# NumVol=`3dinfo -nv ./${scan}_b_mc_ups_hpf.nii`
-# # 3dcalc -a ./${scan}_b_mc_ups_hpf.nii'[3..'`expr $NumVol - 2`']' -b  ./${scan}_v_mc_ups_hpf.nii'[3..'`expr $NumVol - 2`']' -expr 'a+b' -prefix combined.nii -overwrite
-# # ToDo: Optimize combination of vaso and bold
-# 3dTcat -overwrite ./${scan}_b_mc_ups_hpf.nii'[0]' -prefix combined.nii
-# 3dTcat -overwrite ./combined.nii ./${scan}_v_mc_ups_hpf.nii'[0]' -prefix combined.nii
-# for (( i = 1; i <= ${NumVol}; i++ ))
-# do
-#     3dTcat -overwrite ./combined.nii ./${scan}_b_mc_ups_hpf.nii"[$i]" -prefix combined.nii
-#     3dTcat -overwrite ./combined.nii ./${scan}_v_mc_ups_hpf.nii"[$i]" -prefix combined.nii
-# done
-# 3dTstat -cvarinv -prefix T1_weighted.nii -overwrite combined.nii 
-# rm combined.nii
+##### ) Calculating T1
+echo "calculating T1 ..."
+# Combining BOLD and VASO..
+3dTcat -prefix combined.nii ./${scan}_b_mc_ups_hpf.nii ./${scan}_v_mc_ups_hpf.nii -overwrite
+3dTstat -cvarinv -prefix T1_weighted.nii -overwrite combined.nii
+rm combined.nii
 
 #### ) Quality metrics
 echo "calculating Mean and tSNR maps ..."
@@ -238,15 +240,30 @@ echo "BOLD based on GLM..."
 3dcalc -a mean.nii -overwrite -b 1_HRF_BOLD.nii      -expr 'b/a*100' -prefix 1_HRF_percent_BOLD.nii
 3dcalc -a mean.nii -overwrite -b 1_HRF_NEG_BOLD.nii -expr 'b/a*100' -prefix 1_HRF_NEG_percent_BOLD.nii
 
-####### 10) Masking relevant volumes
-3dcalc -a T1_weighted.nii -b mask.nii -expr 'a*b' -prefix T1_msk.nii
-3dcalc -a mean_v.nii -b mask.nii -expr 'a*b' -prefix mean_v_msk.nii
-3dcalc -a mean_b.nii -b mask.nii -expr 'a*b' -prefix mean_b_msk.nii
-3dcalc -a 2_STATS_VASO.nii -b mask.nii -expr 'a*b' -prefix VASO_msk.nii
-3dcalc -a 2_STATS_NEG_BOLD.nii -b mask.nii -expr 'a*b' -prefix BOLD_msk.nii
+####### ) Masking relevant volumes
+3dcalc -a T1_weighted.nii -b mask.nii -expr 'a*b' -prefix T1_msk.nii -overwrite
+3dcalc -a mean_v.nii -b mask.nii -expr 'a*b' -prefix mean_v_msk.nii -overwrite
+3dcalc -a mean_b.nii -b mask.nii -expr 'a*b' -prefix mean_b_msk.nii -overwrite
+3dcalc -a 2_STATS_VASO.nii -b mask.nii -expr 'a*b' -prefix VASO_msk.nii -overwrite
+3dcalc -a 2_STATS_NEG_BOLD.nii -b mask.nii -expr 'a*b' -prefix BOLD_msk.nii -overwrite
+3dcalc -a tSNR_v.nii -b mask.nii -expr 'a*b' -prefix tSNR_v_msk.nii -overwrite
+3dcalc -a tSNR_b.nii -b mask.nii -expr 'a*b' -prefix tSNR_b_msk.nii -overwrite
 
-3dcalc -a delta_BOLD.nii -b mask.nii -expr 'a*b' -prefix BOLD_delta_msk.nii
-3dcalc -a delta_VASO.nii -b mask.nii -expr 'a*b' -prefix VASO_delta_msk.nii
+3dcalc -a delta_BOLD.nii -b mask.nii -expr 'a*b' -prefix BOLD_delta_msk.nii -overwrite
+3dcalc -a delta_VASO.nii -b mask.nii -expr 'a*b' -prefix VASO_delta_msk.nii -overwrite
+
+# Let's ommit the first two slices (fold over artifacts)
+# ToDo: Find better way of doing this
+slices=$(3dinfo -nk VASO_msk.nii)
+slices=$(($slices-1))
+# VASO
+3dZcutup -keep 2 "${slices}" -prefix VASO_msk.nii VASO_msk.nii -overwrite
+3dZeropad -I 2 -prefix VASO_msk.nii VASO_msk.nii -overwrite
+# 3dZeropad -A 2 -prefix VASO_msk.nii VASO_mskt.nii -overwrite # For cv, sometimes I need to add the dim here
+# BOLD
+3dZcutup -keep 2 "${slices}" -prefix BOLD_msk.nii BOLD_msk.nii -overwrite
+3dZeropad -I 2 -prefix BOLD_msk.nii BOLD_msk.nii -overwrite
+# 3dZeropad -A 2 -prefix BOLD_msk.nii BOLD_msk.nii -overwrite # For cv, sometimes I need to add the dim here
 
 ##### ) Cluster activations
 # Here, I need to play with the values after -1clip:
@@ -254,117 +271,30 @@ echo "BOLD based on GLM..."
 # rmm = cluster connection radius, larger value->remove small clusters
 # vmul minimum cluster volume, smaller value->removes small clusters
 3dclust -1noneg -overwrite -prefix clustered_VASO.nii -1clip 2 1.4 120 VASO_msk.nii
-3dclust -1noneg -overwrite -prefix clustered_BOLD.nii -1clip 3 1.4 120 BOLD_msk.nii
+3dclust -1noneg -overwrite -prefix clustered_BOLD.nii -1clip 4 1.4 120 BOLD_msk.nii
 
-3dclust -1noneg -overwrite -prefix clustered_VASO.nii -1clip 0.02 1 120 delta_VASO.nii
-3dclust -1noneg -overwrite -prefix clustered_BOLD.nii -1clip 0.02 1 120 delta_BOLD.nii
+##### ) Get mean of activations and percentage change
+### VASO
+3dcalc -overwrite -a clustered_VASO.nii -expr 'step(a-1.8)' -prefix v_bin_output.nii
+# Might be needed to clean up the binary mask before getting mean
+3dROIstats -mask v_bin_output.nii -1DRformat -quiet VASO_LN.nii > timecourse_VASO.dat
+
+### BOLD
+3dcalc -overwrite -a clustered_BOLD.nii -expr 'step(a-1.8)' -prefix b_bin_output.nii
+# Might be needed to clean up the binary mask before getting mean
+3dROIstats -mask b_bin_output.nii -1DRformat -quiet ./${scan}_b_mc_ups_hpf.nii > timecourse_BOLD.dat
 
 ####### ) Mean tSNR and effective tSNR
-mean_tSNR_b=$(3dBrickStat -mean -non-negative -nonan -mask ./mask.nii ./tSNR_b.nii) 
+mean_tSNR_b=$(3dBrickStat -mean -non-negative -nonan -mask ./mask.nii ./tSNR_b_msk.nii) 
 echo -e "BOLD brain mean tSNR: \n $mean_tSNR_b" >> results.txt
-mean_tSNR_v=$(3dBrickStat -mean -non-negative -nonan -mask ./mask.nii ./tSNR_v.nii) 
+mean_tSNR_v=$(3dBrickStat -mean -non-negative -nonan -mask ./mask.nii ./tSNR_v_msk.nii) 
 echo -e "VASO brain mean tSNR: \n $mean_tSNR_v" >> results.txt
 
-3dcalc -a ./tSNR_b.nii -expr "a/sqrt($tr)" -prefix ./eff_tSNR_b.nii
+3dcalc -a ./tSNR_b_msk.nii -expr "a/sqrt($tr)" -prefix ./eff_tSNR_b.nii -overwrite
 mean_tSNR_b=$(3dBrickStat -mean -non-negative -nonan -mask ./mask.nii ./eff_tSNR_b.nii) 
 echo -e "BOLD brain mean effective tSNR: \n $mean_tSNR_b" >> results.txt
-3dcalc -a ./tSNR_v.nii -expr "a/sqrt($tr)" -prefix ./eff_tSNR_v.nii
+3dcalc -a ./tSNR_v_msk.nii -expr "a/sqrt($tr)" -prefix ./eff_tSNR_v.nii -overwrite
 mean_tSNR_v=$(3dBrickStat -mean -non-negative -nonan -mask ./mask.nii ./eff_tSNR_v.nii) 
 echo -e "VASO brain mean effective tSNR: \n $mean_tSNR_v" >> results.txt
 
-#######  ) Quantitive fMRI analysis
-## 1) Manually align ananotmy to fMRI in ITK-SNAP, and create mask for registration in ANTs
-## 2) Run neurodesktop_ants.sh to perform registration of T1 to fMRI space
-## 3) Run neurodesktop_freesurfer.sh to perform segmentations...
 
-# # Let's resample the gm and wm mask from freesurfer to fMRI space
-# 3dresample -master ./T1_weighted_masked.nii -prefix gm_mask.nii -input gm_mask.nii -overwrite
-# 3dresample -master ./T1_weighted_masked.nii -prefix wm_mask.nii -input wm_mask.nii -overwrite
-
-# Let's make them binary mask
-3dcalc -a ./"$scan"_gm_msk.nii -expr 'ispositive(a-20)' -prefix "$scan"_gm_msk1.nii -overwrite
-3dcalc -a ./"$scan"_wm_msk.nii -expr 'ispositive(a-0.8)' -prefix "$scan"_wm_msk1.nii -overwrite
-
-# Let's mask to a ROI in visual cortex
-3dcalc -a "$scan"_gm_msk1.nii -b "$scan"_roi_msk.nii -expr 'a*b' -prefix "$scan"_gm_msk1.nii -overwrite
-3dcalc -a "$scan"_wm_msk1.nii -b "$scan"_roi_msk.nii -expr 'a*b' -prefix "$scan"_wm_msk1.nii -overwrite
-
-# Let's split the activations from GM and WM
-# ToDo: Not sure if I want to use clustered_BOLD or BOLD_mask
-3dcalc -a ./"$scan"_gm_msk1.nii -b ./BOLD_msk.nii -expr 'a*b' -prefix BOLD_gm.nii -overwrite
-3dcalc -a ./"$scan"_wm_msk1.nii -b ./BOLD_msk.nii -expr 'a*b' -prefix BOLD_wm.nii -overwrite
-3dcalc -a ./"$scan"_gm_msk1.nii -b ./VASO_msk.nii -expr 'a*b' -prefix VASO_gm.nii -overwrite
-3dcalc -a ./"$scan"_wm_msk1.nii -b ./VASO_msk.nii -expr 'a*b' -prefix VASO_wm.nii -overwrite
-
-# Let's ommit the first two slices (fold over artifacts)
-slices=$(3dinfo -nk "$scan"_gm_msk.nii)
-slices=$(($slices-1))
-3dZcutup -keep 2 "${slices}" -prefix BOLD_gm.nii BOLD_gm.nii -overwrite
-3dZcutup -keep 2 "${slices}" -prefix BOLD_wm.nii BOLD_wm.nii -overwrite
-3dZcutup -keep 2 "${slices}" -prefix VASO_gm.nii VASO_gm.nii -overwrite
-3dZcutup -keep 2 "${slices}" -prefix VASO_wm.nii VASO_wm.nii -overwrite
-3dZcutup -keep 2 "${slices}" -prefix "$scan"_gm_msk1.nii "$scan"_gm_msk1.nii -overwrite
-3dZcutup -keep 2 "${slices}" -prefix "$scan"_wm_msk1.nii "$scan"_wm_msk1.nii -overwrite
-
-rm BOLD_roc*
-rm VASO_roc*
-step=0.5
-##### WM VASO ROC
-echo -e "Threshold \t Mean \t Voxels" >> VASO_roc_wm.txt
-3dcalc -overwrite -a "$scan"_wm_msk1.nii -expr 'step(a-0)' -prefix binarised_output.nii
-VASO_roc=$(3dROIstats -mask binarised_output.nii -nzvoxels -quiet "$scan"_wm_msk1.nii)
-echo -e "\n 99   $VASO_roc" >> VASO_roc_wm.txt
-
-thr=0
-for (( i=1; i<=10; i++))
-do
-    3dcalc -overwrite -a VASO_wm.nii -expr 'step(a-'$thr')' -prefix binarised_output.nii
-    VASO_roc=$(3dROIstats -mask binarised_output.nii -nzvoxels -quiet VASO_wm.nii)
-    echo -e "\n $thr   $VASO_roc" >> VASO_roc_wm.txt
-    thr=$(echo $thr+0.5 | bc -l)
-done
-
-##### GM VASO ROC
-echo -e "Threshold \t Mean \t Voxels" >> VASO_roc_gm.txt
-3dcalc -overwrite -a "$scan"_gm_msk1.nii -expr 'step(a-0)' -prefix binarised_output.nii
-VASO_roc=$(3dROIstats -mask binarised_output.nii -nzvoxels -quiet "$scan"_gm_msk1.nii)
-echo -e "\n 99   $VASO_roc" >> VASO_roc_gm.txt
-
-thr=0
-for (( i=1; i<=10; i++))
-do
-    3dcalc -overwrite -a VASO_gm.nii -expr 'step(a-'$thr')' -prefix binarised_output.nii
-    VASO_roc=$(3dROIstats -mask binarised_output.nii -nzvoxels -quiet VASO_gm.nii)
-    echo -e "\n $thr   $VASO_roc" >> VASO_roc_gm.txt
-    thr=$(echo $thr+0.5 | bc -l)
-done
-
-##### WM BOLD ROC
-echo -e "Threshold \t Mean \t Voxels" >> BOLD_roc_wm.txt
-3dcalc -overwrite -a "$scan"_wm_msk1.nii -expr 'step(a-0)' -prefix binarised_output.nii
-BOLD_roc=$(3dROIstats -mask binarised_output.nii -nzvoxels -quiet "$scan"_wm_msk1.nii)
-echo -e "\n 99   $BOLD_roc" >> BOLD_roc_wm.txt
-
-thr=0
-for (( i=1; i<=10; i++))
-do
-    3dcalc -overwrite -a BOLD_wm.nii -expr 'step(a-'$thr')' -prefix binarised_output.nii
-    BOLD_roc=$(3dROIstats -mask binarised_output.nii -nzvoxels -quiet BOLD_wm.nii)
-    echo -e "\n $thr   $BOLD_roc" >> BOLD_roc_wm.txt
-    thr=$(echo $thr+0.5 | bc -l)
-done
-
-##### GM BOLD ROC
-echo -e "Threshold \t Mean \t Voxels" >> BOLD_roc_gm.txt
-3dcalc -overwrite -a "$scan"_gm_msk1.nii -expr 'step(a-0)' -prefix binarised_output.nii
-BOLD_roc=$(3dROIstats -mask binarised_output.nii -nzvoxels -quiet "$scan"_gm_msk1.nii)
-echo -e "\n 99   $BOLD_roc" >> BOLD_roc_gm.txt
-
-thr=0
-for (( i=1; i<=10; i++))
-do
-    3dcalc -overwrite -a BOLD_gm.nii -expr 'step(a-'$thr')' -prefix binarised_output.nii
-    BOLD_roc=$(3dROIstats -mask binarised_output.nii -nzvoxels -quiet BOLD_gm.nii)
-    echo -e "\n $thr   $BOLD_roc" >> BOLD_roc_gm.txt
-    thr=$(echo $thr+0.5 | bc -l)
-done

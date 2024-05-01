@@ -30,26 +30,24 @@ include("./functions/fn_motionCorrection.jl")
 
 params = Dict{Symbol, Any}()
 params[:do_pi_recon] = true             # Perform PI reconstruction or direct recon
-params[:do_b0_corr] = true 
-params[:do_k0_corr] = true              # Perform K0 demodulation of raw data, only works with sk trajectory
-params[:do_rDORK_corr] = true          
+params[:do_b0_corr] = false 
+params[:do_rDORK_corr] = false   
+params[:do_k0_corr] = false              # Perform K0 demodulation of raw data, only works with sk trajectory       
 params[:do_t2s_corr] = false
 params[:is2d] = false
-params[:rep_recon] = 0                     # Range of rep to recon, 0 for all rep, ex. (5:5)- rep 5 
+params[:rep_recon] = 0                    # Range of rep to recon, 0 for all rep, ex. (5:5)- rep 5 
 params[:traj_type] = "nom"                 # Trajectory type nominal="nom",skope="sk",poet = "poet", corrected = "nom_corr"
 params[:save_ph] = false                       # Save phase of recon as nifti
 params[:mcorr] = ""           # Motion correction with navigators "_mCorr"
 params[:recon_order] =  1                  # Higher order recon (2,3)
 
-# Some parameters3
-params[:scan] = "sv_71"            # For now: if multipe echos, include _e1.. _e2..
-params[:scan_b0] = "s71"           # Name of the ME-GRE to use for CS and B0map
-params[:directory] = "09192023_sv_abc_paper"        # directory where the data is stored
+# Some parameters
+params[:scan] = "sb_10_nyqBW_vd13_rot120_fa10"            # For now: if multipe echos, include _e1.. _e2..
+params[:scan_b0] = "s01"           # Name of the ME-GRE to use for CS and B0map
+params[:directory] = "04292024_sb_9T"        # directory where the data is stored
 
 path_tmp = string(pwd(),'/')
 params[:path] = string(path_tmp,"data/",params[:directory])
-
-@infiltrate
 
 # Some constraints
 if params[:recon_order] > 1; params[:traj_type] = "sk"; end
@@ -57,6 +55,92 @@ if params[:recon_order] > 1; params[:traj_type] = "sk"; end
 # Read pulseq parameters
 params_pulseq = matread(string(params[:path],"/acq/",params[:scan],"_params.mat")); params_pulseq = params_pulseq["params"]
 
+# read ME-GRE MRD data and recon
+file = ISMRMRDFile(string(params[:path],"/ismrmd/3d/b0_",params[:scan_b0],"_fieldmap.h5"))
+acqData_b0 = AcquisitionData(file)
+rawData_b0 = RawAcquisitionData(file)
+# rawData_b0 = matread(string(params[:path],"/raw/b0_",params[:scan_b0],"_fieldmap.mat"))
+# rawData_b0 = rawData_b0["b0"]
+
+# if params_pulseq["gen"]["field_strength"] == 7
+#     rawData_b0 = fft(rawData_b0,3)
+# end
+
+if params_pulseq["gen"]["field_strength"] == 7im
+    recon_b0 = ReconCartesianData(acqData_b0,2; interleaved=false)
+elseif params_pulseq["gen"]["field_strength"] == 7
+    recon_b0 = ReconCartesianData(acqData_b0,2; interleaved=true)
+elseif params_pulseq["gen"]["field_strength"] == 9
+     recon_b0 = ReconCartesianData(acqData_b0,2; interleaved=true) 
+end
+
+# recon_b0 = ReconCartesianData(rawData_b0; dims=2)
+
+# Saving echo 1 for reference in tmp folder
+b0_nii = recon_b0[:,:,:,:,1]
+b0_nii = dropdims(sqrt.(sum(abs.(b0_nii).^2, dims=4)), dims=4)
+b0_nii = imresize(b0_nii,Int(params_pulseq["gen"]["n"][1]),Int(params_pulseq["gen"]["n"][2]),Int(params_pulseq["gen"]["n"][3]))
+niwrite(string(params[:path],"/tmp/",params[:scan],"_1ech.nii"),NIVolume(b0_nii; voxel_size=Tuple(params_pulseq["gen"]["res"].*1e3)))
+
+# File names
+file_name = string(params[:scan_b0],"_",Int(params_pulseq["gen"]["n_ov"][1]),"_",Int(params_pulseq["gen"]["n_ov"][2]),"_",Int(params_pulseq["gen"]["n_ov"][3]))
+save_suffix = string("_",params[:traj_type]) 
+
+###### Option 1) We create the sensitivities with MRIReco
+# Sensitivity maps
+if params[:do_pi_recon]
+    save_suffix = string(save_suffix,"_cs")
+    if isfile(string(params[:path],"/acq/cs_",file_name,".jld"))
+        @info ("Sensitivity map exists... Re-calculate? y/n")
+        input = readline()
+    else
+        input = ""
+    end
+    if input == "n"
+        @info ("Loading Sensitivity maps ...")
+        SensitivityMap = load(string(params[:path],"/acq/cs_",file_name,".jld"))
+        SensitivityMap = SensitivityMap["SensitivityMap"]
+    else
+        @info("Calculating Sensitivity Maps...")
+        SensitivityMap = CalculateSensitivityMap(recon_b0,Tuple(Int.(params_pulseq["gen"]["n_ov"])))
+        save(string(params[:path],"/acq/cs_",file_name,".jld"),"SensitivityMap",SensitivityMap)
+    end
+end
+
+# ### Option 2) We read the sensitivities from Matlab
+# if params[:do_pi_recon]
+#     save_suffix = string(save_suffix,"_cs")
+#     if isfile(string(params[:path],"/acq/cs_",file_name,".mat"))
+#         @info ("Loading Sensitivity maps ...")
+#         SensitivityMap = matread(string(params[:path],"/acq/cs_",file_name,".mat"))
+#         SensitivityMap = SensitivityMap["coil_sens"]
+#         SensitivityMap = convert(Array{ComplexF32},SensitivityMap)
+#     else
+#         error("Sensitivity maps haven't been created... get them and then run script again")
+#     end
+# end
+
+# Calculate B0 map
+if params[:do_b0_corr] || (params[:traj_type] == "sk" && params[:recon_order] > 1)
+    save_suffix = string(save_suffix,"_b0")
+    if isfile(string(params[:path],"/acq/b0_",file_name,".jld"))
+        @info ("OffResonance map exists... Re-calculate? y/n")
+        input = readline()
+    else
+        input = ""
+    end
+    if input == "n"
+        @info("Loading Offresonance Maps....")
+        OffResonanceMap = load(string(params[:path],"/acq/b0_",file_name,".jld"))
+        OffResonanceMap = OffResonanceMap["OffResonanceMap"]
+    else
+        @info("Calculating Offresonance Maps....")
+        OffResonanceMap = CalculateOffresonanceMap(recon_b0,SensitivityMap,rawData_b0.params["TE"])
+        save(string(params[:path],"/acq/b0_",file_name,".jld"),"OffResonanceMap",OffResonanceMap)
+    end
+end
+
+@infiltrate
 # read spiral raw MRD file, add partition labels, format into expected array shape
 file = ISMRMRDFile(string(params[:path],"/ismrmd/3d/",params[:scan],".h5"))
 @info("Reading raw data...")
@@ -140,90 +224,7 @@ ks_traj = Trajectory(ks_traj,1,Int(params_pulseq["gen"]["ro_samples"]*params_pul
 # Setting repetition label
 rawData = SetRepetitionLabel(rawData,params)
 
-# read ME-GRE MRD data and recon
-file = ISMRMRDFile(string(params[:path],"/ismrmd/3d/b0_",params[:scan_b0],"_fieldmap.h5"))
-acqData_b0 = AcquisitionData(file)
-rawData_b0 = RawAcquisitionData(file)
-# rawData_b0 = matread(string(params[:path],"/raw/b0_",params[:scan_b0],"_fieldmap.mat"))
-# rawData_b0 = rawData_b0["b0"]
-
-# if params_pulseq["gen"]["field_strength"] == 7
-#     rawData_b0 = fft(rawData_b0,3)
-# end
-
-if params_pulseq["gen"]["field_strength"] == 7im
-    recon_b0 = ReconCartesianData(acqData_b0,3; interleaved=true)
-elseif params_pulseq["gen"]["field_strength"] == 7
-    recon_b0 = ReconCartesianData(acqData_b0,2; interleaved=true)
-elseif params_pulseq["gen"]["field_strength"] == 9
-     recon_b0 = ReconCartesianData(acqData_b0,2; interleaved=true) 
-end
-
-# recon_b0 = ReconCartesianData(rawData_b0; dims=2)
-
-# Saving echo 1 for reference in tmp folder
-b0_nii = recon_b0[:,:,:,:,1]
-b0_nii = dropdims(sqrt.(sum(abs.(b0_nii).^2, dims=4)), dims=4)
-b0_nii = imresize(b0_nii,Int(params_pulseq["gen"]["n"][1]),Int(params_pulseq["gen"]["n"][2]),Int(params_pulseq["gen"]["n"][3]))
-niwrite(string(params[:path],"/tmp/",params[:scan],"_1ech.nii"),NIVolume(b0_nii))
-
-# File names
-file_name = string(params[:scan_b0],"_",Int(params_pulseq["gen"]["n_ov"][1]),"_",Int(params_pulseq["gen"]["n_ov"][2]),"_",Int(params_pulseq["gen"]["n_ov"][3]))
-save_suffix = string("_",params[:traj_type]) 
-
-###### Option 1) We create the sensitivities with MRIReco
-# Sensitivity maps
-if params[:do_pi_recon]
-    save_suffix = string(save_suffix,"_cs")
-    if isfile(string(params[:path],"/acq/cs_",file_name,".jld"))
-        @info ("Sensitivity map exists... Re-calculate? y/n")
-        input = readline()
-    else
-        input = ""
-    end
-    if input == "n"
-        @info ("Loading Sensitivity maps ...")
-        SensitivityMap = load(string(params[:path],"/acq/cs_",file_name,".jld"))
-        SensitivityMap = SensitivityMap["SensitivityMap"]
-    else
-        @info("Calculating Sensitivity Maps...")
-        SensitivityMap = CalculateSensitivityMap(recon_b0,Tuple(Int.(params_pulseq["gen"]["n_ov"])))
-        save(string(params[:path],"/acq/cs_",file_name,".jld"),"SensitivityMap",SensitivityMap)
-    end
-end
-
-# ### Option 2) We read the sensitivities from Matlab
-# if params[:do_pi_recon]
-#     save_suffix = string(save_suffix,"_cs")
-#     if isfile(string(params[:path],"/acq/cs_",file_name,".mat"))
-#         @info ("Loading Sensitivity maps ...")
-#         SensitivityMap = matread(string(params[:path],"/acq/cs_",file_name,".mat"))
-#         SensitivityMap = SensitivityMap["coil_sens"]
-#         SensitivityMap = convert(Array{ComplexF32},SensitivityMap)
-#     else
-#         error("Sensitivity maps haven't been created... get them and then run script again")
-#     end
-# end
-
-# Calculate B0 map
-if params[:do_b0_corr] || (params[:traj_type] == "sk" && params[:recon_order] > 1)
-    save_suffix = string(save_suffix,"_b0")
-    if isfile(string(params[:path],"/acq/b0_",file_name,".jld"))
-        @info ("OffResonance map exists... Re-calculate? y/n")
-        input = readline()
-    else
-        input = ""
-    end
-    if input == "n"
-        @info("Loading Offresonance Maps....")
-        OffResonanceMap = load(string(params[:path],"/acq/b0_",file_name,".jld"))
-        OffResonanceMap = OffResonanceMap["OffResonanceMap"]
-    else
-        @info("Calculating Offresonance Maps....")
-        OffResonanceMap = CalculateOffresonanceMap(recon_b0,SensitivityMap,rawData_b0.params["TE"])
-        save(string(params[:path],"/acq/b0_",file_name,".jld"),"OffResonanceMap",OffResonanceMap)
-    end
-end
+#### IT was here....
 
 # K0 correction
 if params[:do_k0_corr]
@@ -273,6 +274,11 @@ if params[:do_rDORK_corr]
     end
 end
 
+###### Temp to test interpolation.. in kspace::
+save_suffix_orig = deepcopy(save_suffix)
+ks_traj_orig = deepcopy(ks_traj)
+######
+
 # Reconstruct by repetition....
 kdata = Array{Array{ComplexF32,2},3}(undef,1,1,1)
 if params[:rep_recon] == 0:0 || params[:rep_recon] == 0 
@@ -284,7 +290,7 @@ end
 
         # FFT Shift
         # ToDo: Use correct value for shift... how do I get it?
-        tmp = CorrectFFTShift(tmp,fftShift,ks_traj.nodes,params)
+        # tmp = CorrectFFTShift(tmp,fftShift,ks_traj.nodes,params)
 
         # K0 correction
         if params[:do_k0_corr] 
@@ -297,6 +303,19 @@ end
         end
 
         kdata[1] = dropdims(reshape(tmp,(:,numCha,1)),dims=3)
+
+        # ################# Temp....... Downsampling data to see if we get a boost in SNR...
+        # @info("Stop... Interpolate raw data...")
+        # @infiltrate
+        # using Interpolations
+        # itp = interpolate(kdata[1],(BSpline(Constant()),NoInterp()))
+        # tmp = itp(1:2:size(kdata[1],1),1:size(kdata[1],2))
+        # kdata[1] = tmp
+        # ks_traj.nodes = ks_traj_orig.nodes[:,1:2:end]
+        # ks_traj.times = ks_traj_orig.times[1:2:end]
+        
+        # save_suffix = string(save_suffix_orig,"_rawinterp")
+        # ###################################################################
 
         # Create AcqData object
         acqData = AcquisitionData(ks_traj,kdata; encodingSize=(Int(params_pulseq["gen"]["ro_samples"]*params_pulseq["spi"]["interl"]),1,Int(params_pulseq["gen"]["n_ov"][3])), fov=Tuple(params_pulseq["gen"]["fov"]))
