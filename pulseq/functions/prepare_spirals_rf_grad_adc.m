@@ -52,11 +52,14 @@ for j=1:params.gen.n(3)
         elseif contains(params.spi.rotate,'linear')
             tmp1 = 0;
             kaa = kaa.*exp(1i*tmp1);
-        elseif contains(params.spi.rotate,'180')
-            tmp1 = pi*(j-1);
+        elseif contains(params.spi.rotate,'90')
+            tmp1 = (90*pi/180)*(j-1);
             kaa = kaa.*exp(1i*tmp1);
         elseif contains(params.spi.rotate,'120')
             tmp1 = (120*pi/180)*(j-1);
+            kaa = kaa.*exp(1i*tmp1);
+        elseif contains(params.spi.rotate,'180')
+            tmp1 = pi*(j-1);
             kaa = kaa.*exp(1i*tmp1);
         end
 
@@ -71,6 +74,16 @@ for j=1:params.gen.n(3)
         if j==1 || contains('none',params.spi.rotate) == 0
             % Make Gradient within SR and Grad limits
             [C,time,g,s,k] = minTimeGradient(C,rv, C(1,1), 0, g_max, sr_max,T,ds,0);
+
+
+%             %%%%%% Temp: trying to make safe spirals
+%             tmp = k(:,1) + (k(:,2).*1i);
+%             phi = unwrap(angle(tmp));
+%             rc = (1/(2.*pi*params.gen.fov(1))).*((((phi.^2)+1).^(3/2))./((phi.^2)+2));
+%             rc = rc.';
+%             xx = (lims.gamma.*params.spi.max_grad*1e-3./rc(1:end-1));
+%             tt = 0:T:time-T;
+%             %%%%%%
 
             % Adding some zeros to force gradient to start at 0
             tmp = [g(1,:)/2; g(1,:)/4];

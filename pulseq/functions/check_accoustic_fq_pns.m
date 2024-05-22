@@ -23,6 +23,8 @@ function check_accoustic_fq_pns(seq,params, grad_file)
         error(sprintf('########################################## \n Sequence failed resonance test,Please modify Spiral/EPI gradient Amplitde and Slew Rate and try again \n##########################################'))
     end
 
-    seq.calcPNS(grad_file);
-
+    if ~isempty(grad_file)
+        seq.calcPNS(grad_file);
+    end
+    
 end

@@ -13,23 +13,24 @@ warning('OFF', 'mr:restoreShape')
 %% Define parameters
 folder_name = 'tmp';        % Day I am scanning
 seq_name = 'sample';                % use sv/abc/sb_n (n for the diff scans at each day)
-params.gen.seq = 1;                 % 1-VASO 2-ABC 3-Multi-Echo 4-BOLD
+params.gen.seq = 4;                 % 1-VASO 2-ABC 3-Multi-Echo 4-BOLD
 params.gen.field_strength = 7;      % Field Strength (7=7T,7i=7T-impuse_grad,9=9.4T,11=11.7T)
 params.gen.plot = 0;                % Plot frequencies, PNS, etc...
 
 % General parameters
 params.gen.fov = [192 192 24].*1e-3;% FOV
 params.gen.res = [0.8 0.8 1].*1e-3; % Nominal resolution
-params.gen.fa = 0;                  % Set to 0, to use Ernst Angle
-params.gen.ernst_t1 = 2100e-3;      % T1 to calculate Ernst Angle (s) 7T=(WM-1220e-3)(GM-1800e-3)(blood=2587e-3) 9T=(1425e-3)(2100e-3)
+params.gen.fa = 0;                  % FA in degrees. Set to 0, to use Ernst Angle
+params.gen.vfa = 0;                 % Variable FA (WIP)
+params.gen.vfa_cutoff = 33;         % Variable FA cut-off (WIP) in degrees
+params.gen.ernst_t1 = 1425e-3;      % T1 to calculate Ernst Angle (s) 7T=(WM-1220e-3)(GM-1800e-3)(blood=2587e-3) 9T=(1425e-3)(2100e-3)
 params.gen.te = 0e-3;               % Set to 0 to shortest TE possible
 params.gen.tr_delay = 0e-3;         % Delay between acquisitions in sec
 params.gen.ro_type = 's';           % 's'-Spiral, 'c'-Cartesiaen (WIP)
 params.gen.kz = 1;                  % Acceleration in Kz
 params.gen.pf = 1;                  % Partial fourier in Kz
-params.gen.fat_sat = 1;             % Fat saturation (1=yes,0=no)
+params.gen.fat_sat = 0;             % Fat saturation (1=yes,0=no)
 params.gen.fs_angle = 0;            % Fat sat angle (0=default)
-params.gen.vfa = 0;                 % Variable FA (WIP)
 params.gen.skope = 0;               % Add skope sync scan and triggers, 0=N0, 1=sep scan, 2=concurrent(center partition), 3=1&2
 params.gen.skope_sync = 0;          % Skope pre-scans, only added in skope seq
 params.gen.dork = 0;                % extra adc's for DORK correction (WIP)
@@ -40,16 +41,16 @@ params.gen.echos = 1;               % Echos per RF pulse (WIP)
          
 % Spiral parameters
 params.spi.type = 0;                % spiral type 0=spiral-Out , 1=spiral-In, 3=In-Out (WIP), 4=In-Out kspace interleavead (WIP)
-params.spi.in_out_order = 1;        % 0=In-Out same k-space path (separate vol.), 1=In-Out k-space path shift
+params.spi.in_out_order = 1;        % 0=In-Out same k-space path (separate vol.), 1=In-Out k-space path shift (WIP)
 params.spi.rotate = 'none';         % Spiral rotation ('none','golden','180','120')
 params.spi.increment = 'linear';    % Spiral increment mode (for now only 'linear') (WIP)
-params.spi.max_grad  = 27;          % Peak gradient amplitude for spiral (mT/m)
+params.spi.max_grad  = 35;          % Peak gradient amplitude for spiral (mT/m)
 params.spi.max_sr = 155;            % Max gradient slew rate for spiral (mT/m/ms)
 params.spi.interl = 1;              % Spiral interleaves
 params.spi.vd = 1.3;                % Variability density (accepts negative values)
-params.spi.rxy = 3.5;               % In-plane (radial) undersampling
+params.spi.rxy = 3;               % In-plane (radial) undersampling
 params.spi.rxy_az = 1;              % In-plane (azimuthal) undersampling (WIP)
-params.spi.bw = 0e3;                % Spiral BW in Hz 0=Nyquist 
+params.spi.bw = 0e3;                % Spiral BW in Hz 0=Nyquist, highest=1000e3
 
 % MT pulse parameters
 params.mt.mt = 0;                   % Add MT pulse, 0 for reference scan without MT
@@ -155,7 +156,7 @@ if and(params.gen.ro_type=='s',or(params.spi.type == 1,params.spi.type == 2)); t
 params = prepare_flip_angle(tr_tmp,gx, params);
 
 % Create RF and Gz
-[rf0,gz,gzReph,params] =  create_rf_gz_pulseq(params);
+[rf0,gz,gzReph,params] =  create_rf_gz_pulseq(params,tr_tmp);
 
 %% Prepare Delays and triggers
 if params.gen.te > 0; te_delay = mr.makeDelay(round(params.gen.te-((mr.calcDuration(rf0)/2)+mr.calcDuration(gzReph)+mr.calcDuration(gz_blips)),4)); end         % TE delay
