@@ -11,6 +11,9 @@ function ReconCartesianData(acqData::AcquisitionData,dims::Int; interleaved=fals
     numRead = acqData.encodingSize[1]
     numPart = acqData.encodingSize[2]
 
+    # Temp: trying to make numRead match for small fov
+    numRead = numRead-4
+
     if dims==3
         numSlices = acqData.encodingSize[3]
     else
@@ -78,8 +81,8 @@ function ReconCartesianData(acqData::AcquisitionData,dims::Int; interleaved=fals
     # Rearranging if needed.. only when interleaved acquisition...
     if interleaved
         tmp = Array{ComplexF32,5}(undef,size(recon))
-        tmp[:,:,2:2:end,:,:] = recon[:,:,1:Int(size(recon,3)/2),:,:]
-        tmp[:,:,1:2:end,:,:] = recon[:,:,Int(size(recon,3)/2)+1:end,:,:]
+        tmp[:,:,2:2:end,:,:] = recon[:,:,1:Int(floor(size(recon,3)/2)),:,:]
+        tmp[:,:,1:2:end,:,:] = recon[:,:,Int(floor(size(recon,3)/2+1)):end,:,:]
         recon = tmp
     end
 

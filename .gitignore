@@ -20,6 +20,8 @@ docs/site/
 # AMM:
 data/
 analysis/youtube/
+tools/pns_prediction
+tools/pulseq
 
 tmp/
 *.jpg
