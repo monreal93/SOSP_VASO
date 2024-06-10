@@ -4,23 +4,34 @@ lims = params.gen.lims;
 %% Readout Gradients
 % AMM Implementation raw Archimiedean spiral
 k_fov = 1./params.gen.res;
-last_tetha = (2*pi*k_fov(1)*params.gen.fov(1)/2);
+last_tetha_x = (2*pi*k_fov(1)*params.gen.fov(1)/2);
+last_tetha_y = (2*pi*k_fov(2)*params.gen.fov(2)/2);
 
-last_tetha = floor(last_tetha/(2*pi))*2*pi;
-tetha = 0:2*pi/1e2:last_tetha;
+last_tetha_x = floor(last_tetha_x/(2*pi))*2*pi;
+last_tetha_y = floor(last_tetha_y/(2*pi))*2*pi;
+tetha_x = 0:2*pi/1e2:last_tetha_x;
+tetha_y = 0:2*pi/1e2:last_tetha_y;
+% tetha_y = linspace(0,last_tetha_y,length(tetha_x));
 
 % Positive of negative VD
 if params.spi.vd > 0
-    fov_vd = linspace(params.gen.fov(1)*params.spi.vd,params.gen.fov(1),length(tetha));
+    fov_vd_x = linspace(params.gen.fov(1)*params.spi.vd,params.gen.fov(1),length(tetha_x));
+    fov_vd_y = linspace(params.gen.fov(2)*params.spi.vd,params.gen.fov(2),length(tetha_y));
 else
-    fov_vd = linspace(params.gen.fov(1),params.gen.fov(1)*params.spi.vd*-1,length(tetha));
+    fov_vd_x = linspace(params.gen.fov(1),params.gen.fov(1)*params.spi.vd*-1,length(tetha_x));
+    fov_vd_y = linspace(params.gen.fov(2),params.gen.fov(2)*params.spi.vd*-1,length(tetha_y));
 end
 
 if params.spi.type == 4
-    ka = (tetha./(2*pi*fov_vd)).*exp(1i.*(tetha./(params.spi.rxy*2)./params.spi.interl));
+    ka = (tetha_x./(2*pi*fov_vd_x)).*exp(1i.*(tetha_x./(params.spi.rxy*2)./params.spi.interl));
+%     ka_x = (tetha_x./(2*pi*fov_vd_x)).*cos((tetha_x./(params.spi.rxy*2)./params.spi.interl));
+%     ka_y = (tetha_y./(2*pi*fov_vd_y)).*cos((tetha_y./(params.spi.rxy*2)./params.spi.interl));
 else
-    ka = (tetha./(2*pi*fov_vd)).*exp(1i.*(tetha./params.spi.rxy./params.spi.interl));
+    ka = (tetha_x./(2*pi*fov_vd_x)).*exp(1i.*(tetha_x./params.spi.rxy./params.spi.interl));
+%     ka_x = (tetha_x./(2*pi*fov_vd_x)).*sin((tetha_x./params.spi.rxy./params.spi.interl));
+%     ka_y = (tetha_y./(2*pi*fov_vd_y)).*sin((tetha_y./params.spi.rxy./params.spi.interl));
 end
+% ka = ka_x + (ka_y.*1i);
 
 % If IN-OUT with shift between, loop again in interleaves...
 if params.spi.type == 4
@@ -174,7 +185,7 @@ adcSamples = ceil(ceil(adcSamples/4)*4/1000)*1000;
 
 % Checking forbidden frequencies, simple approach
 scanner = params.gen.field_strength;
-check_forbbiden_fq(squeeze(spiral_grad_shape(1,:,1,1)),scanner,false);
+check_forbbiden_fq(squeeze(spiral_grad_shape(1,:,1,1)),scanner,true);
 check_forbbiden_fq(squeeze(spiral_grad_shape(2,:,1,1)),scanner,false);
 
 end

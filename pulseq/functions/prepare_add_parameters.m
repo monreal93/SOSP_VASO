@@ -1,4 +1,4 @@
-function params = prepare_add_parameters(seq,ks_traj,gx,rf,adc,te0,te1,tr0,tr1,params)
+function params = prepare_add_parameters(ks_traj,gx,rf,adc,te0,te1,tr0,tr1,seq_t0,seq_t1,params)
 
     % Update resolution and mtx size with effective resolution
     rx = 1./(abs(max(ks_traj.kx(:,1)))+abs(min(ks_traj.kx(:,1))));
@@ -19,7 +19,8 @@ function params = prepare_add_parameters(seq,ks_traj,gx,rf,adc,te0,te1,tr0,tr1,p
     params.gen.n(1:2) = params.gen.n(1:2)+tmp; % making in-plane even
     % Adjust for phase oversampling
     params.gen.n_ov(1:2) = params.gen.n(1:2);
-    params.gen.n_ov(3) = params.gen.n_ov(3)/params.gen.kz;
+    % ToDo: Check what value I really want in n_ov (to be used in recon)
+    params.gen.n_ov(3) = params.gen.n_ov(3).*params.gen.kz;
     [params.gen.n, params.gen.n_ov] = deal(params.gen.n_ov, params.gen.n);
     
     % converting FA back to degrees
@@ -30,7 +31,7 @@ function params = prepare_add_parameters(seq,ks_traj,gx,rf,adc,te0,te1,tr0,tr1,p
     params.gen.TE = te1-te0+(mr.calcDuration(rf)/2);
     params.gen.acqTR = tr1-tr0;
     params.gen.volTR = params.gen.acqTR.*params.gen.n(3).*params.spi.interl;
-    params.gen.effTR = seq.duration();
+    params.gen.effTR = seq_t1-seq_t0;
     params.gen.adc_dwell = adc.dwell;
     params.gen.ro_time = adc.duration;
     params.gen.ti1 = ((params.gen.effTR-params.vaso.f_v_delay)/4)+params.vaso.f_v_delay;
