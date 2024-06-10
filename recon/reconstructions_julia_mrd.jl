@@ -1,6 +1,7 @@
 using Pkg
 
-cd("/usr/share/5T4/Alejandro/sosp_vaso/")
+# cd("/usr/share/5T4/Alejandro/sosp_vaso/")
+cd("/neurodesktop-storage/5T4/Alejandro/sosp_vaso/")
 Pkg.activate("./recon/")
 
 using Revise
@@ -35,16 +36,16 @@ params[:do_rDORK_corr] = false
 params[:do_k0_corr] = false              # Perform K0 demodulation of raw data, only works with sk trajectory       
 params[:do_t2s_corr] = false
 params[:is2d] = false
-params[:rep_recon] = 0                    # Range of rep to recon, 0 for all rep, ex. (5:5)- rep 5 
+params[:rep_recon] = 5                    # Range of rep to recon, 0 for all rep, ex. (5:5)- rep 5 
 params[:traj_type] = "nom"                 # Trajectory type nominal="nom",skope="sk",poet = "poet", corrected = "nom_corr"
 params[:save_ph] = false                       # Save phase of recon as nifti
 params[:mcorr] = ""           # Motion correction with navigators "_mCorr"
 params[:recon_order] =  1                  # Higher order recon (2,3)
 
 # Some parameters
-params[:scan] = "sb_10_nyqBW_vd13_rot120_fa10"            # For now: if multipe echos, include _e1.. _e2..
+params[:scan] = "sb_02_safe"            # For now: if multipe echos, include _e1.. _e2..
 params[:scan_b0] = "s01"           # Name of the ME-GRE to use for CS and B0map
-params[:directory] = "04292024_sb_9T"        # directory where the data is stored
+params[:directory] = "05212024_safe_spirals"        # directory where the data is stored
 
 path_tmp = string(pwd(),'/')
 params[:path] = string(path_tmp,"data/",params[:directory])
@@ -151,7 +152,7 @@ numRead = size(rawData.profiles[1].data,1) # Readout from raw data
 # numRead = Int(params_pulseq["gen"]["ro_samples"])  # Readout from pulseq params
 numInterl = Int(params_pulseq["spi"]["interl"])
 # numPar = maximum(unique([rawData.profiles[l].head.idx.kspace_encode_step_2+1 for l=1:length(rawData.profiles)]))
-numPar = Int(params_pulseq["gen"]["n_ov"][3])
+numPar = Int(params_pulseq["gen"]["n_ov"][3]./params_pulseq["gen"]["kz"])
 numSet = maximum(unique([rawData.profiles[l].head.idx.set+1 for l=1:length(rawData.profiles)]))
 numCha = size(rawData.profiles[1].data,2)
 numRep = rawData.params["userParameters"]["sWipMemBlock.alFree[7]"]  # I think this is repetitions in special card
@@ -249,11 +250,11 @@ if params[:recon_order] > 1 || (params[:traj_type] == "sk" && params[:recon_orde
 end
 params_pulseq["gen"]["n_ov"] = Int.(params_pulseq["gen"]["n_ov"])
 params_recon[:reconSize] = (params_pulseq["gen"]["n_ov"][1],params_pulseq["gen"]["n_ov"][2],params_pulseq["gen"]["n_ov"][3])
-params_recon[:regularization] = "L1";
-params_recon[:λ] = 1.e-2;  # 1.e-2
-params_recon[:iterations] = 40; # (10)
-params_recon[:solver] = "admm"; # cgnr (L2), fista (L1), admm(L1)
-params_recon[:method] = "nfft"; # nfft, leastsquare
+params_recon[:regularization] = "L1"
+params_recon[:λ] = 1.e-2  # 1.e-2
+params_recon[:iterations] = 40 # (10)
+params_recon[:solver] = "admm" # cgnr (L2), fista (L1), admm(L1)
+params_recon[:method] = "nfft" # nfft, leastsquare
 
 # FFT Shift
 # ToDo: Use correct value for shift... how do I get it?

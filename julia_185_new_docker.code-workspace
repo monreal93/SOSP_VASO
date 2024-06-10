@@ -1,15 +1,11 @@
 {
 	"folders": [
 		{
-			"name": "sosp_vaso",
 			"path": "."
 		},
 		{
-			"name": ".julia",
 			"path": "../../../../../root/.julia"
 		}
 	],
-	"settings": {
-		"julia.environmentPath": "/usr/share/5T4/Alejandro/sosp_vaso/recon"
-	}
+	"settings": {}
 }

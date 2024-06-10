@@ -23,14 +23,23 @@ function CalculateSensitivityMap(recon,MtxSize::Tuple;calib_size::Int=12)
     # calibration = fft(calibration,2)
     # calibration = fftshift(fft(calibration,3),3)
 
-    calibration = calibration[Int(end/2+1-calib_size):Int(end/2+calib_size),Int(end/2+1-calib_size):Int(end/2+calib_size),Int(end/2+1-6):Int(end/2+6),:]
-    SensitivityMap = espirit(calibration,MtxSize)
+    calibration = calibration[Int(end/2+1-calib_size):Int(end/2+calib_size),Int(end/2+1-calib_size):Int(end/2+calib_size),Int(floor(end/2+1)-6):Int(floor(end/2)+6),:]
+    # # ESPIRIT wants even numbers in slice direction, lets add some slices
+    # if mod(Int(MtxSize[3]./2),2) == 1
+    #     MtxSize_tmp = (MtxSize[1],MtxSize[2],Int(MtxSize[3]+2))
+    # else
+    #     MtxSize_tmp = copy(MtxSize)
+    # end
+    SensitivityMap = espirit(calibration,MtxSize_tmp)
     SensitivityMap = fftshift(fftshift(SensitivityMap,1),2)
 
     # ToDo: Sometimes I need to do fftshift in 3 dim also
     SensitivityMap = fftshift(SensitivityMap,3)
 
     SensitivityMap = dropdims(SensitivityMap; dims = 5)
+
+    # # ESPIRIT wants even numbers in slice direction, lets remove the added slices
+    # SensitivityMap = SensitivityMap[:,:,2:end-1,:]
 
     return SensitivityMap
     
@@ -98,7 +107,7 @@ function CalculateOffresonanceMap(recon_b0,SensitivityMap,EchoTimes::Vector{Floa
     b0 = fmap_cg_d
 
     b0 = b0.*2π.*-1    # Original 
-    # b0 = b0.*1.5  # Temp: only for sv_01
+    b0 = b0.*3.5  # Temp: only for sv_01
 
     # Temp: Trying to rescale
     # ToDo: Are the maps in MRIFieldmaps.jl off by 10? 

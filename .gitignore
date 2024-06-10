@@ -20,7 +20,12 @@ docs/site/
 # AMM:
 data/
 analysis/youtube/
+<<<<<<< HEAD
 tools/
+=======
+tools/pns_prediction
+tools/pulseq
+>>>>>>> 13213ab59d7a4bbb0112bf415731c7fe592bb581
 
 tmp/
 *.jpg
