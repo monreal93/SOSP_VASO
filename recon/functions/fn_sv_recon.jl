@@ -261,8 +261,10 @@ function fn_sv_recon(params_sv::Dict{Symbol,Any})
     #     f_rep = 1
     # end
 
+    @infiltrate
     # Get calibration matrix for B0 dynamic correction
     if params_sv[:drift] == "_drift" && params_sv[:do_b0_corr] == true
+        fm = permutedims(fm, [1,2,3,5,4])
         A, B, sh_basis, ΔB0, b_A = getCalibrationMatrix(params_sv,b0,fm)
     end
 

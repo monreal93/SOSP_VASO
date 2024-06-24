@@ -12,7 +12,7 @@ function ReconCartesianData(acqData::AcquisitionData,dims::Int; interleaved=fals
     numPart = acqData.encodingSize[2]
 
     # Temp: trying to make numRead match for small fov
-    numRead = numRead-4
+    # numRead = numRead-4
 
     if dims==3
         numSlices = acqData.encodingSize[3]
@@ -30,6 +30,7 @@ function ReconCartesianData(acqData::AcquisitionData,dims::Int; interleaved=fals
             for i_sl=1:numSlices
 
                 tmp = acqData.kdata[i_ech,i_sl,1]
+
                 tmp = reshape(tmp,numRead,numPart,numChan)
                  
                 for i_ch = 1:numChan

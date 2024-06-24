@@ -1,7 +1,7 @@
 using Pkg
 
-# cd("/usr/share/5T4/Alejandro/sosp_vaso/")
-cd("/neurodesktop-storage/5T4/Alejandro/sosp_vaso/")
+cd("/usr/share/5T4/Alejandro/sosp_vaso/")
+# cd("/neurodesktop-storage/5T4/Alejandro/sosp_vaso/")
 Pkg.activate("./recon/")
 
 using Revise
@@ -24,6 +24,7 @@ include("./functions/fn_save_nii.jl")
 include("./functions/fn_Utilities.jl")
 include("./functions/fn_PrepareMRD.jl")
 include("./functions/fn_ReconstructCartesian.jl")
+include("./functions/fn_ReconstructSpiral.jl")
 include("./functions/fn_RawDataCorrection.jl")
 include("./functions/fn_CalculateSensitivityOffresonanceMaps.jl")
 include("./functions/fn_calculateSphericalHarmonics.jl")
@@ -31,21 +32,22 @@ include("./functions/fn_motionCorrection.jl")
 
 params = Dict{Symbol, Any}()
 params[:do_pi_recon] = true             # Perform PI reconstruction or direct recon
-params[:do_b0_corr] = false 
+params[:do_b0_corr] = true 
 params[:do_rDORK_corr] = false   
-params[:do_k0_corr] = false              # Perform K0 demodulation of raw data, only works with sk trajectory       
+params[:do_coco_corr] = false           # Perform concomitant field correction
+params[:do_k0_corr] = false             # Perform K0 demodulation of raw data, only works with sk trajectory       
 params[:do_t2s_corr] = false
 params[:is2d] = false
-params[:rep_recon] = 5                    # Range of rep to recon, 0 for all rep, ex. (5:5)- rep 5 
+params[:rep_recon] = 5                   # Range of rep to recon, 0 for all rep, ex. (5:5)- rep 5 
 params[:traj_type] = "nom"                 # Trajectory type nominal="nom",skope="sk",poet = "poet", corrected = "nom_corr"
 params[:save_ph] = false                       # Save phase of recon as nifti
 params[:mcorr] = ""           # Motion correction with navigators "_mCorr"
 params[:recon_order] =  1                  # Higher order recon (2,3)
 
 # Some parameters
-params[:scan] = "sb_02_safe"            # For now: if multipe echos, include _e1.. _e2..
+params[:scan] = "sb_01_0te"            # For now: if multipe echos, include _e1.. _e2..
 params[:scan_b0] = "s01"           # Name of the ME-GRE to use for CS and B0map
-params[:directory] = "05212024_safe_spirals"        # directory where the data is stored
+params[:directory] = "06142024_sb_girf_9T"        # directory where the data is stored
 
 path_tmp = string(pwd(),'/')
 params[:path] = string(path_tmp,"data/",params[:directory])
@@ -76,6 +78,19 @@ elseif params_pulseq["gen"]["field_strength"] == 9
 end
 
 # recon_b0 = ReconCartesianData(rawData_b0; dims=2)
+
+# #### Temp::: making match the ME-GRE scan and spiral data... Only for 9T BW test, 0611 
+# recon_b0_new = Array{ComplexF32,5}(undef, size(recon_b0))
+# for i=1:3
+#     for j=1:31
+#         for k=1:24
+#             recon_b0_new[:,:,k,j,i] = imrotate(recon_b0[:,:,k,j,i], π/2)
+#         end
+#     end
+# end
+# recon_b0 = recon_b0_new
+# @infiltrate
+# ####
 
 # Saving echo 1 for reference in tmp folder
 b0_nii = recon_b0[:,:,:,:,1]
@@ -141,7 +156,28 @@ if params[:do_b0_corr] || (params[:traj_type] == "sk" && params[:recon_order] > 
     end
 end
 
-@infiltrate
+# Calculate concomitant field
+if params[:do_coco_corr] && params[:do_b0_corr]
+    @info("Calculating Concomitant Maps....")
+    save_suffix = string(save_suffix,"_co")
+    # phase,read,slice
+    RotMatrix =vcat(transpose(collect(rawData_b0.profiles[1].head.phase_dir)),
+            transpose(collect(rawData_b0.profiles[1].head.read_dir)),
+            transpose(collect(rawData_b0.profiles[1].head.slice_dir)))
+    CenterPosition = (rawData_b0.profiles[end].head.position .+ rawData_b0.profiles[1].head.position)./2 .* 1e-3
+    CocoFieldMap = CalculateConcomitantFieldMap(RotMatrix,CenterPosition, params_pulseq)
+    CocoFieldMap = CocoFieldMap .- Float32(10*2π) # Ading some extra Hz, maybe due to drift?
+    # I need to reverse dims=3,2,1, maybe rot matrix is wrong?
+    CocoFieldMap = reverse(CocoFieldMap,dims=(1,2,3))
+    OffResonanceMap .= OffResonanceMap .+ CocoFieldMap.*im
+    # OffResonanceMap .= OffResonanceMap .- (40*2*π*im)
+    mask = SensitivityMap[:,:,:,1]
+    mask[abs.(mask) .> 0] .= 1
+    mask = isone.(mask)
+    @infiltrate
+    OffResonanceMap .= OffResonanceMap .* mask
+end
+
 # read spiral raw MRD file, add partition labels, format into expected array shape
 file = ISMRMRDFile(string(params[:path],"/ismrmd/3d/",params[:scan],".h5"))
 @info("Reading raw data...")
@@ -240,6 +276,8 @@ if params[:do_pi_recon]
     params_recon[:senseMaps] = SensitivityMap
 end
 if params[:do_b0_corr]
+    # Temp: Scaling fieldmap for testing...
+    # OffResonanceMap = OffResonanceMap .* Float32(-1)
     params_recon[:correctionMap] = OffResonanceMap
 end
 if params[:recon_order] > 1 || (params[:traj_type] == "sk" && params[:recon_order] > 1)
@@ -259,7 +297,7 @@ params_recon[:method] = "nfft" # nfft, leastsquare
 # FFT Shift
 # ToDo: Use correct value for shift... how do I get it?
 # fftShift = rawData_b0.profiles[1].head.slice_dir
-fftShift = rawData.profiles[1].head.position .- rawData_b0.profiles[1].head.position
+fftShift = (rawData.profiles[1].head.position .- rawData_b0.profiles[1].head.position)./Float32(2)
 
 # DORK correction
 if params[:do_rDORK_corr]
@@ -328,6 +366,13 @@ end
         @info(string("Reconstructing Repetition # ",i_rep))
         @time Ireco = reconstruction(acqData, params_recon)
 
+        # Remove extra slices due to phase oversampling
+        if params_pulseq["gen"]["n_ov"] ≠ params_pulseq["gen"]["n"]
+            ph_ov_slices = params_pulseq["gen"]["n_ov"][3] - params_pulseq["gen"]["n"][3]
+            ph_ov_slices = Int(ph_ov_slices/2)
+            Ireco = Ireco[:,:,ph_ov_slices+1:end-ph_ov_slices]
+        end
+
         # Save magnitude
         if params[:do_pi_recon]
             Ireco_mag = NIVolume(abs.(Ireco[:,:,:,1,1,:]))
@@ -357,8 +402,12 @@ end
         else
             tmp_rep_recon = params[:rep_recon]
         end 
-        TimeSeries = MergeReconstrucion(params[:path],params[:scan],tmp_rep_recon,params[:do_pi_recon],params[:do_b0_corr],params[:do_k0_corr],params[:do_rDORK_corr]; TrajectoryType=params[:traj_type])
-        file = string(params[:path],"/recon/",params[:scan],"_",params[:contrasts][i_contrasts],save_suffix,".nii")
+        TimeSeries = MergeReconstrucion(params[:path],params[:scan],tmp_rep_recon,params[:do_pi_recon],params[:do_b0_corr],params[:do_coco_corr],params[:do_k0_corr],params[:do_rDORK_corr]; TrajectoryType=params[:traj_type])
+        if params[:rep_recon] == 0
+            file = string(params[:path],"/recon/",params[:scan],"_",params[:contrasts][i_contrasts],save_suffix,".nii")
+        else
+            file = string(params[:path],"/recon/",params[:scan],"_",params[:contrasts][i_contrasts],"_r",params[:rep_recon][1],"_",params[:rep_recon][end],save_suffix,".nii")
+        end
         # Creating NIfTI file, adding pixel size and TR
         TimeSeries_nii = NIVolume(TimeSeries; voxel_size=Tuple(params_pulseq["gen"]["res"].*1e3),time_step=params_pulseq["gen"]["volTR"])
         if isfile(file)
