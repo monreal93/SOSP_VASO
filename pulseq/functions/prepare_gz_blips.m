@@ -2,7 +2,7 @@ function gz_blips = prepare_gz_blips(params)
 lims = params.gen.lims;    
 % Kz Blips:
     tmp = params.gen.n(3);
-    if mod(tmp,2) == 1; tmp = tmp + 1; end
+%     if mod(tmp,2) == 1; tmp = tmp + 1; end
     for i=1:tmp
         if mod(params.gen.n(3),2) == 1
             area = -(params.gen.del_k(3)*(params.gen.n(3)/2))+(params.gen.del_k(3)*(i-1))+(params.gen.del_k(3)/2);

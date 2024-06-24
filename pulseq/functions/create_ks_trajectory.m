@@ -1,7 +1,7 @@
-function ks_traj = create_ks_trajectory(seq,adc,params)
+function ks_traj = create_ks_trajectory(seq,adc,params,j)
 
     [ktraj_adc, t_adc, ktraj, t_ktraj, t_excitation, t_refocusing, slicepos, t_slicepos] = seq.calculateKspacePP();
-    j = 1;
+    % j = 1;
     if params.gen.ro_type == 's'
         plane_samples = adc.numSamples;
     elseif params.gen.ro_type == 'c'
