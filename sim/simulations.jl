@@ -21,12 +21,15 @@ FFTW.set_provider!("mkl")
 include("../recon/functions/fn_addCorrelatedNoise.jl")
 include("../recon/functions/fn_calculateGfactor.jl")
 include("../recon/functions/fn_save_nii.jl")
+include("../recon/functions/fn_CalculateSensitivityOffresonanceMaps.jl")
 
 phn_sim = 1            # 1=brain, 0=point (psf), for point (PSF), set all to false
 cs_sim = true
 cs_recon = true
 b0_sim = false
 b0_recon = false
+coco_sim = true
+coco_recon = false
 t2s_sim = false
 t2s_recon = false
 high_order_recon = false
@@ -36,7 +39,7 @@ gfactor = false
 is2d = false
 gfactor_replicas = 2
 channels = 32            # 0-channels from CS file, >0 less channels (it will be cropped)]
-changeBW = 0             # Integer to change the value of the BW.. (ex. 2 = half the BW)
+changeBW = 0             # Integer to change the value of the BW.. (ex. 2 = half the BW), 0 = No change
 # For PSF only.. T2* and b0
 psf_t2s = 25e-3     # T2* in s
 psf_b0 = 20         # off-resonance in Hz
@@ -120,8 +123,25 @@ if b0_sim
     end
 
     # ## Temp: Scaling B0
-    b0 =convert(Array{ComplexF32,3},b0.*1.5)
+    # b0 =convert(Array{ComplexF32,3},b0.*1.5)
 
+    b0_orig = deepcopy(b0)
+end
+
+##### Calcualte Coco field
+if coco_sim
+    RotMatrix = [[0,-1,0] [0.7108,0,0.7034] [-0.7034,0,0.7108]]
+    RotMatrix = convert(Matrix{Float32},RotMatrix)
+    # RotMatrix = Matrix(transpose(RotMatrix))
+    CenterPosition = (0,-7.94e-3,10e-3) # 10.83e-3 
+    CocoFieldMap = CalculateConcomitantFieldMap(RotMatrix,CenterPosition, params)
+    CocoFieldMap = reverse(CocoFieldMap,dims=(1,2,3)) # Do I want to do this?
+    if b0_sim
+        b0 .= b0 .+ CocoFieldMap.*im
+    else
+        b0 = CocoFieldMap.*im
+    end
+    b0 = convert(Array{ComplexF32},b0)
     b0_orig = deepcopy(b0)
 end
 
@@ -417,7 +437,7 @@ for i = 1:Int(length(scan_sim))
         end
         global t2s = deepcopy(tmp)
         acqData = simulation(ks, phn, t2s+b0; senseMaps=cs, params_sim)
-    elseif b0_sim
+    elseif b0_sim || coco_sim
         b0 = deepcopy(b0_orig)
         tmp = deepcopy(tmp_orig)
         # Downsampling if requested:
@@ -522,6 +542,11 @@ for i = 1:Int(length(scan_sim))
     elseif t2s_recon
         params_reco[:correctionMap] = t2s
     end
+    if coco_recon
+        params_reco[:correctionMap] = b0
+    elseif b0_recon==true && coco_recon==false
+        params_reco[:correctionMap] .= params_reco[:correctionMap] .+ CocoFieldMap.*im
+    end
 
     # load covariance Matrix
     if  params["gen"]["field_strength"] == 7
@@ -544,7 +569,7 @@ for i = 1:Int(length(scan_sim))
     ##### Add Correlated noise
     if add_noise && cs_sim
         # @info ("Adding noise to k-space data ...")
-        acqData.kdata[1] = addCorrelatedNoise(acqData.kdata[1],noise_snr,cov;scale_factor=0.05)
+        acqData.kdata[1] = addCorrelatedNoise(acqData.kdata[1],noise_snr,cov;scale_factor=0.001) # 0.05
     end
 
     ##### Changing BW of data to see if we get a boost in SNR...
@@ -606,6 +631,12 @@ for i = 1:Int(length(scan_sim))
     end
     if b0_recon
         suffix = string(suffix,"_b0recon")
+    end
+    if coco_sim
+        suffix = string(suffix,"_cosim")
+    end
+    if coco_recon
+        suffix = string(suffix,"_corecon")
     end
     if t2s_sim
         suffix = string(suffix,"_t2ssim")

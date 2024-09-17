@@ -30,7 +30,7 @@ function CalculateSensitivityMap(recon,MtxSize::Tuple;calib_size::Int=12)
     # else
     #     MtxSize_tmp = copy(MtxSize)
     # end
-    SensitivityMap = espirit(calibration,MtxSize_tmp)
+    SensitivityMap = espirit(calibration,MtxSize)
     SensitivityMap = fftshift(fftshift(SensitivityMap,1),2)
 
     # ToDo: Sometimes I need to do fftshift in 3 dim also
@@ -61,7 +61,7 @@ function CalculateOffresonanceMap(recon_b0,SensitivityMap,EchoTimes::Vector{Floa
     smap = imresize(SensitivityMap,size(recon_b0)[1:4])
 
     # Taking only the first 3 echos
-    ydata = recon_b0[:,:,:,:,1:3] .*1e3
+    ydata = recon_b0[:,:,:,:,1:3] .*1e5
     echotime = EchoTimes[1:3].*1e-3 *1s   # Original
 
     # ToDo: Do I need to flip diemension?
@@ -73,7 +73,7 @@ function CalculateOffresonanceMap(recon_b0,SensitivityMap,EchoTimes::Vector{Floa
     (yik_sos_scaled, scale) = b0scale(yik_sos, echotime) # todo
     yik_scale = ydata / scale # original
 
-    finit = b0init(ydata, echotime; SensitivityMap)
+    finit = b0init(ydata, echotime; smap)
 
     @info ("Stop... B0 map...")
     @infiltrate
@@ -107,7 +107,7 @@ function CalculateOffresonanceMap(recon_b0,SensitivityMap,EchoTimes::Vector{Floa
     b0 = fmap_cg_d
 
     b0 = b0.*2π.*-1    # Original 
-    b0 = b0.*3.5  # Temp: only for sv_01
+    # b0[b0.≠0] = b0[b0.≠0] .-(20*2π)*1s^-1  # Temp: only for sv_01
 
     # Temp: Trying to rescale
     # ToDo: Are the maps in MRIFieldmaps.jl off by 10? 
@@ -121,8 +121,68 @@ function CalculateOffresonanceMap(recon_b0,SensitivityMap,EchoTimes::Vector{Floa
     b0 = 1im.*b0
     b0 = convert(Array{ComplexF32,3},b0)
 
-    @info ("Stop... B0 map...")
-    @infiltrate
-
     return b0
+end
+
+
+
+"""
+CalculateConcomitantFieldMap(RotMtx::AbstractArray{Float32},params::Dict{String,Any})
+
+Calculates concomitant field map
+"""
+function CalculateConcomitantFieldMap(RotMatrix::Matrix{Float32},CenterPosition::Tuple,params_pulseq::Dict{String,Any})
+    
+    b0 = params_pulseq["gen"]["field_strength"]
+    gm = params_pulseq["spi"]["max_grad"] .* 1e-3
+    x = range(params_pulseq["gen"]["fov"][1]/2*-1,params_pulseq["gen"]["fov"][1]/2,Int(params_pulseq["gen"]["n_ov"][1]))
+    y = range(params_pulseq["gen"]["fov"][2]/2*-1,params_pulseq["gen"]["fov"][2]/2,Int(params_pulseq["gen"]["n_ov"][2]))
+    z = range(params_pulseq["gen"]["fov"][3]/2*-1,params_pulseq["gen"]["fov"][3]/2,Int(params_pulseq["gen"]["n_ov"][3]))
+
+    x = x .+ CenterPosition[1] 
+    y = y .+ CenterPosition[2] 
+    z = z .+ CenterPosition[3] 
+
+    a1=RotMatrix[1,1]
+    a2=RotMatrix[1,2]
+    a3=RotMatrix[1,3]
+    a4=RotMatrix[2,1]
+    a5=RotMatrix[2,2]
+    a6=RotMatrix[2,3]
+    a7=RotMatrix[3,1]
+    a8=RotMatrix[3,2]
+    a9=RotMatrix[3,3]
+
+    F1 = ((1/4)*((a1^2)+(a4^2))*((a7^2)+(a8^2))) + ((a7^2)*((a2^2)+(a5^2))) - (a7*a8*((a1*a2)+(a4*a5)))
+    F2 = ((1/4)*((a2^2)+(a5^2))*((a7^2)+(a8^2))) + ((a8^2)*((a1^2)+(a4^2))) - (a7*a8*((a1*a2)+(a4*a5)))
+    F3 = ((1/4)*((a3^2)+(a6^2))*((a7^2)+(a8^2))) + ((a9^2)*((a1^2)+(a2^2)+(a4^2)+(a5^2))) - (a7*a9*((a1*a3)+(a4*a6))) - (a8*a9*((a2*a3)+(a5*a6)))
+    F4 = ((1/2)*((a2*a3)+(a5*a6))*((a7^2)-(a8^2))) + ((a8*a9)*((2*(a1^2))+(a2^2)+((2*(a4^2))+(a5^2)))) - (a7*a8*((a1*a3)+(a4*a6))) - (a7*a9*((a1*a2)+(a4*a5)))
+    F5 = ((1/2)*((a1*a3)+(a4*a6))*((a8^2)-(a7^2))) + ((a7*a9)*((a1^2)+(2*(a2^2))+((a4^2)+(2*(a5^2))))) - (a7*a8*((a2*a3)+(a5*a6))) - (a8*a9*((a1*a2)+(a4*a5)))
+    F6 = ((-1/2)*((a1*a2)+(a4*a5))*((a7^2)+(a8^2))) + ((a7*a8)*((a1^2)+(a2^2)+(a4^2)+(a5^2)))
+
+    fc = Array{Float64}(undef,length(x),length(y),length(z))
+    if sum(RotMatrix) == 3
+        # Concomitant field (TRA,SAG,COR)
+        for i_x=eachindex(x)
+            for i_y=eachindex(y)
+                for i_z=eachindex(z)    
+                fc[i_x,i_y,i_z] =  42.58e6 * ((gm^2)/(4*b0)) * ((x[i_x].^2)+((y[i_y].^2)/4)+(z[i_z].^2))
+                end
+            end
+        end
+    else
+        # Rotated concomitant field (tilted)
+        for i_x=eachindex(x)
+            for i_y=eachindex(y)
+                for i_z=eachindex(z)    
+                fc[i_x,i_y,i_z] =  42.58e6 * ((gm^2)/(4*b0)) * ((F1*(x[i_x].^2)) + (F2*(y[i_y].^2)) + (F3*(z[i_z].^2)) + (F4.*y[i_y].*z[i_z]) + (F5.*x[i_x].*z[i_z]) + (F6.*x[i_x].*y[i_y]))
+                end
+            end
+        end
+    end
+
+    # Convert to rad/s
+    CocoFieldMap = fc .* 2π
+
+    return CocoFieldMap
 end

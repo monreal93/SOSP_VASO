@@ -5,11 +5,11 @@ using SphericalHarmonicExpansions
 # using ImageTransformations
 
 function getCalibrationMatrix(params::Dict{Symbol,Any},b0_init,fm)
-    mtx_s = [Int64(params[:mtx_s][1]),Int64(params[:mtx_s][2]),Int64(params[:mtx_s][3])]
-    fov = params[:fov]
+    
+    mtx_s = Int.(params[:reconSize])
+    fov = params[:FieldOfView] 
     l = 3
     lmax = (l+1).^2
-
 
     # b0_init = matread("../data/04062023_sv_abc/acq/b0_238_236_24.mat");
     # b0_init = b0_init["b0"]
@@ -20,16 +20,9 @@ function getCalibrationMatrix(params::Dict{Symbol,Any},b0_init,fm)
 
     sh_basis = zeros(mtx_s[1],mtx_s[2],mtx_s[3],lmax)
 
-    # if params[:fmri] == 1
-    #     fm = matread(string("../",params[:directory],"acq/fm_", params[:scan],".mat"))
-    # else
-    #     fm = matread(string("../",params[:directory],"acq/fm_",params[:scan][1:2],"_01.mat"))
-    # end
-    # fm = fm["fieldmap"][:,:,:,2,:]
-
-    fm = imresize(fm,(mtx_s[1],mtx_s[2],mtx_s[3],params[:nCoils]))
-    fm = fm[:,:,:,1,:]
-    # fm = fm.*1e-4
+    fm = imresize(fm,(mtx_s[1],mtx_s[2],mtx_s[3],params[:numCha]))
+    # Use one echo
+    fm = fm[:,:,:,:,3]
 
     # Getting shperical harmonics basis functions
     @polyvar x y z
@@ -60,8 +53,6 @@ function getCalibrationMatrix(params::Dict{Symbol,Any},b0_init,fm)
 
     sh_basis = reshape(sh_basis,:,lmax)
 
-    @infiltrate
-
     b = sh_basis \ vec(b0_init)
 
     # del_b0 is the lth-order aproximation of the initial b0 map
@@ -69,15 +60,15 @@ function getCalibrationMatrix(params::Dict{Symbol,Any},b0_init,fm)
     ΔB0 = reshape(ΔB0,mtx_s[1],mtx_s[2],mtx_s[3])
 
     # Now generating the calibration matrix A as im Wallace paper
-    s_vec = reshape(fm,:,params[:nCoils])
+    s_vec = reshape(fm,:,params[:numCha])
     b0_vec = reshape(sh_basis,:,lmax)
 
-    A = Array{ComplexF32, 2}(undef, params[:nCoils],lmax)
+    A = Array{ComplexF32, 2}(undef, params[:numCha],lmax)
     B = Array{ComplexF32, 2}(undef, mtx_s[1]*mtx_s[2]*mtx_s[3],lmax)
 
     # Generate A (calibration) matrix
-    for i=1:lmax, j=1:params[:nCoils]
-        A[j,i] = s_vec[:,j]'*exp.(im.*(42.58e6).*params[:b0_te][1]*1e-3.*b0_vec[:,i]*b[i])
+    for i=1:lmax, j=1:params[:numCha]
+        A[j,i] = s_vec[:,j]'*exp.(im.*(42.58e6).*params[:b0_TE][1]*1e-3.*b0_vec[:,i]*b[i])
         # A[j,i] = s_vec[:,j]'*exp.(im.*params[:b0_te][1].*b0_vec[:,i]*b[i])
     end
 
