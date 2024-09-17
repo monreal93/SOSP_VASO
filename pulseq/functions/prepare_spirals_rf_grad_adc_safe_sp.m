@@ -6,6 +6,11 @@ lims = params.gen.lims;
 k_fov = 1./params.gen.res;
 last_tetha = (2*pi*k_fov(1)*params.gen.fov(1)/2);
 
+% to match resolution as Cartesian (square k-space) they must measure a
+%     diameter of 2/sqrt(pi) ~ 1.13 larger than conventional k-space limits (so
+%     that the area of the circle equals the area of the square).
+% last_tetha = last_tetha * 1.13;
+
 last_tetha = floor(last_tetha/(2*pi))*2*pi;
 tetha = 0:2*pi/1e2:last_tetha;
 
@@ -89,11 +94,11 @@ for j=1:params.gen.n(3)
             
             ff=(1./(r.*1e-3));
 %             ff=(norm(gx)./(r*1e-1));
-            figure(80); hold on; plot(ff); ylim([0,4000]); title('Instantaneous frequency')
-            figure(80); hold on; plot(1:length(kx),repmat(500,[1, length(kx)]),'red')
-            figure(80); hold on; plot(1:length(kx),repmat(600,[1, length(kx)]),'red')
-            figure(80); hold on; plot(1:length(kx),repmat(950,[1, length(kx)]),'red')
-            figure(80); hold on; plot(1:length(kx),repmat(1250,[1, length(kx)]),'red')
+%             figure(80); hold on; plot(ff); ylim([0,4000]); title('Instantaneous frequency')
+%             figure(80); hold on; plot(1:length(kx),repmat(500,[1, length(kx)]),'red')
+%             figure(80); hold on; plot(1:length(kx),repmat(600,[1, length(kx)]),'red')
+%             figure(80); hold on; plot(1:length(kx),repmat(950,[1, length(kx)]),'red')
+%             figure(80); hold on; plot(1:length(kx),repmat(1250,[1, length(kx)]),'red')
 
             % Finding the points when we enter the forbidden frequencies...
 %             fb_fq(1) = length(ff);
@@ -115,7 +120,8 @@ for j=1:params.gen.n(3)
 
             yy = zeros(size(xx));
 
-            rg = 160;
+            % rg might need to be adjusted to properly find the values
+            rg = 180;
             for i_rg = 1:length(fb_fq)
                     yy(fb_fq(i_rg)-(rg/2):fb_fq(i_rg)+(rg/2),1) = 1;
             end
@@ -221,7 +227,7 @@ for j=1:params.gen.n(3)
             
             ff=(1./(r.*1e-3));
 %             ff=(norm(gx)./(r*1e-1));
-            figure(80); hold on; plot(ff);
+%             figure(80); hold on; plot(ff);
 
 
             g = g_safe;
@@ -323,9 +329,9 @@ scanner = params.gen.field_strength;
 check_forbbiden_fq(squeeze(spiral_grad_shape(1,:,1,1)),scanner,true);
 check_forbbiden_fq(squeeze(spiral_grad_shape(2,:,1,1)),scanner,false);
 
-figure(81); hold on; plot(spiral_grad_shape(1,:,1,1)); title("Gx safe and UNsafe")
-figure(82); hold on; plot(spiral_grad_shape(2,:,1,1)); title("Gy safe and UNsafe")
-figure; plot(cumsum(squeeze(spiral_grad_shape(1,:,1,1))),cumsum(squeeze(spiral_grad_shape(2,:,1,1)))); title("K-space safe spiral")
+% figure(81); hold on; plot(spiral_grad_shape(1,:,1,1)); title("Gx safe and UNsafe")
+% figure(82); hold on; plot(spiral_grad_shape(2,:,1,1)); title("Gy safe and UNsafe")
+% figure; plot(cumsum(squeeze(spiral_grad_shape(1,:,1,1))),cumsum(squeeze(spiral_grad_shape(2,:,1,1)))); title("K-space safe spiral")
 
 % 
 % %%%%% Temp: trying to make safe spirals...
