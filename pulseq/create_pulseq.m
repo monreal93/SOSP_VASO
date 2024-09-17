@@ -1,4 +1,4 @@
-% clear all; clc
+clear all; clc
 % Change directory to path where sosp_vaso git has been cloned
 cd /home/amonreal/Documents/PhD/PhD_2024/sosp_vaso/
 
@@ -11,46 +11,47 @@ addpath(genpath("/home/amonreal/Documents/PhD/tools/check_grad_idea_Des/"))     
 warning('OFF', 'mr:restoreShape')
 
 %% Define parameters
-folder_name = '05282024_sv_josh';                % Folder will be created in ./data
+folder_name = 'simulations_deni';                % Folder will be created in ./data
 seq_name = 'sample';                % use sv/abc/sb_n (n for the diff scans at each day)
-params.gen.seq = 1;                 % 1-VASO 2-ABC 3-Multi-Echo 4-BOLD
-params.gen.field_strength = 9;      % Field Strength (7=7T,7i=7T-impuse_grad,9=9.4T,11=11.7T)
+params.gen.seq = 4;                 % 1-VASO 2-ABC 3-Multi-Echo 4-BOLD
+params.gen.field_strength = 7;      % Field Strength (7=7T,7i=7T-impuse_grad,9=9.4T,11=11.7T)
 params.gen.pns_check = 1;           % PNS check, .acs files to be added in ./tools/pns_check/grad_files
 
 % General parameters
-params.gen.fov = [192 192 24].*1e-3;% FOV
-params.gen.res = [0.7 0.7 1].*1e-3; % Nominal resolution
+params.gen.fov = [140 140 24].*1e-3;% FOV (Josh's project 160
+params.gen.res = [0.8 0.8 0.8].*1e-3;% Nominal resolution
 params.gen.fa = 0;                  % FA in degrees. Set to 0, to use Ernst Angle 
 params.gen.vfa = 0;                 % Variable FA (WIP)
 params.gen.vfa_cutoff = 33;         % Variable FA cut-off (WIP) in degrees
-params.gen.ernst_t1 = 1800e-3;      % T1 to calculate Ernst Angle (s) 7T=(WM-1220e-3)(GM-1800e-3)(blood=2587e-3) 9T=(1425e-3)(2100e-3)
+params.gen.ernst_t1 = 1425e-3;      % T1 to calculate Ernst Angle (s) 7T=(WM-1220e-3)(GM-1800e-3)(blood=2587e-3) 9T=(1425e-3)(2100e-3)
 params.gen.te = 0e-3;               % Set to 0 to shortest TE possible
 params.gen.tr_delay = 0e-3;         % Delay between acquisitions in sec
-params.gen.ro_type = 's';           % 's'-Spiral, 'c'-Cartesiaen (WIP)
+params.gen.ro_type = 'c';           % 's'-Spiral, 'c'-Cartesiaen (WIP)
 params.gen.kz = 1;                  % Acceleration in Kz
+params.gen.kz_enc = 0;              % k-space partition encoding 0=linear,1=center-out For Cartesian now only linear encoding
 params.gen.pf = 1;                  % Partial fourier in Kz
 params.gen.fat_sat = 1;             % Fat saturation (1=yes,0=no)
 params.gen.fs_angle = 0;            % Fat sat angle (0=default)
 params.gen.skope = 0;               % Add skope sync scan and triggers, 0=N0, 1=sep scan, 2=concurrent(center partition), 3=1&2
 params.gen.skope_sync = 0;          % Skope pre-scans, only added in skope seq
 params.gen.dork = 0;                % extra adc's for DORK correction (WIP)
-params.gen.kz_enc = 0;              % k-space partition encoding 0=linear,1=center-out For Cartesian now only linear encoding
 params.gen.interl_enc = 0;          % Interleave encoding, 0=1-interl 1-plane -> 2-interl 1-plane, 1=1-inter 1-plane -> 1-interl 2-plane
-params.gen.ph_oversampling = 8;     % Partition phase oversampling in %, to avoid partition phase-wrap
+params.gen.ph_oversampling = 0;     % Partition phase oversampling in %, to avoid partition phase-wrap
 params.gen.echos = 1;               % Echos per RF pulse (WIP)
-params.gen.me_gre = 3;              % ME GRE calibration scan, 0=NO, 2=2ech, 3=3ech
-params.gen.me_gre_tr = 100e-3;      % ME GRE TR.. 
+params.gen.me_gre = 2;              % ME GRE calibration scan, 0=NO, 1=same seq, 2=separate seq
+params.gen.me_gre_echos = 3;        % ME GRE calibration scan echos (>1)
+params.gen.me_gre_tr = 30e-3;       % ME GRE TR 
          
 % Spiral parameters
 params.spi.type = 0;                % spiral type 0=spiral-Out , 1=spiral-In, 3=In-Out (WIP), 4=In-Out kspace interleavead (WIP)
-params.spi.in_out_order = 1;        % 0=In-Out same k-space path (separate vol.), 1=In-Out k-space path shift (WIP)
+params.spi.in_out_order = 0;        % 0=In-Out same k-space path (separate vol.), 1=In-Out k-space path shift (WIP)
 params.spi.rotate = 'none';         % Spiral rotation ('none','golden','180','120')
 params.spi.increment = 'linear';    % Spiral increment mode (for now only 'linear') (WIP)
-params.spi.max_grad  = 35;          % Peak gradient amplitude for spiral (mT/m)
-params.spi.max_sr = 155;            % Max gradient slew rate for spiral (mT/m/ms)
-params.spi.interl = 1;              % Spiral interleaves
+params.spi.max_grad  = 50;          % Peak gradient amplitude for spiral (mT/m)
+params.spi.max_sr = 250;            % Max gradient slew rate for spiral (mT/m/ms) (25for ABC).
+params.spi.interl = 4;              % Spiral interleaves
 params.spi.vd = 1.3;                % Variability density (accepts negative values)
-params.spi.rxy = 3.5;               % In-plane (radial) undersampling
+params.spi.rxy = 3.3;               % In-plane (radial) undersampling
 params.spi.rxy_az = 1;              % In-plane (azimuthal) undersampling (WIP)
 params.spi.bw = 0e3;                % Spiral BW in Hz 0=Nyquist, highest=1000e3
 params.spi.safe_sp = 0;             % Safe spirals (WIP)
@@ -58,7 +59,7 @@ params.spi.safe_sp = 0;             % Safe spirals (WIP)
 % MT pulse parameters
 params.mt.mt = 0;                   % Add MT pulse, 0 for reference scan without MT
 params.mt.mt_prep = 0;              % MT (pre) dummy scans
-params.mt.rf_spoil = 1;             % RF spoliing
+params.mt.rf_spoil = 0;             % RF spoliing
 params.mt.alpha = 225;              % default=225
 params.mt.delta = -650;             % default=-650
 params.mt.trf = 0.004;
@@ -75,11 +76,11 @@ params.epi.bw_px = 1096;            % BW in Hz
 
 % VASO parameters
 params.vaso.foci = 1;               % FOCI inversion?
-params.vaso.bold_ref = 1;           % BOLD reference volume
+params.vaso.bold_ref = 0;           % BOLD reference volume
 params.vaso.foci_ampl = 270;        % FOCI amplitude (270)
 params.vaso.foci_dur = 10410e-6;    % FOCI duration (10410e-6)
 params.vaso.foci_bw = 150;          % FOCI Bandwidth (150)
-params.vaso.f_v_delay = 500e-3;     % FOCI-VASO delay (600e-3)
+params.vaso.f_v_delay = 600e-3;     % FOCI-VASO delay (600e-3)
 params.vaso.v_b_delay = 10e-3;      % VASO-BOLD delay (10e-3)
 params.vaso.b_f_delay = 5e-3;       % BOLD-FOCI delay (5e-3)
 
@@ -102,7 +103,7 @@ if params.gen.seq == 2
 end
 
 % Fat sat
-if params.gen.fat_sat
+if params.gen.fat_sat || params.gen.me_gre ~= 0
     sat_ppm = -3.45;
     [rf_fs,gx_fs,gy_fs,gz_fs] = prepare_fat_sat(params, sat_ppm);
 end
@@ -110,9 +111,12 @@ end
 % Kz blips
 gz_blips = prepare_gz_blips(params);
 
-% Spoilers
-mag_spoil = 40e-3;     % mT
-sr_spoil = 180;        % mT/m/s
+% Spoilers, parameters should depend on the gradient used...
+if params.gen.field_strength == 9
+    mag_spoil = 50e-3; sr_spoil = 250;        % mT/m & mT/m/s
+else
+    mag_spoil = 40e-3; sr_spoil = 180;        % mT/m & mT/m/s
+end
 [gx_spoil,gy_spoil,gz_spoil] = prepare_spoilers(params,mag_spoil,sr_spoil);
 
 %% Preparing readout elements
@@ -141,13 +145,25 @@ params = prepare_flip_angle(tr_tmp,gx, params);
 [rf0,gz,gzReph,params] =  create_rf_gz_pulseq(params,tr_tmp);
 
 %% Prepare Fieldmap GRE-ME elements
-if params.gen.me_gre > 0
+if params.gen.me_gre > 0 && params.gen.ro_type == 's'
     params_me_gre = params;
+    params_me_gre.gen.fat_sat = 1;          % Let's always use fat sat for ME-GRE
     params_me_gre.gen.res = params_me_gre.gen.res.*2;
-    params_me_gre.spi.interl = 16;
+    params_me_gre.spi.interl = 24;
     params_me_gre.spi.rxy = 1;
     params_me_gre.gen.fa = 0; 
-    params_me_gre.gen.echos = params.gen.me_gre;
+    params_me_gre.gen.echos = params.gen.me_gre_echos;
+    params_me_gre.spi.rotate = 'none';
+    % GRE-ME spiral MaxG and SR, might need to change if PNS errors
+    if params.gen.field_strength == 9
+        params_me_gre.spi.max_sr = 120; % (7T-60)
+        params_me_gre.spi.max_grad = 40; % (7T-20)
+    else
+        params_me_gre.spi.max_sr = 60; % (7T-60)
+        params_me_gre.spi.max_grad = 20; % (7T-20)
+    end
+    params_me_gre.spi.rotate = 'none';
+    params_me_gre.spi.type = 0;
     [rf_phase_offset_me_gre,adc_phase_offset_me_gre] = rf_adc_phase(params_me_gre);
     if params.gen.ro_type == 's'
             [spiral_grad_shape_me_gre,adcSamples_me_gre,adcDwell_me_gre,params_me_gre] = prepare_spirals_rf_grad_adc(params_me_gre);
@@ -161,11 +177,11 @@ if params.gen.me_gre > 0
     end
 
     % Flip angle, 3.5e-3 (approx rf + rephasing time)
-    tr_tmp_me_gre = 3.5e-3+mr.calcDuration(gz_blips(1))+mr.calcDuration(mr.calcDuration(gx_me_gre)*params.gen.me_gre) ... 
-         +mr.calcDuration(gx_spoil)+params.gen.te+params.gen.tr_delay+mr.calcDuration(gxReph_me_gre); % aprox TR
+    tr_tmp_me_gre = 3.5e-3+mr.calcDuration(gz_blips(1))+mr.calcDuration(mr.calcDuration(gx_me_gre)*params.gen.me_gre_echos) ... 
+         +mr.calcDuration(gx_spoil)+params.gen.tr_delay+mr.calcDuration(gxReph_me_gre); % aprox TR
     me_gre_tr_delay = params.gen.me_gre_tr-tr_tmp_me_gre;
     tr_tmp_me_gre = params.gen.me_gre_tr;
-    if and(params.gen.ro_type=='s',or(params.spi.type == 1,params.spi.type == 2)); tr_tmp_me_gre=tr_tmp_me_gre+mr.calcDuration(gx_pre_me_gre(1));end 
+%     if and(params.gen.ro_type=='s',or(params.spi.type == 1,params.spi.type == 2)); tr_tmp_me_gre=tr_tmp_me_gre+mr.calcDuration(gx_pre_me_gre(1));end 
     params_me_gre = prepare_flip_angle(tr_tmp_me_gre,gx_me_gre, params_me_gre);
    
     % Create RF and Gz
@@ -292,7 +308,7 @@ if params.gen.skope == 1 || params.gen.skope == 3
                     seq_sk.addBlock(dummy_delay);      % Temp: dummy delay to record oscilations after readout...
                 end
                 % Gz blip
-                if i < floor((params.gen.n(3)/2)+1) % && params.gen.kz_enc == 0
+                if i < floor((params.gen.n(3)/2)+1) && params.gen.kz_enc == 0
                         tmp_blip = gz_blips(i,j);
                 elseif or(i > floor((params.gen.n(3)/2)+1) && params.gen.kz_enc == 0, i > 1 && params.gen.kz_enc == 1)
                         tmp_blip = gz_blips(i-1,j);
@@ -354,31 +370,39 @@ end
 seq = mr.Sequence();
 % ME-GRE calibration
 if params.gen.me_gre > 0
-    seq.addBlock(mr.makeLabel('SET','ONCE',1));
+    if params.gen.me_gre == 1; seq.addBlock(mr.makeLabel('SET','ONCE',1)); end
+%     % FOCI
+%     if params.gen.seq == 1
+%         if params.vaso.foci; seq.addBlock(rf_foci); end              % FOCI
+%         if params.vaso.f_v_delay > 0; seq.addBlock(f_v_delay); end   % FOCI-VASO delay
+%     end
     for i=1:last_part
         for j=1:params_me_gre.spi.interl
-            if params.gen.fat_sat; seq.addBlock(rf_fs,gx_fs,gy_fs,gz_fs);   end      % fat-sat
+            if params_me_gre.gen.fat_sat; seq.addBlock(rf_fs,gx_fs,gy_fs,gz_fs);   end      % fat-sat
             rf = rf0_me_gre(i);
             rf.phaseOffset = rf_phase_offset_me_gre(i,j);
             adc_me_gre.phaseOffset = adc_phase_offset_me_gre(i,j);
             adc_post.phaseOffset = adc_phase_offset_me_gre(i,j);
+            te0 = seq.duration();
             seq.addBlock(rf,gz_me_gre(i));
             seq.addBlock(gzReph(i));
             % Gz blip
-            if i < floor((params.gen.n(3)/2)+1) % && params.gen.kz_enc == 0
+            if i < floor((params_me_gre.gen.n(3)/2)+1) && params_me_gre.gen.kz_enc == 0
                     tmp_blip = gz_blips(i);
-            elseif or(i > floor((params.gen.n(3)/2)+1) && params.gen.kz_enc == 0, i > 1 && params.gen.kz_enc == 1)
+            elseif or(i > floor((params_me_gre.gen.n(3)/2)+1) && params_me_gre.gen.kz_enc == 0, i > 1 && params_me_gre.gen.kz_enc == 1)
                     tmp_blip = gz_blips(i-1);
             end
-            if params.spi.type == 1 || params.spi.type == 3 || params.spi.type == 4
+            if params_me_gre.spi.type == 1 || params_me_gre.spi.type == 3 || params_me_gre.spi.type == 4
                 seq.addBlock(gx_pre(i,j),gy_pre(i,j));                       
             end
-            if or(i == floor((params.gen.n(3)/2)+1) && params.gen.kz_enc == 0, i == 1 && params.gen.kz_enc == 1)
+            if or(i == floor((params_me_gre.gen.n(3)/2)+1) && params_me_gre.gen.kz_enc == 0, i == 1 && params_me_gre.gen.kz_enc == 1)
                 seq.addBlock(no_blip_delay);
             else
                 seq.addBlock(tmp_blip);
             end
             for k=1:params_me_gre.gen.echos
+                % Save TEs
+                params_me_gre.gen.te(k) = seq.duration()-te0-(mr.calcDuration(rf0_me_gre)/2);
                 seq.addBlock(gx_me_gre(i,j),gy_me_gre(i,j),adc_me_gre);
                 seq.addBlock(gxReph_me_gre(j),gyReph_me_gre(j));
                 if k==params_me_gre.gen.echos; seq.addBlock(gz_spoil,gx_spoil);end
@@ -387,7 +411,12 @@ if params.gen.me_gre > 0
         end
     end
     seq.addBlock(me_gre_delay); % Delay after the GRE ME scan..
-    seq.addBlock(mr.makeLabel('SET','ONCE',0));
+    if params.gen.me_gre == 1; seq.addBlock(mr.makeLabel('SET','ONCE',0)); end
+end
+% If ME GRE separate scan, split the sequence
+if params.gen.me_gre == 2
+    seq_me_gre = seq;
+    seq = mr.Sequence();
 end
 
 % Skope
@@ -474,7 +503,7 @@ for i_ro_blocks = 1:ro_blocks
                 end
             end
             % Gz blip
-            if i < floor((params.gen.n(3)/2)+1) % && params.gen.kz_enc == 0
+            if i < floor((params.gen.n(3)/2)+1) && params.gen.kz_enc == 0
                     tmp_blip = gz_blips(i,j);
             elseif or(i > floor((params.gen.n(3)/2)+1) && params.gen.kz_enc == 0, i > 1 && params.gen.kz_enc == 1)
                     tmp_blip = gz_blips(i-1,j);
@@ -507,8 +536,11 @@ for i_ro_blocks = 1:ro_blocks
 %                     seq.addBlock(gx_ramp(i,j),gy_ramp(i,j));
                     if params.gen.dork; seq.addBlock(adc_post); end
                     % Spoil
-%                     if k==params.gen.echos; seq.addBlock(gz_spoil); end  % Original
-                    if k==params.gen.echos; seq.addBlock(gz_spoil,gx_spoil);end
+                    if params.spi.interl > 1
+                        if k==params.gen.echos; seq.addBlock(gz_spoil); end  % Original
+                    else
+                        if k==params.gen.echos; seq.addBlock(gz_spoil,gx_spoil);end
+                    end
                     % rewinder if multiple echos
                     if params.gen.echos > 1; seq.addBlock(gx_pre(i,j),gy_pre(i,j)); end
                     if params.gen.tr_delay > 0; seq.addBlock(tr_delay); end % TR delay
@@ -565,9 +597,12 @@ end
 
 %% Getting k-space trajectories
 traj_st = 1;
-if params.gen.me_gre > 0
+if params.gen.me_gre == 1
     ks_traj_me_gre = create_ks_trajectory(seq,adc_me_gre,params_me_gre,traj_st);
     traj_st = params_me_gre.gen.ro_samples*params_me_gre.spi.interl*params_me_gre.gen.echos*params_me_gre.gen.n(3)+1;
+elseif params.gen.me_gre == 2
+    ks_traj_me_gre = create_ks_trajectory(seq_me_gre,adc_me_gre,params_me_gre,traj_st);
+    traj_st = 1;
 end
 ks_traj = create_ks_trajectory(seq,adc,params,traj_st);
 
@@ -584,7 +619,13 @@ check_accoustic_fq_pns(seq,params,seq_t0)
 seq.setDefinition('MaxAdcSegmentLength',params.gen.adc_split);
 seq.setDefinition('FOV', params.gen.fov);
 seq.setDefinition('Name', seq_name);
-seq.setDefinition('baseResolution', 64) ;
+seq.setDefinition('baseResolution', 64);
+if params.gen.me_gre == 2
+    seq_me_gre.setDefinition('MaxAdcSegmentLength',params_me_gre.gen.adc_split);
+    seq_me_gre.setDefinition('FOV', params_me_gre.gen.fov);
+    seq_me_gre.setDefinition('Name', sprintf('%s_me_gre',seq_name));
+    seq_me_gre.setDefinition('baseResolution', 64);
+end
 
 %% Saving files
 % Check if folder exist, if no it creates it
@@ -613,6 +654,9 @@ seq.write(strcat(namestr,'.seq'));
 if params.gen.skope == 1 || params.gen.skope == 3
     seq_sk.write(strcat(namestr,'_sk.seq'));
 end
+if params.gen.me_gre == 2
+    seq_me_gre.write(strcat(namestr,'_me_gre.seq'));
+end
 if params.spi.type == 3 && params.gen.ro_type == 's'
     % ToDo : Fix this part so it works for more echos..
     ks_traj_full = ks_traj;
@@ -623,8 +667,9 @@ if params.spi.type == 3 && params.gen.ro_type == 's'
 else
     save(strcat(namestr,'_ks_traj_nom.mat'),'ks_traj')
 end
-if params_me_gre.gen.echos > 0
+if params.gen.me_gre > 0
     save(strcat(namestr,'_ks_traj_me_gre_nom.mat'),'ks_traj_me_gre')
+    save(strcat(namestr,'_params_me_gre.mat'),'params_me_gre')
 end
 save(strcat(namestr,'_params.mat'),'params')
-seq.plot()
+% seq.plot()

@@ -7,6 +7,12 @@ k_fov = 1./params.gen.res;
 last_tetha_x = (2*pi*k_fov(1)*params.gen.fov(1)/2);
 last_tetha_y = (2*pi*k_fov(2)*params.gen.fov(2)/2);
 
+% to match resolution as Cartesian (square k-space) they must measure a
+%     diameter of 2/sqrt(pi) ~ 1.13 larger than conventional k-space limits (so
+%     that the area of the circle equals the area of the square).
+% last_tetha_x = last_tetha_x * 1.13;
+% last_tetha_y = last_tetha_y * 1.13;
+
 last_tetha_x = floor(last_tetha_x/(2*pi))*2*pi;
 last_tetha_y = floor(last_tetha_y/(2*pi))*2*pi;
 tetha_x = 0:2*pi/1e2:last_tetha_x;
@@ -180,8 +186,11 @@ time_new = size(spiral_grad_shape,2).*lims.adcRasterTime/1e-2;
 % gradient should finish at gradRaster time
 time_new = round(time_new/lims.gradRasterTime)*lims.gradRasterTime;
 adcSamples = round(time_new./adcDwell);
+% AMM: ToDo: This makes the ADC unecessary longer, but seems to be needed
+% to run at the scanner, fix it, should it be a multiple of 1000? or 100?
 % In SIEMENS number of ADC samples should be divisible by 4
-adcSamples = ceil(ceil(adcSamples/4)*4/1000)*1000;
+% adcSamples = ceil(ceil(adcSamples/4)*4/1000)*1000; % original
+adcSamples = round(round(adcSamples/4)*4/100)*100; % New, rounding to 100
 
 % Checking forbidden frequencies, simple approach
 scanner = params.gen.field_strength;

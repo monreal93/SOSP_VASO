@@ -27,7 +27,7 @@ lims = params.gen.lims;
     % Reshuffling blips if center-out
     if params.gen.kz_enc == 1
         tmp = [];
-        j = floor(params.gen.n(3)/params.gen.kz)/2;
+        j = floor(floor(params.gen.n(3)/params.gen.kz)/2);
         for i=1:length(gz_blips)
             tmp = [tmp gz_blips(j)];
             if mod(i,2) == 0

@@ -14,11 +14,17 @@ function [rf_phase_offset,adc_phase_offset] = rf_adc_phase(params)
         RF.InitPhaseSet = -(f*360/1e6*Tpulse*Asym)+InitPhase;
         RF.InitPhaseNeg = -(f*360/1e6*Tpulse*(1-Asym))-InitPhase;
 
+    if params.gen.ro_type == 's'
+        shots = params.spi.interl;
+    elseif params.gen.ro_type == 'c'
+        shots = params.epi.seg;
+    end
+
     % Per partition and per interlave
     % AMM: Original phase...
     tmp = 1;
     for i = 1:params.gen.n(3) %MrProt.private.l_additionalslice+MrProt.sliceGroupList(1).sliceperslab
-        for j = 1:params.spi.interl
+        for j = 1:shots
             rf_phase(i,j) = RF.InitPhaseSet+25*(tmp^2)+175*tmp+300;
             rf_phase_offset(i,j) = mod(rf_phase(i,j),360)*pi/180;
             

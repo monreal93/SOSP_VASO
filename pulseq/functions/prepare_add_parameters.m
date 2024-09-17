@@ -17,6 +17,7 @@ function params = prepare_add_parameters(ks_traj,gx,rf,adc,te0,te1,tr0,tr1,seq_t
     params.gen.n(1:2) = round(params.gen.fov(1:2)./params.gen.res(1:2));
     tmp = mod(params.gen.n(1:2),2); 
     params.gen.n(1:2) = params.gen.n(1:2)+tmp; % making in-plane even
+    params.gen.n(1:2) = max(params.gen.n(1),params.gen.n(2)); % Making it square
     % Adjust for phase oversampling
     params.gen.n_ov(1:2) = params.gen.n(1:2);
     % ToDo: Check what value I really want in n_ov (to be used in recon)
@@ -34,7 +35,18 @@ function params = prepare_add_parameters(ks_traj,gx,rf,adc,te0,te1,tr0,tr1,seq_t
     params.gen.effTR = seq_t1-seq_t0;
     params.gen.adc_dwell = adc.dwell;
     params.gen.ro_time = adc.duration;
-    params.gen.ti1 = ((params.gen.effTR-params.vaso.f_v_delay)/4)+params.vaso.f_v_delay;
+    % Calculating TI1 for VASO sequences...
+    if params.gen.kz_enc == 0
+        if params.gen.seq == 1 && params.vaso.bold_ref == 1
+            params.gen.ti1 = ((params.gen.effTR-params.vaso.f_v_delay)/4)+params.vaso.f_v_delay;
+        elseif params.gen.seq == 1 && params.vaso.bold_ref == 0
+            params.gen.ti1 = ((params.gen.effTR-params.vaso.f_v_delay)/2)+params.vaso.f_v_delay;
+        end
+    elseif params.gen.kz_enc == 1
+        % ToDo: for a more precise number, add the time for fatsat and
+        % ph-enc grad...
+        params.gen.ti1 = params.vaso.f_v_delay;
+    end
     if params.spi.type ==3; params.gen.echos = 2; end       % If IN-OUT.. 2 echos
 
     % Adjusting BW, with correct dwell

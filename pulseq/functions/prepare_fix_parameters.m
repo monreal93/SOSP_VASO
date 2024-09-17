@@ -1,7 +1,13 @@
 function [params,ro_blocks] = prepare_fix_parameters(params)
 
+    % to match resolution as Cartesian (square k-space) they must measure a
+    %     diameter of 2/sqrt(pi) ~ 1.13 larger than conventional k-space limits (so
+    %     that the area of the circle equals the area of the square).
+    params.gen.res(1:2) = params.gen.res(1:2)./1.13;
+
     params.gen.del_k = (1./params.gen.fov);
     if params.gen.ro_type == 's'; params.gen.del_k(1:2) = params.gen.del_k(1:2).*params.spi.rxy; end
+    if params.gen.ro_type == 'c'; params.gen.me_gre =0; end % ME-GRE only for spiral
     if params.gen.ro_type == 'c'; params.spi.interl = 1; end
     if params.gen.ro_type == 'c'; params.gen.del_k(2) = params.gen.del_k(2).*params.epi.ry; end
     if params.mt.bold; params.mt.mt = 1; end        % If MT BOLD corrected, use MT 
@@ -29,9 +35,9 @@ function [params,ro_blocks] = prepare_fix_parameters(params)
         end
     end
     
-    % Trying to make n multiple of 4,update res
-    tmp = mod(params.gen.n,4);
-    params.gen.n(1:2) = params.gen.n(1:2)+tmp(1:2);
+    % Trying to make n multiple of 4,update res. % ToDo: Do I need this?
+%     tmp = mod(params.gen.n,4);
+%     params.gen.n(1:2) = params.gen.n(1:2)+tmp(1:2);
     % ToDo: Check... Not sure if I do need this...
     params.gen.n(3) = params.gen.n(3)/params.gen.kz/params.gen.pf;
     % Making sure fovz/rz are integers and even

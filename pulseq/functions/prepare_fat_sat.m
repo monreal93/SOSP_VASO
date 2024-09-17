@@ -3,8 +3,9 @@ function [rf_fs,gx_fs,gy_fs,gz_fs] = prepare_fat_sat(params, sat_ppm)
 
     sat_freq = sat_ppm*1e-6*lims.B0*lims.gamma;
     
+    % What is the duration I want for the RF pulses??? (2.56 or 5ms)
     if params.gen.field_strength == 7 || params.gen.field_strength == 7i 
-        rf_fs = mr.makeGaussPulse(params.gen.fs_angle*pi/180,'system',lims,'Duration',5e-3,...
+        rf_fs = mr.makeGaussPulse(params.gen.fs_angle*pi/180,'system',lims,'Duration',2.56e-3,...
             'bandwidth',abs(sat_freq),'freqOffset',sat_freq);
     elseif params.gen.field_strength == 9
         rf_fs = mr.makeGaussPulse(params.gen.fs_angle*pi/180,'system',lims,'Duration',8e-3,...
