@@ -78,6 +78,16 @@ function CalculateOffresonanceMap(recon_b0,SensitivityMap,EchoTimes::Vector{Floa
     @info ("Stop... B0 map...")
     @infiltrate
 
+    # ## Trying ROMEO phase unwrapping...
+    # ph = angle.(yik_sos)
+    # mag = abs.(yik_sos)
+    # te = ustrip.(echotime) 
+    # ph_unwrapped = ROMEO.unwrap(ph; mag=mag, TEs=te)
+    # b0_romeo1 = (ph_unwrapped[:,:,:,1].-ph_unwrapped[:,:,:,2])./((te[2]-te[1]).*1e2)
+    # b0_romeo2 = (ph_unwrapped[:,:,:,2].-ph_unwrapped[:,:,:,3])./((te[3]-te[2]).*1e2)
+    # b0_romeo = (b0_romeo1.+b0_romeo2)./2
+    # finit = b0_romeo .* s^-1
+
     # # Original "Low smoothing":
     # fmap_run = (niter, precon, track; kwargs...) ->
     #     b0map(yik_scale, echotime; finit, smap, mask,
@@ -98,28 +108,26 @@ function CalculateOffresonanceMap(recon_b0,SensitivityMap,EchoTimes::Vector{Floa
         (fmap, times, out) = fmap_run(niter, precon, true; kwargs...)
         return (fmap, out.fhats, out.costs, times)
     end;
-    if !@isdefined(fmap_cg_d)
+    # if !@isdefined(fmap_cg_d)
         niter_cg_d = 100  # (400)
         (fmap_cg_d, fhat_cg_d, cost_cg_d, time_cg_d) = runner(niter_cg_d, :diag)
         # (fmap_cg_d, fhat_cg_d, cost_cg_d, time_cg_d) = runner(niter_cg_d, :ichol)
-    end
+    # end
 
     b0 = fmap_cg_d
 
     b0 = b0.*2π.*-1    # Original 
+    # b0 = b0.*-1
     # b0[b0.≠0] = b0[b0.≠0] .-(20*2π)*1s^-1  # Temp: only for sv_01
-
-    # Temp: Trying to rescale
-    # ToDo: Are the maps in MRIFieldmaps.jl off by 10? 
-    # B0 correction is optimal after rescaling... (and not converting to rada/s) Also values are as expected ~100Hz 
-    # This seems to be the case only for sv_01
-    # b0 = b0.*10
-
+    
     b0 = ustrip.(b0)
 
     b0 = imresize(b0,size(SensitivityMap)[1:3],method=BSpline(Cubic()))
     b0 = 1im.*b0
     b0 = convert(Array{ComplexF32,3},b0)
+
+    @info ("Stop... B0 map...")
+    @infiltrate
 
     return b0
 end
@@ -159,7 +167,7 @@ function CalculateConcomitantFieldMap(RotMatrix::Matrix{Float32},CenterPosition:
     F4 = ((1/2)*((a2*a3)+(a5*a6))*((a7^2)-(a8^2))) + ((a8*a9)*((2*(a1^2))+(a2^2)+((2*(a4^2))+(a5^2)))) - (a7*a8*((a1*a3)+(a4*a6))) - (a7*a9*((a1*a2)+(a4*a5)))
     F5 = ((1/2)*((a1*a3)+(a4*a6))*((a8^2)-(a7^2))) + ((a7*a9)*((a1^2)+(2*(a2^2))+((a4^2)+(2*(a5^2))))) - (a7*a8*((a2*a3)+(a5*a6))) - (a8*a9*((a1*a2)+(a4*a5)))
     F6 = ((-1/2)*((a1*a2)+(a4*a5))*((a7^2)+(a8^2))) + ((a7*a8)*((a1^2)+(a2^2)+(a4^2)+(a5^2)))
-
+    
     fc = Array{Float64}(undef,length(x),length(y),length(z))
     if sum(RotMatrix) == 3
         # Concomitant field (TRA,SAG,COR)
