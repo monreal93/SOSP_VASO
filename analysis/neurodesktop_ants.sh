@@ -1,14 +1,15 @@
-cd /neurodesktop-storage/5T4/Alejandro/sosp_vaso/data
+cd /neurodesktop-storage/5T3/Alejandro/sosp_vaso/data
 
-folder="05252023_sv_paper"
+folder="08302024_sb_9T"
 
-scan="cv_41"
+scan="sb_23_IN_2shot_14fa"
 # scan_t1="dicom_mp2rage_iso0.7mm_iPAT3_20230519112423_17"
-scan_t1="brain"
+scan_t1="s2_brain"          # subject # =  s#_ brain 
 
 ##### README.... 
 # Before running this script:
-# - do an intial registration in ITKsnap... save the values in a file called initial_matrix_$scan
+# - Save the anatomy (MP2RAGE-14) as ./analysis/t1/brain.nii
+# - do an intial registration in ITKsnap... save the values in a file called ./analysis/ants/initial_matrix_$scan
 # - Also create a ROI mask, that will be used for registration... save it as ./scan/scan_roi_msk.nii
 
 cd ${folder}
@@ -21,10 +22,16 @@ cd ./ants
 ml ants
 ml afni
 
+if [ "${scan:1:2}" = "v" ]; then
+    t1_vaso_file=../${scan}/T1_msk.nii # FOR VASO
+else
+    t1_vaso_file=../${scan}/mean.nii # FOR BOLD ...
+fi
+
 t1_file=../t1/${scan_t1}.nii
-t1_vaso_file=../${scan}/T1_msk.nii # original
 # t1_vaso_file=../${scan}/mean_v_msk.nii # original
 mask=../${scan}/${scan}_roi_msk.nii     # Mask created from ITKsnap..
+# mask=../${scan}/mask.nii     # General mask...
 output1=registered_Warped_${scan}.nii
 output2=registered_InverseWarped_${scan}.nii
 initial_mtx=initial_matrix_${scan}.txt                     

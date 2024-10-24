@@ -59,7 +59,7 @@ function getCalibrationMatrix(params::Dict{Symbol,Any},b0_init,fm)
     ΔB0 = sh_basis * b
     ΔB0 = reshape(ΔB0,mtx_s[1],mtx_s[2],mtx_s[3])
 
-    # Now generating the calibration matrix A as im Wallace paper
+    # Now generating the calibration matrix A as in Wallace paper
     s_vec = reshape(fm,:,params[:numCha])
     b0_vec = reshape(sh_basis,:,lmax)
 

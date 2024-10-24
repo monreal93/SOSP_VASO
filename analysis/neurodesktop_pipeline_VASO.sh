@@ -135,7 +135,7 @@ fslmaths ./${scan}_v_ups_mc.nii -bptf $bptf -1 -add tempmean ./${scan}_v_ups_mc_
 fslchfiletype NIFTI ${scan}_v_ups_mc_hpf.nii
 
 #### ) BOLD correction
-LN_BOCO -Nulled ./${scan}_v_ups_mc_hpf.nii -BOLD ./${scan}_b_ups_mc_hpf.nii -trialBOCO $block_trs
+LN_BOCO -Nulled ./${scan}_v_ups_mc_hpf.nii -BOLD ./${scan}_b_ups_mc_hpf.nii -trialBOCO $block_upsample
 
 ##### ) Calculating T1
 echo "calculating T1 ..."
@@ -174,16 +174,15 @@ tmp=$(echo ${tmp%%.*})
 ublock=$(echo "UBLOCK($tmp,1)")
 
 # Finding rest and activity volumes
-tmp=$(echo $block_trs/4 | bc -l)
-tmp=$(echo ${tmp%.*})
-r1=$(echo $tmp-1 | bc -l)
+r1=0
 r1=$(echo ${r1%.*})
-r2=$(echo $r1+$tmp | bc -l)
+r2=$(echo $blocks-1 | bc -l)
 r2=$(echo ${r2%.*})
-a1=$(echo $r2+$tmp | bc -l)
+a1=$(echo $r2+1 | bc -l)
 a1=$(echo ${a1%.*})
-a2=$(echo $a1+$tmp | bc -l)
+a2=$(echo $block_upsample-1 | bc -l)
 a2=$(echo ${a2%.*})
+
 tr_av_r=$(echo "[$r1-$r2]")
 tr_av_a=$(echo "[$a1-$a2]")
 
@@ -196,19 +195,13 @@ echo "VASO based on difference..."
 ### VASO GLM
 echo "VASO based on GLM..." 
 3dDeconvolve -overwrite -jobs 16 -polort a -input VASO_LN.nii\
-             -num_stimts 7 \
+             -num_stimts 1 \
              -TR_times $tr \
              -stim_times 1 "$stim_times" "$ublock" -stim_label 1 Task \
              -tout \
              -x1D MODEL_wm \
              -iresp 1 HRF_VASO.nii \
              -errts residual_VASO.nii \
-             -stim_file 2 motion_v.1D'[0]' -stim_base 2 -stim_label 2 roll \
-             -stim_file 3 motion_v.1D'[1]' -stim_base 3 -stim_label 3 pitch \
-             -stim_file 4 motion_v.1D'[2]' -stim_base 4 -stim_label 4 yaw \
-             -stim_file 5 motion_v.1D'[3]' -stim_base 5 -stim_label 5 dS \
-             -stim_file 6 motion_v.1D'[4]' -stim_base 6 -stim_label 6 dL \
-             -stim_file 7 motion_v.1D'[5]' -stim_base 7 -stim_label 7 dP \
              -bucket STATS_VASO.nii
              
 3dcalc -a HRF_VASO.nii'[1]'    -expr 'a'    -prefix 1_HRF_VASO.nii   -overwrite 
@@ -232,19 +225,13 @@ echo "BOLD based on difference... "
 #### BOLD
 echo "BOLD based on GLM..."
 3dDeconvolve -overwrite -jobs 16 -polort a -input ./${scan}_b_ups_mc_hpf.nii\
-             -num_stimts 7 \
+             -num_stimts 1 \
              -TR_times $tr \
              -stim_times 1 "$stim_times" "$ublock" -stim_label 1 Task \
              -tout \
              -x1D MODEL_wm \
              -iresp 1 HRF_BOLD.nii \
              -errts residual_BOLD.nii \
-             -stim_file 2 motion_b.1D'[0]' -stim_base 2 -stim_label 2 roll \
-             -stim_file 3 motion_b.1D'[1]' -stim_base 3 -stim_label 3 pitch \
-             -stim_file 4 motion_b.1D'[2]' -stim_base 4 -stim_label 4 yaw \
-             -stim_file 5 motion_b.1D'[3]' -stim_base 5 -stim_label 5 dS \
-             -stim_file 6 motion_b.1D'[4]' -stim_base 6 -stim_label 6 dL \
-             -stim_file 7 motion_b.1D'[5]' -stim_base 7 -stim_label 7 dP \
              -bucket STATS_BOLD.nii
 
 3dcalc -a HRF_BOLD.nii'[1]'    -expr 'a'    -prefix 1_HRF_BOLD.nii   -overwrite 

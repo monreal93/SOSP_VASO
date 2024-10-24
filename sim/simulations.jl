@@ -23,30 +23,30 @@ include("../recon/functions/fn_calculateGfactor.jl")
 include("../recon/functions/fn_save_nii.jl")
 include("../recon/functions/fn_CalculateSensitivityOffresonanceMaps.jl")
 
-phn_sim = 1            # 1=brain, 0=point (psf), for point (PSF), set all to false
+phn_sim = 0            # 1=brain, 0=point (psf), for point (PSF), set all to false
 cs_sim = true
 cs_recon = true
 b0_sim = false
 b0_recon = false
-coco_sim = true
+coco_sim = false
 coco_recon = false
-t2s_sim = false
+t2s_sim = true
 t2s_recon = false
 high_order_recon = false
 order_recon =  1            # Recon order (1,2,3)
-add_noise = true
+add_noise = false
 gfactor = false
-is2d = false
+is2d = true
 gfactor_replicas = 2
 channels = 32            # 0-channels from CS file, >0 less channels (it will be cropped)]
 changeBW = 0             # Integer to change the value of the BW.. (ex. 2 = half the BW), 0 = No change
 # For PSF only.. T2* and b0
-psf_t2s = 25e-3     # T2* in s
+psf_t2s = 28e-3     # T2* in s
 psf_b0 = 20         # off-resonance in Hz
 
 # Folder and name of sequence to simulate
-folder_sim = "simulations_paper"
-scan_sim = ["sb_08_nyquistBW_NOvd"]
+folder_sim = "simulations_deni"
+scan_sim = ["spi_vaso"]
 traj_type = "nom"
 # scan_sim = ["sb_01","sb_02","sb_03","sb_04","sb_05","sb_06","sb_07","sb_08","sb_09","sb_10"]
 
@@ -54,7 +54,7 @@ traj_type = "nom"
 folder = "05192023_sv_paper"
 scan = "sv_01"
 fieldmap = "s01"
-path = string("/usr/share/5T4/Alejandro/sosp_vaso/data/",folder)
+path = string("/usr/share/5T3/Alejandro/sosp_vaso_paper_data/",folder)
 path_sim = string("/usr/share/5T4/Alejandro/sosp_vaso/data/",folder_sim)
 
 ##### Load parameters
@@ -66,6 +66,10 @@ params["scan_suffix"] = scan_suffix
 params["path_sim"] = path_sim
 if phn_sim == 0
     gfactor = false
+end
+
+if is2d
+    params["gen"]["n"][3] = 2
 end
 
 # Some constraints
@@ -97,8 +101,10 @@ else
     # niwrite(string(path_sim,"/sim/reference_phn_point.nii"),phn_nii)
 end
 if is2d
-    sl = Int(params["gen"]["n"][3]/2)
+    # sl = Int(params["gen"]["n"][3]/2)
+    sl = 1
     phn = phn[:,:,sl]
+    phn = reshape(phn, (size(phn)...,1))
 end
 phn_orig = deepcopy(phn)
 
@@ -109,6 +115,10 @@ cs = convert(Array{ComplexF64,4},cs)
 cs = imresize(cs,(Int(params["gen"]["n"][1]),Int(params["gen"]["n"][2]),Int(params["gen"]["n"][3])))
 cs_orig = deepcopy(cs)
 # cs = reverse(cs,dims = 2)
+if phn_sim == 0
+    cs .= 1
+    cs_orig .= 1
+end
 
 ##### Load B0 map
 if b0_sim
@@ -293,9 +303,20 @@ for i = 1:Int(length(scan_sim))
     times = repeat(params_pulseq["gen"]["t_vector"][:],Int(params_pulseq["gen"]["n_ov"][3]))
     times = convert(Vector{Float32},times)
 
-    ks = Trajectory(ks_traj,1,Int(params_pulseq["gen"]["ro_samples"]*params_pulseq["spi"]["interl"]); 
+    if is2d
+        ks_traj[isnan.(ks_traj)] .= 0
+        ks_traj = ks_traj[1:2,:]
+    end
+
+    if params_pulseq["gen"]["ro_type"] == "c"
+        ks = Trajectory(ks_traj,1,Int(params_pulseq["gen"]["ro_samples"]); 
+                times=times,AQ=params_pulseq["gen"]["ro_time"], 
+                numSlices=Int(params_pulseq["gen"]["n_ov"][3]))
+    elseif params_pulseq["gen"]["ro_type"] == "s"
+        ks = Trajectory(ks_traj,1,Int(params_pulseq["gen"]["ro_samples"]*params_pulseq["spi"]["interl"]); 
             times=times,TE=params_pulseq["gen"]["TE"],AQ=params_pulseq["gen"]["ro_time"], 
             numSlices=Int(params_pulseq["gen"]["n_ov"][3]),circular=true)
+    end
 
     if is2d
         traj = traj[1:2,:]
@@ -312,6 +333,9 @@ for i = 1:Int(length(scan_sim))
     mtx_pulseq = trunc.(Int,mtx_pulseq)
     mtx = params["gen"]["n"][1],params["gen"]["n"][2],params["gen"]["n"][3]
     mtx = trunc.(Int,mtx)
+    if is2d
+        mtx = (mtx[1],mtx[2] ,1)
+    end
     # mtx = size(cs)[1:3]
 
     if cs_sim
@@ -347,7 +371,11 @@ for i = 1:Int(length(scan_sim))
 
         # Downsampling if requested:
         if mtx_pulseq < mtx
-            tmp = imresize(tmp, mtx_pulseq)
+            mtx_pulseq_tmp = (mtx_pulseq[1:2]..., 32)
+            tmp = permutedims(tmp,(1,2,4,3))
+            tmp = imresize(tmp[:,:,:,1], (mtx_pulseq_tmp))
+            tmp = cat(tmp, dims=4)
+            tmp = permutedims(tmp,(1,2,4,3))
         end
         if channels != 0
             tmp = tmp[:,:,:,1:Int(floor(size(tmp,4)/channels)):end]
@@ -384,7 +412,7 @@ for i = 1:Int(length(scan_sim))
     end
     # Downsampling if requested:
     if mtx_pulseq < mtx
-        tmp = imresize(tmp, mtx_pulseq)
+        tmp = imresize(tmp, (mtx_pulseq[1:2]))
     end
     global phn = deepcopy(tmp)
     global phn_abs = abs.(phn)
@@ -420,7 +448,11 @@ for i = 1:Int(length(scan_sim))
         end
         # Downsampling if requested:
         if mtx_pulseq < mtx
-            tmp = imresize(tmp, mtx_pulseq)
+            mtx_pulseq_tmp = (mtx_pulseq[1:2]..., 32)
+            tmp = permutedims(tmp,(1,2,4,3))
+            tmp = imresize(tmp[:,:,:,1], (mtx_pulseq_tmp))
+            tmp = cat(tmp, dims=4)
+            tmp = permutedims(tmp,(1,2,4,3))
         end
         global b0 = deepcopy(tmp)
         t2s = deepcopy(t2s_orig)
@@ -433,7 +465,11 @@ for i = 1:Int(length(scan_sim))
         end
         # Downsampling if requested:
         if mtx_pulseq < mtx
-            tmp = imresize(tmp, mtx_pulseq)
+            mtx_pulseq_tmp = (mtx_pulseq[1:2]..., 32)
+            tmp = permutedims(tmp,(1,2,4,3))
+            tmp = imresize(tmp[:,:,:,1], (mtx_pulseq_tmp))
+            tmp = cat(tmp, dims=4)
+            tmp = permutedims(tmp,(1,2,4,3))
         end
         global t2s = deepcopy(tmp)
         acqData = simulation(ks, phn, t2s+b0; senseMaps=cs, params_sim)
@@ -453,12 +489,10 @@ for i = 1:Int(length(scan_sim))
             end
             b0 = deepcopy(tmp)
         end
-        @infiltrate
         acqData = simulation(ks, phn, b0; senseMaps=cs, params_sim)
     elseif t2s_sim
         t2s = deepcopy(t2s_orig)
         tmp = deepcopy(tmp_orig)
-        @infiltrate
         if is2d
             tmp = tmp[:,:,1]
             tmp[tmp1[1]:tmp1[1]+mtx[1]-1,tmp1[2]:tmp1[2]+mtx[2]-1] = t2s
@@ -467,9 +501,10 @@ for i = 1:Int(length(scan_sim))
         end
         # Downsampling if requested:
         if mtx_pulseq < mtx
-            tmp = imresize(tmp, mtx_pulseq)
+            tmp = imresize(tmp, mtx_pulseq[1:2])
         end
         global t2s = deepcopy(tmp)
+        @infiltrate
         acqData = simulation(ks, phn, t2s; senseMaps=cs, params_sim)
     elseif cs_sim
         acqData = simulation(ks, phn; senseMaps=cs, params_sim)

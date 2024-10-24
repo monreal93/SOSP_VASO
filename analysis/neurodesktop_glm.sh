@@ -3,14 +3,14 @@ ml afni
 
 cd /neurodesktop-storage/5T4/Alejandro/sosp_vaso/data
 
-folder="06192024_sv_josh"
-scan="sv_01"
-r_a_tr=5     # rest/activity TRs paper=sv(8), cv(7)
-tr=2.393    # volume TR paper=sv(1.66), cv(1.81)
+folder="06272024_sv_cv_josh"
+scan="cv_01"
+r_a_tr=6     # rest/activity TRs paper=sv(8), cv(7), josh=sv/cv(6)
+tr=2.344    # volume TR paper=sv(1.66), cv(1.81), josh=sv(2.1651),cv(2.344)
 motion_glm=0
 
 # Spiral reconstruction options
-traj="_nom" && cs="_cs" && b0="_b0" && k0="_k0" && rDORK="_rDORK"
+traj="_nom" && cs="_cs" && b0="_b0" && co="" && k0="" && rDORK="_rDORK"
 
 cd ${folder}
 
@@ -21,8 +21,8 @@ cd ./analysis/${scan}
 if [ "${scan:0:2}" = "sv" ]; then
     echo "Spiral VASO .."
     # Set path for reconstruction
-    v_file=../../recon/${scan}_v${traj}${cs}${b0}${k0}${rDORK}.nii
-    b_file=../../recon/${scan}_b${traj}${cs}${b0}${k0}${rDORK}.nii
+    v_file=../../recon/${scan}_v${traj}${cs}${b0}${co}${k0}${rDORK}.nii
+    b_file=../../recon/${scan}_b${traj}${cs}${b0}${co}${k0}${rDORK}.nii
     gre1=../../tmp/${scan}_1ech.nii
 elif [ "${scan:0:2}" = "cv" ]; then
     echo "Cartesian VASO .."
@@ -63,10 +63,15 @@ tmp=$(echo $block_dur | bc -l)
 tmp=$(echo ${tmp%%.*})
 ublock=$(echo "UBLOCK($tmp,1)")
 
+# Temp: Manually setting stim times.. with 1s TR
+# stim_times="1D: 12 36 60 84 108 132 156 180 204 228 252 276"
+
 if [ "$motion_glm" = 1 ]; then
     ### VASO GLM
     echo "VASO based on GLM..." 
-    3dDeconvolve -overwrite -jobs 16 -polort a -input VASO_LN.nii\
+    3dDeconvolve -overwrite -jobs 16 -polort 1 \
+                -force_TR $tr \
+                -input VASO_LN.nii\
                 -num_stimts 7 \
                 -TR_times $tr \
                 -stim_times 1 "$stim_times" "$ublock" -stim_label 1 Task \
@@ -84,7 +89,7 @@ if [ "$motion_glm" = 1 ]; then
 
     #### BOLD
     echo "BOLD based on GLM..."
-    3dDeconvolve -overwrite -jobs 16 -polort a \
+    3dDeconvolve -overwrite -jobs 16 -polort 1 \
                 -force_TR $tr \
                 -input ./${scan}_b_ups_mc_hpf.nii\
                 -num_stimts 7 \
@@ -104,9 +109,9 @@ if [ "$motion_glm" = 1 ]; then
 else
     ### VASO GLM
     echo "VASO based on GLM..." 
-    3dDeconvolve -overwrite -jobs 16 -polort a \
+    3dDeconvolve -overwrite -jobs 16 -polort 1 \
                 -force_TR $tr \
-                -input VASO_LN.nii\
+                -input VASO_LN.nii \
                 -num_stimts 1 \
                 -TR_times $tr \
                 -stim_times 1 "$stim_times" "$ublock" -stim_label 1 Task \
@@ -118,9 +123,9 @@ else
 
     #### BOLD
     echo "BOLD based on GLM..."
-    3dDeconvolve -overwrite -jobs 16 -polort a \
+    3dDeconvolve -overwrite -jobs 16 -polort 1 \
                 -force_TR $tr \
-                -input ./${scan}_b_ups_mc_hpf.nii\
+                -input ${scan}_b_ups_mc_hpf.nii \
                 -num_stimts 1 \
                 -TR_times $tr \
                 -stim_times 1 "$stim_times" "$ublock" -stim_label 1 Task \
@@ -183,8 +188,12 @@ slices=$(($slices-1))
 # -1clip threshold.. (~1.8), (1.5,1.2,270)
 # rmm = cluster connection radius, larger value->remove small clusters
 # vmul minimum cluster volume, smaller value->removes small clusters
-3dclust -1noneg -overwrite -prefix clustered_VASO.nii -1clip 2 1.4 120 VASO_msk.nii
-3dclust -1noneg -overwrite -prefix clustered_BOLD.nii -1clip 4 1.4 120 BOLD_msk.nii
+# 3dclust -1noneg -overwrite -prefix clustered_VASO.nii -1clip 2 1.4 120 VASO_msk.nii
+# 3dclust -1noneg -overwrite -prefix clustered_BOLD.nii -1clip 4 1.4 120 BOLD_msk.nii
+3dClusterize -pref_map clusters_BOLD.nii -pref_dat clustered_BOLD.nii -inset ./BOLD_msk.nii \
+-ithr 0 -idat 0 -NN 1 -1sided RIGHT_TAIL 4 -clust_nvox 20 -overwrite
+3dClusterize -pref_map clusters_VASO.nii -pref_dat clustered_VASO.nii -inset ./VASO_msk.nii \
+-ithr 0 -idat 0 -NN 1 -1sided RIGHT_TAIL 2 -clust_nvox 20 -overwrite
 
 ### VASO mean residual
 3dcalc -overwrite -a clustered_VASO.nii -expr 'step(a-1.8)' -prefix v_bin_output.nii

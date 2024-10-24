@@ -87,7 +87,7 @@ function ReconCartesianData(acqData::AcquisitionData,dims::Int; interleaved=fals
         recon = tmp
     end
 
-    recon = reverse(recon, dims=1)
+    # recon = reverse(recon, dims=1)
 
     return recon
 end

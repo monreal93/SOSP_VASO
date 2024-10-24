@@ -23,10 +23,10 @@ end
 
 cd ./sosp_vaso
 
-folder = '05192023_sv_paper';
+folder = '07192023_sv_cv_abc';
 cs_b0_file = 'b0_s01_fieldmap';
-scan = 'sv_01';
-repetitions = 160; %4,50        % AMM: ToDo: find a way to get this param from somewhere
+scan = 'cv_02';
+repetitions = 10; %4,50        % AMM: ToDo: find a way to get this param from somewhere
 
 % Reading some parameters from Pulseq
 load(sprintf('./data/%s/acq/%s_params.mat',folder,scan));
