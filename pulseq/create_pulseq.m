@@ -11,22 +11,22 @@ addpath(genpath("/home/amonreal/Documents/PhD/tools/check_grad_idea_Des/"))     
 warning('OFF', 'mr:restoreShape')
 
 %% Define parameters
-folder_name = 'simulations_deni';                % Folder will be created in ./data
+folder_name = '10242024_sb_9T';                % Folder will be created in ./data
 seq_name = 'sample';                % use sv/abc/sb_n (n for the diff scans at each day)
 params.gen.seq = 4;                 % 1-VASO 2-ABC 3-Multi-Echo 4-BOLD
-params.gen.field_strength = 7;      % Field Strength (7=7T,7i=7T-impuse_grad,9=9.4T,11=11.7T)
+params.gen.field_strength = 9;      % Field Strength (7=7T,7i=7T-impuse_grad,9=9.4T,11=11.7T)
 params.gen.pns_check = 1;           % PNS check, .acs files to be added in ./tools/pns_check/grad_files
 
 % General parameters
 params.gen.fov = [140 140 24].*1e-3;% FOV (Josh's project 160
-params.gen.res = [0.8 0.8 0.8].*1e-3;% Nominal resolution
+params.gen.res = [0.6 0.6 0.6].*1e-3;% Nominal resolution
 params.gen.fa = 0;                  % FA in degrees. Set to 0, to use Ernst Angle 
 params.gen.vfa = 0;                 % Variable FA (WIP)
 params.gen.vfa_cutoff = 33;         % Variable FA cut-off (WIP) in degrees
-params.gen.ernst_t1 = 1425e-3;      % T1 to calculate Ernst Angle (s) 7T=(WM-1220e-3)(GM-1800e-3)(blood=2587e-3) 9T=(1425e-3)(2100e-3)
+params.gen.ernst_t1 = 2100e-3;      % T1 to calculate Ernst Angle (s) 7T=(WM-1220e-3)(GM-1800e-3)(blood=2587e-3) 9T=(1425e-3)(2100e-3)
 params.gen.te = 0e-3;               % Set to 0 to shortest TE possible
 params.gen.tr_delay = 0e-3;         % Delay between acquisitions in sec
-params.gen.ro_type = 'c';           % 's'-Spiral, 'c'-Cartesiaen (WIP)
+params.gen.ro_type = 's';           % 's'-Spiral, 'c'-Cartesiaen (WIP)
 params.gen.kz = 1;                  % Acceleration in Kz
 params.gen.kz_enc = 0;              % k-space partition encoding 0=linear,1=center-out For Cartesian now only linear encoding
 params.gen.pf = 1;                  % Partial fourier in Kz
@@ -43,13 +43,13 @@ params.gen.me_gre_echos = 3;        % ME GRE calibration scan echos (>1)
 params.gen.me_gre_tr = 30e-3;       % ME GRE TR 
          
 % Spiral parameters
-params.spi.type = 0;                % spiral type 0=spiral-Out , 1=spiral-In, 3=In-Out (WIP), 4=In-Out kspace interleavead (WIP)
+params.spi.type = 1;                % spiral type 0=spiral-Out , 1=spiral-In, 3=In-Out (WIP), 4=In-Out kspace interleavead (WIP)
 params.spi.in_out_order = 0;        % 0=In-Out same k-space path (separate vol.), 1=In-Out k-space path shift (WIP)
-params.spi.rotate = 'none';         % Spiral rotation ('none','golden','180','120')
+params.spi.rotate = '120';         % Spiral rotation ('none','golden','180','120')
 params.spi.increment = 'linear';    % Spiral increment mode (for now only 'linear') (WIP)
 params.spi.max_grad  = 50;          % Peak gradient amplitude for spiral (mT/m)
 params.spi.max_sr = 250;            % Max gradient slew rate for spiral (mT/m/ms) (25for ABC).
-params.spi.interl = 4;              % Spiral interleaves
+params.spi.interl = 2;              % Spiral interleaves
 params.spi.vd = 1.3;                % Variability density (accepts negative values)
 params.spi.rxy = 3.3;               % In-plane (radial) undersampling
 params.spi.rxy_az = 1;              % In-plane (azimuthal) undersampling (WIP)
@@ -189,7 +189,18 @@ if params.gen.me_gre > 0 && params.gen.ro_type == 's'
 end
 
 %% Prepare Delays and triggers
-if params.gen.te > 0; te_delay = mr.makeDelay(round(params.gen.te-((mr.calcDuration(rf0)/2)+mr.calcDuration(gzReph)+mr.calcDuration(gz_blips)),4)); end         % TE delay
+if params.gen.ro_type == 's'
+    if params.spi.type == 0
+        if params.gen.te > 0; te_delay = mr.makeDelay(round(params.gen.te-((mr.calcDuration(rf0)/2)+mr.calcDuration(gzReph) ...
+                +mr.calcDuration(gz_blips)),4)); end         % TE delay
+    elseif params.spi.type == 1
+        if params.gen.te > 0; te_delay = mr.makeDelay(round(params.gen.te-((mr.calcDuration(rf0)/2)+mr.calcDuration(gzReph) ...
+                +mr.calcDuration(gz_blips)+mr.calcDuration(gx(1))+mr.calcDuration(gx_pre(1))),4)); end
+    end
+elseif params.gen.ro_type == 'c'
+    if params.gen.te > 0; te_delay = mr.makeDelay(round(params.gen.te-(((mr.calcDuration(rf0)/2)+mr.calcDuration(gzReph) ...
+            +mr.calcDuration(gy_pre))+(mr.calcDuration(gx(1))*(ceil(params.epi.n_lines*params.epi.pf/2)+4))),4)); end         % TE delay
+end
 if params.gen.tr_delay > 0; tr_delay = mr.makeDelay(params.gen.tr_delay); end                       % TR delay
 if params.vaso.f_v_delay > 0; f_v_delay = mr.makeDelay(params.vaso.f_v_delay);          end         % FOCI-VASO delay
 if params.vaso.v_b_delay > 0; v_b_delay = mr.makeDelay(params.vaso.v_b_delay);          end         % VASO-BOLD delay
@@ -493,10 +504,11 @@ for i_ro_blocks = 1:ro_blocks
             adc.phaseOffset = adc_phase_offset(i,j);
             adc_post.phaseOffset = adc_phase_offset(i,j);
             seq.addBlock(rf,gz(i));
-            if i==1; te0 = seq.duration(); end                           % save seq dur to calc TE
+            if i==1 && j==1; te0 = seq.duration(); end                           % save seq dur to calc TE
             seq.addBlock(gzReph(i));
             % EPI navigators
             if params.gen.ro_type == 'c'
+                if params.gen.te > 0; seq.addBlock(te_delay); end       % TE delay
                 for i_nav = 1:3
                     gx.amplitude = -gx.amplitude;
                     seq.addBlock(gx,adc); 
@@ -531,9 +543,10 @@ for i_ro_blocks = 1:ro_blocks
                     if params.spi.type == 1 || params.spi.type == 3 || params.spi.type == 4
                         seq.addBlock(gx_pre(i,j),gy_pre(i,j));                       
                     end
-                    if i==1; te1 = seq.duration(); end                           % save seq dur to calc TE
+                    if i==1 && params.spi.type==0 && j==1; te1 = seq.duration(); end                           % save seq dur to calc TE
                     seq.addBlock(gx(i,j),gy(i,j),adc);
 %                     seq.addBlock(gx_ramp(i,j),gy_ramp(i,j));
+                    if i==1 && params.spi.type==1 && j==1; te1 = seq.duration(); end                           % save seq dur to calc TE
                     if params.gen.dork; seq.addBlock(adc_post); end
                     % Spoil
                     if params.spi.interl > 1
