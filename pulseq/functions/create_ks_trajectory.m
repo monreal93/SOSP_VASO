@@ -5,15 +5,15 @@ function ks_traj = create_ks_trajectory(seq,adc,params,j)
     if params.gen.ro_type == 's'
         plane_samples = adc.numSamples;
     elseif params.gen.ro_type == 'c'
-        plane_samples = adc.numSamples*params.epi.n_lines;
+        plane_samples = adc.numSamples*params.epi.n_lines/params.epi.seg;
         % Discarding the EPI navigator samples, here I have 3
-        j = j+(adc.numSamples*3);
-        tmp = ktraj_adc(1,j:j+adc.numSamples*3);
-        tmp_mx = max(tmp(:));
+%         j = j+(adc.numSamples*3);
+%         tmp = ktraj_adc(1,j:j+adc.numSamples*3);
+%         tmp_mx = max(tmp(:));
     end
     for i=1:params.gen.n(3)
         l = 1;
-        for m=1:params.spi.interl
+        for m=1:params.gen.seg
                 ks_traj.kx(l:l+plane_samples-1,i) = ktraj_adc(1,j:j+plane_samples-1);
                 ks_traj.ky(l:l+plane_samples-1,i) = ktraj_adc(2,j:j+plane_samples-1);
                 ks_traj.kz(l:l+plane_samples-1,i) = ktraj_adc(3,j:j+plane_samples-1);
@@ -22,6 +22,9 @@ function ks_traj = create_ks_trajectory(seq,adc,params,j)
                 if params.gen.dork; j = j+adc_post.numSamples;  end
                 if params.gen.ro_type == 'c'
                     j = j+(adc.numSamples*3);
+                end
+                if params.gen.fid_nav
+                    j = j+200;          % The FIDs are 100samples each, we have two
                 end
         end
     end

@@ -1,5 +1,8 @@
 function [params,ro_blocks] = prepare_fix_parameters(params)
 
+    % Saving nominal resolution before it gets uptaded
+    params.gen.nom_res = params.gen.res;
+    
     % to match resolution as Cartesian (square k-space) they must measure a
     %     diameter of 2/sqrt(pi) ~ 1.13 larger than conventional k-space limits (so
     %     that the area of the circle equals the area of the square).

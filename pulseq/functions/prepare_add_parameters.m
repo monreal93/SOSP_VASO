@@ -63,12 +63,13 @@ function params = prepare_add_parameters(ks_traj,gx,rf,adc,te0,te1,tr0,tr1,seq_t
     if params.gen.ro_type == 's'
         julia_time = repmat(params.gen.TE+(0:adc.dwell:adc.duration-adc.dwell),1,params.spi.interl);
     elseif params.gen.ro_type == 'c'
-        julia_time = params.gen.TE+(0:adc.dwell:(adc.duration*params.epi.n_lines)-adc.dwell);
+        julia_time = (0:adc.dwell:(mr.calcDuration(gx)*params.epi.n_lines/params.epi.seg)-adc.dwell);
+        julia_time = julia_time + (mr.calcDuration(gx)*3) + mr.calcDuration(rf)/2 + 0.6e-3 + 4e-4; % Calibration lines + ~0.6e-3 of gy_pre + 4e-4 of reph-rf_grad
     end
     params.gen.t_vector = julia_time;
     
     % Adjusting for different readout types...
-    if params.spi.type == 3
+    if params.gen.ro_type == 's' && params.spi.type == 3
         params.gen.TE = params.gen.TE+(mr.calcDuration(gx)/2);
         params.gen.ro_samples = params.gen.ro_samples/2;
     end
