@@ -1,10 +1,25 @@
 function  [gx,gy_blips,gx_pre,gy_pre,gy_blip_up,gy_blip_down,adc,params] = create_epi_adc_pulseq(params)
     lims = params.gen.lims;
 
-    
-    gy_pre_area = -(params.gen.del_k(2)*params.gen.n(2)/2/params.epi.ry)*params.epi.pf;
-    if params.epi.pf ~= 1; gy_pre_area = gy_pre_area+(gy_pre_area/4*-1); end
-    gy_pre = mr.makeTrapezoid('y',lims,'maxGrad',15e-3*lims.gamma,'Area',gy_pre_area);
+    % Original
+%     gy_pre_area = -(params.gen.del_k(2)*params.gen.n(2)/2/params.epi.ry)*params.epi.pf;
+%     if params.epi.pf ~= 1; gy_pre_area = gy_pre_area+(gy_pre_area/4*-1); end
+%     gy_pre = mr.makeTrapezoid('y',lims,'maxGrad',15e-3*lims.gamma,'Area',gy_pre_area);
+
+    for i=1:params.epi.seg
+        n_lines = round(params.gen.n(2)/params.epi.ry*params.epi.pf);
+        tmp = (n_lines-(params.gen.n(2)/params.epi.ry)-1)+(n_lines/params.epi.seg*(i-1)-1);
+        gy_pre_area = params.gen.del_k(2)*tmp;
+
+%         gy_pre_area = -(params.gen.del_k(2)*params.gen.n(2)/2/params.epi.ry)*params.epi.pf/i;
+%         if params.epi.pf ~= 1; gy_pre_area = gy_pre_area+((gy_pre_area/2*params.epi.pf)); end
+        if i>1
+            gy_pre(i) = mr.makeTrapezoid('y',lims,'maxGrad',15e-3*lims.gamma,'Area',gy_pre_area,'Duration',mr.calcDuration(gy_pre(1)));
+        else
+            gy_pre(i) = mr.makeTrapezoid('y',lims,'maxGrad',15e-3*lims.gamma,'Area',gy_pre_area);
+        end
+    end
+
     gy_blip = mr.makeTrapezoid('y',lims,'Area',params.gen.del_k(2));
 
     tot_bw = params.gen.n(1)*params.epi.bw_px;

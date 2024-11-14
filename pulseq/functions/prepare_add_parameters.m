@@ -14,6 +14,7 @@ function params = prepare_add_parameters(ks_traj,gx,rf,adc,te0,te1,tr0,tr1,seq_t
         rz = 1./(abs(max(ks_traj.kz(:)))+abs(min(ks_traj.kz(:))));
     end
     params.gen.res = [rx,ry,rz];
+
     params.gen.n(1:2) = round(params.gen.fov(1:2)./params.gen.res(1:2));
     tmp = mod(params.gen.n(1:2),2); 
     params.gen.n(1:2) = params.gen.n(1:2)+tmp; % making in-plane even
@@ -21,7 +22,7 @@ function params = prepare_add_parameters(ks_traj,gx,rf,adc,te0,te1,tr0,tr1,seq_t
     % Adjust for phase oversampling
     params.gen.n_ov(1:2) = params.gen.n(1:2);
     % ToDo: Check what value I really want in n_ov (to be used in recon)
-    params.gen.n_ov(3) = params.gen.n_ov(3).*params.gen.kz;
+%     params.gen.n_ov(3) = params.gen.n_ov(3).*params.gen.kz;
     [params.gen.n, params.gen.n_ov] = deal(params.gen.n_ov, params.gen.n);
     
     % converting FA back to degrees
@@ -31,10 +32,14 @@ function params = prepare_add_parameters(ks_traj,gx,rf,adc,te0,te1,tr0,tr1,seq_t
     params.gen.ro_samples = adc.numSamples;
     params.gen.TE = te1-te0+(mr.calcDuration(rf)/2);
     params.gen.acqTR = tr1-tr0;
-    params.gen.volTR = params.gen.acqTR.*params.gen.n(3).*params.spi.interl;
+    params.gen.volTR = params.gen.acqTR.*params.gen.n_ov(3).*params.spi.interl;
     params.gen.effTR = seq_t1-seq_t0;
     params.gen.adc_dwell = adc.dwell;
-    params.gen.ro_time = adc.duration;
+    if params.gen.ro_type == 's'
+        params.gen.ro_time = adc.duration;
+    elseif params.gen.ro_type == 'c'
+        params.gen.ro_time = adc.duration*params.epi.n_lines;
+    end
     % Calculating TI1 for VASO sequences...
     if params.gen.kz_enc == 0
         if params.gen.seq == 1 && params.vaso.bold_ref == 1
@@ -58,14 +63,13 @@ function params = prepare_add_parameters(ks_traj,gx,rf,adc,te0,te1,tr0,tr1,seq_t
     if params.gen.ro_type == 's'
         julia_time = repmat(params.gen.TE+(0:adc.dwell:adc.duration-adc.dwell),1,params.spi.interl);
     elseif params.gen.ro_type == 'c'
-        julia_time = params.gen.TE+(0:adc.dwell:(adc.duration*params.epi.n_lines)-adc.dwell);
+        julia_time = (0:adc.dwell:(mr.calcDuration(gx)*params.epi.n_lines/params.epi.seg)-adc.dwell);
+        julia_time = julia_time + (mr.calcDuration(gx)*3) + mr.calcDuration(rf)/2 + 0.6e-3 + 4e-4; % Calibration lines + ~0.6e-3 of gy_pre + 4e-4 of reph-rf_grad
     end
     params.gen.t_vector = julia_time;
     
     % Adjusting for different readout types...
-    if params.spi.type == 1
-        params.gen.TE = params.gen.TE+mr.calcDuration(gx);
-    elseif params.spi.type == 3
+    if params.gen.ro_type == 's' && params.spi.type == 3
         params.gen.TE = params.gen.TE+(mr.calcDuration(gx)/2);
         params.gen.ro_samples = params.gen.ro_samples/2;
     end

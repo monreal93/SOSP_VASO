@@ -114,9 +114,11 @@ for j=1:params.gen.n(3)
                     tmp = g1(:,end)/42.58e6*100;
                     tmp = [tmp; 0]';
                     g(1,:) = tmp;
-                end
+                else
+                    g = padarray(g,[4,0]);
+                end 
             else
-                g = [zeros(20,3); tmp ; g; tmp1; zeros(20,3)];
+                g = [zeros(10,3); tmp ; g; tmp1; zeros(10,3)];
             end
 
             time = round(time*1e-3,3);

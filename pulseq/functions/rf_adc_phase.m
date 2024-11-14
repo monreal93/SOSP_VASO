@@ -1,5 +1,5 @@
 
-function [rf_phase_offset,adc_phase_offset] = rf_adc_phase(params)
+function [rf_phase_offset,adc_phase_offset] = rf_adc_phase(params, flag)
     %% 3D RF and ADC phase
     % This part is coming from ./Emily/RF_design/calcRFphase_3D.m
     % I don't know how this works for 3D; I kinda know now
@@ -33,7 +33,16 @@ function [rf_phase_offset,adc_phase_offset] = rf_adc_phase(params)
             tmp = tmp+1;
         end
     end
-        
+
+    if flag
+        % AMM: putting the phase offset in the center partition (WIP)
+        tmp = find(rf_phase_offset(:,1)==0);
+        tmp = tmp(1);
+        tmp = ((params.gen.n(3)/2)+1)-tmp;
+        rf_phase_offset = circshift(rf_phase_offset,tmp);
+        adc_phase_offset = circshift(adc_phase_offset,tmp);
+    end
+
 %     % AMM: Original phase...
 %     for i = 1:params.gen.n(3) %MrProt.private.l_additionalslice+MrProt.sliceGroupList(1).sliceperslab
 %         rf_phase(1,i) = RF.InitPhaseSet+25*i*i+175*i+300;
