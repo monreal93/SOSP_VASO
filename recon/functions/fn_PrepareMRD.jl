@@ -28,7 +28,7 @@ end
 
 Rearanges the raw data, into [readouts*set,partitions,channels,repetitions]
 """
-function FormatRawData(rawData,params;single_rep::Bool=false,rep_format::Int)
+function FormatRawData(rawData,params;single_rep::Bool=false,rep_format::Int,fid_nav::Int=0)
     numRead = params[:numRead]
     numInterl = params[:numInterl]
     numPar = params[:numPar]
@@ -48,9 +48,19 @@ function FormatRawData(rawData,params;single_rep::Bool=false,rep_format::Int)
         kdata = Array{ComplexF32}(undef,numRead*numInterl,numPar,numCha,numRep)
     end
 
+    if fid_nav == 1
+        ndata = Array{ComplexF32}(undef,size(rawData.profiles[1].data,1),numPar,numCha,numRep,2)
+    end
+
     for i_rep=1:numRep
         for i_par=1:numPar
             for i_interl=1:numInterl
+                if fid_nav == 1
+                    for i_nav=1:2
+                        ndata[:,i_par,:,i_rep,i_nav] = rawData.profiles[i_prof].data # Original
+                        i_prof += 1
+                    end
+                end
                 for i_set=1:numSet
                     tmp[:,i_set,i_interl,i_par,:,i_rep] = rawData.profiles[i_prof].data # Original
                     # tmp[:,i_set,i_interl,i_par,:,i_rep] = rawData.profiles[i_prof].data[1:numRead,:]
@@ -61,7 +71,12 @@ function FormatRawData(rawData,params;single_rep::Bool=false,rep_format::Int)
     end
 
     kdata .= reshape(tmp,(:,numPar,numCha,numRep))
-    return kdata
+
+    if @isdefined ndata
+        return kdata, ndata
+    else
+        return kdata, nothing
+    end
 end
 
 """

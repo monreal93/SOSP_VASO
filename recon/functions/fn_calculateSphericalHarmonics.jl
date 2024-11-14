@@ -24,6 +24,9 @@ function getCalibrationMatrix(params::Dict{Symbol,Any},b0_init,fm)
     # Use one echo
     fm = fm[:,:,:,:,3]
 
+    @info("Stop... High order B0 correction...")
+    @infiltrate
+
     # Getting shperical harmonics basis functions
     @polyvar x y z
 
@@ -58,6 +61,9 @@ function getCalibrationMatrix(params::Dict{Symbol,Any},b0_init,fm)
     # del_b0 is the lth-order aproximation of the initial b0 map
     ΔB0 = sh_basis * b
     ΔB0 = reshape(ΔB0,mtx_s[1],mtx_s[2],mtx_s[3])
+
+    @info("Stop... High order B0 correction...")
+    @infiltrate
 
     # Now generating the calibration matrix A as in Wallace paper
     s_vec = reshape(fm,:,params[:numCha])

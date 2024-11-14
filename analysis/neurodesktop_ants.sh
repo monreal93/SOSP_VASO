@@ -2,9 +2,9 @@ cd /neurodesktop-storage/5T3/Alejandro/sosp_vaso/data
 
 folder="08302024_sb_9T"
 
-scan="sb_23_IN_2shot_14fa"
+scan="sb_22_OUT_2shot_6te_14fa"
 # scan_t1="dicom_mp2rage_iso0.7mm_iPAT3_20230519112423_17"
-scan_t1="s2_brain"          # subject # =  s#_ brain 
+scan_t1="s2_brain_t1"          # subject # =  s#_ brain 
 
 ##### README.... 
 # Before running this script:
@@ -28,7 +28,7 @@ else
     t1_vaso_file=../${scan}/mean.nii # FOR BOLD ...
 fi
 
-t1_file=../t1/${scan_t1}.nii
+t1_file=../../raw/nifti/${scan_t1}.nii
 # t1_vaso_file=../${scan}/mean_v_msk.nii # original
 mask=../${scan}/${scan}_roi_msk.nii     # Mask created from ITKsnap..
 # mask=../${scan}/mask.nii     # General mask...
@@ -107,7 +107,18 @@ antsRegistration \
 
 
 #####  Applying transformation to T1, GM and WM mask
-cp ./${output1} ../${scan}/${scan}_t1.nii
+# Copying the result from the registration
+cp ./${output1} ../${scan}/${scan}_${scan_t1 :-2}.nii
+
+# Aplying it to T1
+transform=${scan}_0GenericAffine.mat 
+tmp=""
+tmp="${t1_file}"
+antsApplyTransforms --interpolation BSpline[5] -d 3 \
+-i "${tmp}" \
+-r "${t1_vaso_file}" \
+-t "${transform}" \
+-o ../"${scan}"/"${scan}"_t1.nii
 
 transform=${scan}_0GenericAffine.mat   
 # GM mask Aplying advanced transform obrained from antsRegistration

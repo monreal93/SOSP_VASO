@@ -1,9 +1,9 @@
 """
-MergeReconstrucion(path::String,scan::String,Repetitions::Any,ParallelRecon::Bool,OffResonanceCorrection::Bool, k0Correction::Bool,rDORKCorrection::Bool; TrajectoryType::String="", Suffix="")
+MergeReconstrucion(path::String,scan::String,Repetitions::Any,ParallelRecon::Bool,OffResonanceCorrection::Bool,CocoCorrection::Bool, k0Correction::Bool,rDORKCorrection::Bool,hOrderCorrection::Bool; TrajectoryType::String="", Suffix="",B0CorrectionType)
 
 Merge each repetition of the fMRI series into a timeseries
 """
-function MergeReconstrucion(path::String,scan::String,Repetitions::Any,ParallelRecon::Bool,OffResonanceCorrection::Bool,CocoCorrection::Bool, k0Correction::Bool,rDORKCorrection::Bool,hOrderCorrection::Bool; TrajectoryType::String="", Suffix="")
+function MergeReconstrucion(path::String,scan::String,Repetitions::Any,ParallelRecon::Bool,OffResonanceCorrection::Bool,CocoCorrection::Bool, k0Correction::Bool,rDORKCorrection::Bool,hOrderCorrection::Bool; TrajectoryType::String="nom", Suffix="",B0CorrectionType)
 
     file_prefix = string(path,"/recon/3d/",scan)
     file_suffix = string("_",TrajectoryType) 
@@ -14,8 +14,13 @@ function MergeReconstrucion(path::String,scan::String,Repetitions::Any,ParallelR
     if OffResonanceCorrection
         if hOrderCorrection
             file_suffix = string(file_suffix,"_hb0")
-        else
+        end
+        if B0CorrectionType==0
             file_suffix = string(file_suffix,"_b0")
+        elseif B0CorrectionType==1
+            file_suffix = string(file_suffix,"_tsb0")
+        elseif B0CorrectionType==2
+            file_suffix = string(file_suffix,"_fsb0")
         end
     end
     if CocoCorrection

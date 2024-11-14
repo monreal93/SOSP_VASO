@@ -23,13 +23,14 @@ function CalculateSensitivityMap(recon,MtxSize::Tuple;calib_size::Int=12)
     # calibration = fft(calibration,2)
     # calibration = fftshift(fft(calibration,3),3)
 
-    calibration = calibration[Int(end/2+1-calib_size):Int(end/2+calib_size),Int(end/2+1-calib_size):Int(end/2+calib_size),Int(floor(end/2+1)-6):Int(floor(end/2)+6),:]
+    calibration = calibration[Int(end/2+1-calib_size):Int(end/2+calib_size),Int(end/2+1-calib_size):Int(end/2+calib_size),Int(floor(end/2+1)-calib_size):Int(floor(end/2)+calib_size),:]
     # # ESPIRIT wants even numbers in slice direction, lets add some slices
     # if mod(Int(MtxSize[3]./2),2) == 1
     #     MtxSize_tmp = (MtxSize[1],MtxSize[2],Int(MtxSize[3]+2))
     # else
     #     MtxSize_tmp = copy(MtxSize)
     # end
+    
     SensitivityMap = espirit(calibration,MtxSize)
     SensitivityMap = fftshift(fftshift(SensitivityMap,1),2)
 
@@ -94,6 +95,7 @@ function CalculateOffresonanceMap(recon_b0,SensitivityMap,EchoTimes::Vector{Floa
     #     order=1, l2b=0.002, gamma_type=:PR, niter, precon, track, kwargs...)
 
     # Different smoothing values:
+    # Default order =1
     fmap_run = (niter, precon, track; kwargs...) ->
     b0map(yik_scale, echotime; finit, smap, mask,
     order=1, l2b=0.002, gamma_type=:PR, niter, precon, track, kwargs...)
@@ -174,7 +176,7 @@ function CalculateConcomitantFieldMap(RotMatrix::Matrix{Float32},CenterPosition:
         for i_x=eachindex(x)
             for i_y=eachindex(y)
                 for i_z=eachindex(z)    
-                fc[i_x,i_y,i_z] =  42.58e6 * ((gm^2)/(4*b0)) * ((x[i_x].^2)+((y[i_y].^2)/4)+(z[i_z].^2))
+                    fc[i_x,i_y,i_z] =  42.58e6 * ((gm^2)/(4*b0)) * (((x[i_x].^2)/4)+((y[i_y].^2)/4)+((z[i_z].^2)))
                 end
             end
         end
@@ -183,7 +185,7 @@ function CalculateConcomitantFieldMap(RotMatrix::Matrix{Float32},CenterPosition:
         for i_x=eachindex(x)
             for i_y=eachindex(y)
                 for i_z=eachindex(z)    
-                fc[i_x,i_y,i_z] =  42.58e6 * ((gm^2)/(4*b0)) * ((F1*(x[i_x].^2)) + (F2*(y[i_y].^2)) + (F3*(z[i_z].^2)) + (F4.*y[i_y].*z[i_z]) + (F5.*x[i_x].*z[i_z]) + (F6.*x[i_x].*y[i_y]))
+                    fc[i_x,i_y,i_z] =  42.58e6 * ((gm^2)/(4*b0)) * ((F1*(x[i_x].^2)) + (F2*(y[i_y].^2)) + (F3*(z[i_z].^2)) + (F4.*y[i_y].*z[i_z]) + (F5.*x[i_x].*z[i_z]) + (F6.*x[i_x].*y[i_y]))
                 end
             end
         end
@@ -191,6 +193,9 @@ function CalculateConcomitantFieldMap(RotMatrix::Matrix{Float32},CenterPosition:
 
     # Convert to rad/s
     CocoFieldMap = fc .* 2π
+
+    # @info("Stop... CocoFieldMap...")
+    # @infiltrate
 
     return CocoFieldMap
 end
