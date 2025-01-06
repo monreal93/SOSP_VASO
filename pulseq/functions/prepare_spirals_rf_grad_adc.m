@@ -118,7 +118,7 @@ for j=1:params.gen.n(3)
                     g = padarray(g,[4,0]);
                 end 
             else
-                g = [zeros(10,3); tmp ; g; tmp1; zeros(10,3)];
+                g = [zeros(20,3); tmp ; g; tmp1; zeros(20,3)];
             end
 
             time = round(time*1e-3,3);

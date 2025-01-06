@@ -14,18 +14,21 @@ function [params,ro_blocks] = prepare_fix_parameters(params)
     if params.gen.ro_type == 'c'; params.spi.interl = 1; end
     if params.gen.ro_type == 'c'; params.gen.del_k(2) = params.gen.del_k(2).*params.epi.ry; end
     if params.mt.bold; params.mt.mt = 1; end        % If MT BOLD corrected, use MT 
+    if params.gen.kz == 1; params.gen.kz_caipi = 1; end % If no Rz, no CAIPI kz
     params.gen.del_k(3) = params.gen.del_k(3).*params.gen.kz;
+%     if params.gen.kz_caipi == 1; params.gen.del_k(3) = params.gen.del_k(3)/2; end  % If Kz caipi, kz/blip /2
     params.gen.n = round(params.gen.fov./params.gen.res);
     if and(params.gen.seq == 1,params.vaso.bold_ref == 1) || and(params.gen.seq == 2,params.mt.bold)
         ro_blocks = 2; 
     elseif params.gen.seq == 3
-        ro_blocks = length(params.epi.te);
+        ro_blocks = length(params.gen.multi_te);
     else
         ro_blocks = 1; 
     end
     % Partition or phase oversampling
     params.gen.n_ov = params.gen.n;
     if params.gen.ph_oversampling > 0
+        % Increase FOV?
         params.gen.del_k(3) = params.gen.del_k(3)/(1+(params.gen.ph_oversampling/100)); 
         params.gen.n(3) = round(round(params.gen.n(3)*(1+(params.gen.ph_oversampling/100)))/2)*2;
     end
@@ -42,7 +45,7 @@ function [params,ro_blocks] = prepare_fix_parameters(params)
 %     tmp = mod(params.gen.n,4);
 %     params.gen.n(1:2) = params.gen.n(1:2)+tmp(1:2);
     % ToDo: Check... Not sure if I do need this...
-    params.gen.n(3) = params.gen.n(3)/params.gen.kz/params.gen.pf;
+    params.gen.n(3) = round(params.gen.n(3)/params.gen.kz/params.gen.pf/2)*2;
     % Making sure fovz/rz are integers and even
     if round((params.gen.fov(3)/params.gen.kz)*1000,9)/round((params.gen.fov(3)/params.gen.kz)*1000) ~= 1
         params.gen.fov(3) = round(params.gen.fov(3)*1000/2/params.gen.kz)*2*params.gen.kz*1e-3;

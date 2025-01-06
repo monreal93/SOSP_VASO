@@ -33,8 +33,8 @@ function [rf0,gz,gzReph,params] =  create_rf_gz_pulseq(params,tr_tmp)
             % ABC
             [rf0(i), gz(i)] = mr.makeSincPulse(params.gen.fa(i),'system',lims,'Duration',1e-3,...
                 'SliceThickness',params.gen.fov(3),'apodization',0.5);
-        else
-            % VASO/BOLD/Fieldmap
+        elseif params.gen.seq == 4 || params.gen.seq == 3
+            % BOLD/Fieldmap
             if params.gen.field_strength == 7 || params.gen.field_strength == 7i
                 % 7T and 7Ti
                 [rf0(i), gz(i)] = mr.makeSincPulse(params.gen.fa(i),'system',lims,'Duration',2.56e-3,...
@@ -42,6 +42,17 @@ function [rf0,gz,gzReph,params] =  create_rf_gz_pulseq(params,tr_tmp)
             elseif params.gen.field_strength == 9
                 % 9.4T
                 [rf0(i), gz(i)] = mr.makeSincPulse(params.gen.fa(i),'system',lims,'Duration',2.56e-3,...
+                    'SliceThickness',params.gen.fov(3),'apodization',0.5,'timeBwProduct',25);
+            end
+        elseif params.gen.seq == 1
+            % VASO
+            if params.gen.field_strength == 7 || params.gen.field_strength == 7i
+                % 7T and 7Ti
+                [rf0(i), gz(i)] = mr.makeSincPulse(params.gen.fa(i),'system',lims,'Duration',2.56e-3,...
+                    'SliceThickness',params.gen.fov(3),'apodization',0.5,'timeBwProduct',25);
+            elseif params.gen.field_strength == 9
+                % 9.4T
+                [rf0(i), gz(i)] = mr.makeSincPulse(params.gen.fa(i),'system',lims,'Duration',5.25e-3,...
                     'SliceThickness',params.gen.fov(3),'apodization',0.5,'timeBwProduct',25);
             end
         end
