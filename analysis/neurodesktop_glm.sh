@@ -18,20 +18,22 @@ mkdir ./analysis/${scan}
 chmod ugo+rwx ./analysis/${scan}
 cd ./analysis/${scan}
 
-if [ "${scan:0:2}" = "sv" ]; then
-    echo "Spiral VASO .."
-    # Set path for reconstruction
-    v_file=../../recon/${scan}_v${traj}${cs}${b0}${co}${k0}${rDORK}.nii
-    b_file=../../recon/${scan}_b${traj}${cs}${b0}${co}${k0}${rDORK}.nii
-    gre1=../../tmp/${scan}_1ech.nii
-elif [ "${scan:0:2}" = "cv" ]; then
-    echo "Cartesian VASO .."
-    file=../../recon/${scan}_bv_epi.nii
-    v_file=../../recon/${scan}_v_epi.nii
-    b_file=../../recon/${scan}_b_epi.nii
-fi
+# if [ "${scan:0:2}" = "sv" ]; then
+#     echo "Spiral VASO .."
+#     # Set path for reconstruction
+#     v_file=../../recon/${scan}_v${traj}${cs}${b0}${co}${k0}${rDORK}.nii
+#     b_file=../../recon/${scan}_b${traj}${cs}${b0}${co}${k0}${rDORK}.nii
+#     gre1=../../tmp/${scan}_1ech.nii
+# elif [ "${scan:0:2}" = "cv" ]; then
+#     echo "Cartesian VASO .."
+#     file=../../recon/${scan}_bv_epi.nii
+#     v_file=../../recon/${scan}_v_epi.nii
+#     b_file=../../recon/${scan}_b_epi.nii
+# fi
 
-vol=$(3dinfo -nv ${v_file})
+b_file=./${scan}_b_ups_mc_hpf.nii
+
+vol=$(3dinfo -nv ${b_file})
 
 blocks=$(echo $vol/$r_a_tr/2 | bc -l)
 blocks=$(echo ${blocks%.*})
@@ -91,7 +93,7 @@ if [ "$motion_glm" = 1 ]; then
     echo "BOLD based on GLM..."
     3dDeconvolve -overwrite -jobs 16 -polort 1 \
                 -force_TR $tr \
-                -input ./${scan}_b_ups_mc_hpf.nii\
+                -input ./${b_file}\
                 -num_stimts 7 \
                 -TR_times $tr \
                 -stim_times 1 "$stim_times" "$ublock" -stim_label 1 Task \

@@ -14,33 +14,39 @@ function calculateGfactor(acqData::AcquisitionData,acqData_full::AcquisitionData
 
   image_replicas = Array{ComplexF64}(undef,params[:reconSize][1],params[:reconSize][2],params[:reconSize][3],replicas)
   noise_replicas = Array{ComplexF64}(undef,params[:reconSize][1],params[:reconSize][2],params[:reconSize][3],replicas)
-  noise_snr = Float64(5)
-
+  
+  noise_snr = Float64(10) # SNR for simulations...
  
   # Reconstruct image data
   # Ireco_no_noise = reconstruction(acqData, params)
 
   # Reconstruct noise data
-  file_name = "/usr/share/5T4/Alejandro/sosp_vaso/data/simulations/tmp/"
-  if params[:scan_suffix][1] == 's'
-    file_name = string(params[:path_sim],"/tmp/spiral_noise_replicas",params[:scan_suffix][6:end],".mat")
-  elseif params[:scan_suffix][1] == 'c'
-    file_name = string(params[:path_sim],"/tmp/cartesian_noise_replicas",params[:scan_suffix][6:end],".mat")
+  # file_name = "/neurodesktop-storage/5T4/Alejandro/sosp_vaso/data/simulations/tmp/"
+  idx = findall.("_",scan_suffix)
+  if params[:ro_type] == "s"
+    file_name = string(path_sim,"/tmp/spiral_noise_replicas",scan_suffix[idx[1][1]:end],".mat")
+  elseif params[:ro_type] == "c"
+    file_name = string(path_sim,"/tmp/cartesian_noise_replicas",scan_suffix[idx[1][1]:end],".mat")
   end
+
+  signalAmpl = sum(abs.(acqData.kdata[1])) / length(acqData.kdata[1])
+
   if !isfile(file_name)
     acqData_zeros = deepcopy(acqData_full)
     acqData_zeros.kdata[1] .= zeros(size(acqData_zeros.kdata[1]))
     acqData_zeros_noise = deepcopy(acqData_zeros)
+    
     for i_rep=1:replicas
-      scale_factor = 1e1;
-      acqData_zeros_noise.kdata[1] .= addCorrelatedNoise(acqData_zeros.kdata[1],noise_snr,cov,scale_factor)
+    # @floop for i_rep=1:replicas
+      scale_factor = 1e-3
+
+      acqData_zeros_noise.kdata[1] .= addCorrelatedNoise(acqData_zeros.kdata[1],noise_snr,cov; signalAmpl=signalAmpl, scale_factor=scale_factor)
 
       Ireco = reconstruction(acqData_zeros_noise, params)
       
       Ireco *= sqrt(params[:rxyz])
 
       noise_replicas[:,:,:,i_rep] = (Ireco[:,:,:,1,1,1])
-      # acqData_zeros_noise.kdata[1] .= acqData_zeros.kdata[1]
       @info (string("Done with noise only replica ",i_rep))
 
     end
@@ -50,13 +56,15 @@ function calculateGfactor(acqData::AcquisitionData,acqData_full::AcquisitionData
   else
     noise_replicas = matread(file_name)
     noise_replicas = noise_replicas["noise_replicas"]
+    
   end
 
   # Reconstruct image-noise data
   acqData_noise = deepcopy(acqData)
   for i_rep=1:replicas
-      scale_factor = 1e1;
-      acqData_noise.kdata[1] .= addCorrelatedNoise(acqData.kdata[1],noise_snr,cov,scale_factor)
+  # @floop for i_rep=1:replicas
+      scale_factor = 1e-3
+      acqData_noise.kdata[1] .= addCorrelatedNoise(acqData.kdata[1],noise_snr,cov;  scale_factor=scale_factor)
 
       Ireco = reconstruction(acqData_noise, params)
 
@@ -65,7 +73,7 @@ function calculateGfactor(acqData::AcquisitionData,acqData_full::AcquisitionData
 
   end
 
-  @info("stop....")
+  @info("stop g-factor....")
   @infiltrate
 
   # Get standard deviation of image-noise and noise reconstructions

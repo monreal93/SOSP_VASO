@@ -26,7 +26,7 @@ function ReconSpiralMEGRE(acqData::AcquisitionData{Float32,3},params::Dict{Strin
     recon = recon[:,:,:,1,:,1]
 
     # Coil combine
-    recon_sos = sqrt.(((sum(abs.(recon).^2; dims=5))))
+    recon_sos = sqrt.(((sum(abs.(recon).^2; dims=4))))
 
     return recon
 end

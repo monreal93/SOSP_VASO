@@ -49,7 +49,8 @@ function FormatRawData(rawData,params;single_rep::Bool=false,rep_format::Int,fid
     end
 
     if fid_nav == 1
-        ndata = Array{ComplexF32}(undef,size(rawData.profiles[1].data,1),numPar,numCha,numRep,2)
+        i_prof = ((i_prof-1)*2)+1
+        ndata = Array{ComplexF32}(undef,size(rawData.profiles[1].data,1),numInterl,numPar,numCha,numRep,2)
     end
 
     for i_rep=1:numRep
@@ -57,7 +58,7 @@ function FormatRawData(rawData,params;single_rep::Bool=false,rep_format::Int,fid
             for i_interl=1:numInterl
                 if fid_nav == 1
                     for i_nav=1:2
-                        ndata[:,i_par,:,i_rep,i_nav] = rawData.profiles[i_prof].data # Original
+                        ndata[:,i_interl,i_par,:,i_rep,i_nav] = rawData.profiles[i_prof].data # Original
                         i_prof += 1
                     end
                 end

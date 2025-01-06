@@ -1,14 +1,12 @@
 cd /neurodesktop-storage/5T3/Alejandro/sosp_vaso/data
 
-folder="08302024_sb_9T"
-
-scan="sb_22_OUT_2shot_6te_14fa"
+folder="11262024_sb_9T_paper"
+scan="sb_101_DS_SO_06mm_6te"
 # scan_t1="dicom_mp2rage_iso0.7mm_iPAT3_20230519112423_17"
-scan_t1="s2_brain_t1"          # subject # =  s#_ brain 
+scan_t1="s1_brain_t1"          # subject # =  s#_ brain 
 
 ##### README.... 
 # Before running this script:
-# - Save the anatomy (MP2RAGE-14) as ./analysis/t1/brain.nii
 # - do an intial registration in ITKsnap... save the values in a file called ./analysis/ants/initial_matrix_$scan
 # - Also create a ROI mask, that will be used for registration... save it as ./scan/scan_roi_msk.nii
 
@@ -25,7 +23,7 @@ ml afni
 if [ "${scan:1:2}" = "v" ]; then
     t1_vaso_file=../${scan}/T1_msk.nii # FOR VASO
 else
-    t1_vaso_file=../${scan}/mean.nii # FOR BOLD ...
+    t1_vaso_file=../${scan}/mean_msk.nii # FOR BOLD ...
 fi
 
 t1_file=../../raw/nifti/${scan_t1}.nii

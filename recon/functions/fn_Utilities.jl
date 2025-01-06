@@ -48,3 +48,27 @@ function MergeReconstrucion(path::String,scan::String,Repetitions::Any,ParallelR
 
     return TimeSeries
 end
+
+"""
+MergeReconstrucion(path::String,scan::String,suffix::String,Repetitions::Any)
+
+Merge each repetition of the fMRI series into a timeseries
+"""
+function MergeReconstrucion(path::String,scan::String,suffix::String,Repetitions::Any)
+
+    file_prefix = string(path,"/recon/3d/",scan)
+
+    # Read one, to get the volume dimensions
+    tmp = niread(string(file_prefix,"_rep_",Repetitions[1],suffix,".nii"))
+
+    TimeSeries = Array{Float32,4}(undef,(size(tmp.raw)[1:3]...,length(Repetitions)...))
+    for i_rep=1:length(Repetitions)
+        tmp = niread(string(file_prefix,"_rep_",Repetitions[i_rep],suffix,".nii"))
+        TimeSeries[:,:,:,i_rep] .= tmp.raw[:,:,:,1]
+    end
+
+    # Scailing the data, for now arbitrary
+    TimeSeries = TimeSeries.*1e11 
+
+    return TimeSeries
+end

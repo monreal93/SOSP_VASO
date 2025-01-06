@@ -19,12 +19,9 @@ function CorrectOffResonanceTimeSegmented(ks_traj,kdata,OffResonanceMap,params,p
     TimeSegments = Int(round(4*(maximum(OffResonanceMap)-minimum(OffResonanceMap))*params["gen"]["ro_time"]))
     TimeSegments = Int(ceil(TimeSegments/2)*2)
     # Temp: Increasing the number of time segments:
-    TimeSegments += 10
+    # TimeSegments += 10
 
     SegmentLength = round(params["gen"]["ro_samples"]/TimeSegments/2)*2
-
-    @info("Stop... Time Segmented correction...")
-    @infiltrate
 
     # Empty Ireco
     Ireco = Array{ComplexF32}(undef,Tuple([params["gen"]["n"]... TimeSegments]))
@@ -101,7 +98,7 @@ function CorrectOffResonanceFrequencySegmented(ks_traj,kdata,OffResonanceMap,par
     SegmentValues = sort(unique(OffResonanceMapRange))
 
     # Empty Ireco
-    Ireco = zeros(ComplexF32, Tuple(params["gen"]["n"]))
+    Ireco = zeros(ComplexF32, size(OffResonanceMap))
 
     @time @floop for i_FrequencySegments in 1:Int(FrequencySegments)-1
     # for i_FrequencySegments in 1:Int(FrequencySegments)-1

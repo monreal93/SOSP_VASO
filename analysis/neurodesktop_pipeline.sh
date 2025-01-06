@@ -5,13 +5,13 @@ ml laynii
 
 cd /neurodesktop-storage/5T3/Alejandro/sosp_vaso/data
 
-folder="11052024_sb_9T"
-scan="sb_001_DS_SO_06mm_2te"
-r_a_tr=7     # rest/activity TRs paper=sv(8), cv(7)
-tr=3.72  # volume TR paper=sv(1.66), cv(1.81)
-recon_file="sb_001_DS_SO_06mm_2te_b_r1_112_nom_cs_fsb0_co_rDORK"  # name of the reconstructred volume.. it should be in the recon folder...
+folder="12192024_sb_9T_paper"
+scan="sb_402_DS_SO_06mm_12te"
+r_a_tr=7    # rest/activity TRs
+tr=4.37  # volume TR paper=sv(1.66), cv(1.81)
+recon_file="sb_402_DS_SO_06mm_12te_b_nom_cs_fsb0_co_rDORK"  # name of the reconstructred volume.. it should be in the recon folder...
 motion_glm=1     # GLM including motion parametrs
-stim=2           # number of stimulus for block desig
+stim=1           # number of stimulus for block desig
 
 cd ${folder}
 
@@ -19,6 +19,7 @@ mkdir ./analysis/${scan}
 chmod ugo+rwx ./analysis/${scan}
 cd ./analysis/${scan}
 
+### Starting... 
 gre1=../../tmp/${scan}_nom.nii
 file=../../recon/${recon_file}.nii
 file_rev_ph=../../recon/${recon_file}_rev_ph.nii  # Reversed phase enc EPI volume...
@@ -40,9 +41,9 @@ block_trs=$(echo ${block_trs%.*})
 3dWarp -deoblique ${file}
 3dWarp -deoblique ${gre1}
 
-# ) Making sure orientation is LPI
-3drefit -orient LPI ${file}
-3drefit -orient LPI ${gre1}
+# ) Making sure orientation is LPI (Transversal) or RIA (Coronal)
+3drefit -orient RIA ${file}
+3drefit -orient RIA ${gre1}
 
 # # # Sometimes I need to Flip in y direction
 # 3dLRflip -Y -prefix ${file} ${file} -overwrite
@@ -178,7 +179,7 @@ else
     if [ "$stim" = 2 ]; then
         3dDeconvolve -overwrite -jobs 16 -polort a \
                     -force_TR $tr \
-                    -input ./${scan}_mc.nii\
+                    -input ./${scan}_mc_hpf.nii\
                     -num_stimts 8 \
                     -TR_times $tr \
                     -stim_times 1 "$stim_times" "$ublock" -stim_label 1 Task \
@@ -197,7 +198,7 @@ else
     else
         3dDeconvolve -overwrite -jobs 16 -polort a \
             -force_TR $tr \
-            -input ./${scan}_mc.nii\
+            -input ./${scan}_mc_hpf.nii\
             -num_stimts 7 \
             -TR_times $tr \
             -stim_times 1 "$stim_times" "$ublock" -stim_label 1 Task \
@@ -244,13 +245,14 @@ slices=$(3dinfo -nk BOLD_msk.nii)
 slices=$(($slices-1))
 # BOLD
 3dZcutup -keep 2 "${slices}" -prefix BOLD_msk.nii BOLD_msk.nii -overwrite
-3dZeropad -I 2 -prefix BOLD_msk.nii BOLD_msk.nii -overwrite
+3dZeropad -master mask.nii -prefix BOLD_msk.nii BOLD_msk.nii -overwrite
 
 ##### ) Cluster activations, sometimes I use -sided RIGHT_TAIL 3 , sometimes 4 (check the clustering result...)
 # 3dclust -1noneg -overwrite -prefix clustered_BOLD.nii -1clip 3 1.4 120 BOLD_msk.nii
-thr=3
+thr=2
 3dClusterize -inset BOLD_msk.nii -ithr 0 -idat 0 -NN 1 -1sided RIGHT_TAIL $thr -clust_nvox 40 -pref_dat clustered_BOLD.nii -overwrite
 
+########### Writing some metrics in results.txt
 ### Percentage of active voxels
 active_vox=$(3dBrickStat -count -non-zero -mask ./mask.nii ./clustered_BOLD.nii)
 mask_vox=$(3dBrickStat -count -non-zero -mask ./mask.nii ./mask.nii)
@@ -269,6 +271,17 @@ echo -e "BOLD brain mean tSNR: \n $mean_tSNR_b" >> results.txt
 3dcalc -a ./tSNR_msk.nii -expr "a/sqrt($tr)" -prefix ./eff_tSNR.nii -overwrite
 mean_tSNR_b=$(3dBrickStat -mean -non-negative -nonan -mask ./mask.nii ./eff_tSNR.nii) 
 echo -e "BOLD brain mean effective tSNR: \n $mean_tSNR_b" >> results.txt
+
+## temporal Contrast to Noise Ratio
+3dcalc -prefix b_bin_output_neg.nii -a mask.nii -b b_bin_output.nii -expr "a-b" -overwrite
+std_activity=$(3dBrickStat -stdev -non-zero -mask b_bin_output.nii ./${scan}_mc_hpf.nii)
+std_noise=$(3dBrickStat -stdev -non-zero -mask b_bin_output_neg.nii ./${scan}_mc_hpf.nii)
+# 3dTstat -prefix std_act.nii -mask b_bin_output.nii -stdev ./${scan}_mc_hpf.nii -overwrite -overwrite
+# 3dTstat -prefix std_noise.nii -mask b_bin_output_neg.nii -stdev ./${scan}_mc_hpf.nii -overwrite -overwrite
+# std_activity=$(3dBrickStat -stdev -non-zero -mask b_bin_output.nii std_act.nii)
+# std_noise=$(3dBrickStat -stdev -non-zero -mask b_bin_output_neg.nii std_noise.nii)
+tCNR_b=$(echo $std_activity/$std_noise | bc -l)
+echo -e "tCNR: \n $tCNR_b" >> results.txt
 
 ##### ) Get mean of activations and percentage change
 ### BOLD

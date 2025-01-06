@@ -5,13 +5,14 @@ ml laynii
 
 cd /neurodesktop-storage/5T4/Alejandro/sosp_vaso/data
 
-folder="06192024_sv_josh"
-scan="sv_01"
-r_a_tr=5     # rest/activity TRs paper=sv(8), cv(7)
-tr=2.393   # volume TR paper=sv(1.66), cv(1.81)
+folder="02022024_sv_7Ti"
+scan="sv_03_80G_800SR_shortTR"
+r_a_tr=11     # rest/activity TRs paper=sv(8), cv(7)
+tr=2.81   # volume TR paper=sv(1.66), cv(1.81)
 
 # Spiral reconstruction options
-traj="_nom" && cs="_cs" && b0="_b0" && co="_co" && k0="" && rDORK="_rDORK"
+traj="_sk" && cs="_cs" && b0="_b0" && co="_co" && k0="_k0" && rDORK="_rDORK"
+suffix="_nordic"
 
 cd ${folder}
 
@@ -22,8 +23,8 @@ cd ./analysis/${scan}
 if [ "${scan:0:2}" = "sv" ]; then
     echo "Spiral VASO .."
     # Set path for reconstruction
-    v_file=../../recon/${scan}_v${traj}${cs}${b0}${k0}${rDORK}.nii
-    b_file=../../recon/${scan}_b${traj}${cs}${b0}${k0}${rDORK}.nii
+    v_file=../../recon/${scan}_v${traj}${cs}${b0}${k0}${rDORK}${suffix}.nii
+    b_file=../../recon/${scan}_b${traj}${cs}${b0}${k0}${rDORK}${suffix}.nii
     gre1=../../tmp/${scan}_1ech.nii
 elif [ "${scan:0:2}" = "cv" ]; then
     echo "Cartesian VASO .."

@@ -1,4 +1,5 @@
 using MRIFieldmaps: b0map, b0model, b0init, b0scale
+using ROMEO
 
 """
 CalculateSensitivitityMap(RawData::RawAcquisitionData,params::Dict{Symbol,Any})
@@ -23,13 +24,14 @@ function CalculateSensitivityMap(recon,MtxSize::Tuple;calib_size::Int=12)
     # calibration = fft(calibration,2)
     # calibration = fftshift(fft(calibration,3),3)
 
-    calibration = calibration[Int(end/2+1-calib_size):Int(end/2+calib_size),Int(end/2+1-calib_size):Int(end/2+calib_size),Int(floor(end/2+1)-calib_size):Int(floor(end/2)+calib_size),:]
-    # # ESPIRIT wants even numbers in slice direction, lets add some slices
+    calibration = calibration[Int(round(end/2+1-calib_size)):Int(round(end/2+calib_size)),Int(round(end/2+1-calib_size)):Int(round(end/2+calib_size)),Int(floor(end/2+1)-calib_size):Int(floor(end/2)+calib_size),:]
+    ## ESPIRIT wants even numbers in slice direction, lets add some slices
     # if mod(Int(MtxSize[3]./2),2) == 1
     #     MtxSize_tmp = (MtxSize[1],MtxSize[2],Int(MtxSize[3]+2))
     # else
     #     MtxSize_tmp = copy(MtxSize)
     # end
+
     
     SensitivityMap = espirit(calibration,MtxSize)
     SensitivityMap = fftshift(fftshift(SensitivityMap,1),2)
@@ -79,15 +81,23 @@ function CalculateOffresonanceMap(recon_b0,SensitivityMap,EchoTimes::Vector{Floa
     @info ("Stop... B0 map...")
     @infiltrate
 
-    # ## Trying ROMEO phase unwrapping...
+    ## Trying ROMEO phase unwrapping... Naive approach
     # ph = angle.(yik_sos)
     # mag = abs.(yik_sos)
     # te = ustrip.(echotime) 
     # ph_unwrapped = ROMEO.unwrap(ph; mag=mag, TEs=te)
-    # b0_romeo1 = (ph_unwrapped[:,:,:,1].-ph_unwrapped[:,:,:,2])./((te[2]-te[1]).*1e2)
-    # b0_romeo2 = (ph_unwrapped[:,:,:,2].-ph_unwrapped[:,:,:,3])./((te[3]-te[2]).*1e2)
+    # b0_romeo1 = (ph_unwrapped[:,:,:,1].-ph_unwrapped[:,:,:,2])./(((te[2]-te[1])))
+    # b0_romeo2 = (ph_unwrapped[:,:,:,2].-ph_unwrapped[:,:,:,3])./(((te[3]-te[2])))
     # b0_romeo = (b0_romeo1.+b0_romeo2)./2
     # finit = b0_romeo .* s^-1
+
+    # ## Trying ROMEO phase unwrapping..
+    # mag = abs.(yik_sos)
+    # te = ustrip.(echotime) 
+    # del_phi = angle.(recon_b0[:,:,:,:,1] .* conj.(recon_b0[:,:,:,:,2]))
+    # del_phi = ROMEO.unwrap(del_phi; mag=mag[:,:,:,1:2], TEs=te[1:2])
+    # del_phi = sum(del_phi, dims=4)
+    # finit = del_phi./(((te[2]-te[1]).*1e3))
 
     # # Original "Low smoothing":
     # fmap_run = (niter, precon, track; kwargs...) ->
@@ -147,7 +157,7 @@ function CalculateConcomitantFieldMap(RotMatrix::Matrix{Float32},CenterPosition:
     gm = params_pulseq["spi"]["max_grad"] .* 1e-3
     x = range(params_pulseq["gen"]["fov"][1]/2*-1,params_pulseq["gen"]["fov"][1]/2,Int(params_pulseq["gen"]["n_ov"][1]))
     y = range(params_pulseq["gen"]["fov"][2]/2*-1,params_pulseq["gen"]["fov"][2]/2,Int(params_pulseq["gen"]["n_ov"][2]))
-    z = range(params_pulseq["gen"]["fov"][3]/2*-1,params_pulseq["gen"]["fov"][3]/2,Int(params_pulseq["gen"]["n_ov"][3]))
+    z = range(params_pulseq["gen"]["fov"][3]/2*-1,params_pulseq["gen"]["fov"][3]/2,Int(params_pulseq["gen"]["n_ov"][3]*params_pulseq["gen"]["kz"]))
 
     x = x .+ CenterPosition[1] 
     y = y .+ CenterPosition[2] 

@@ -1,9 +1,12 @@
 using Pkg
-Pkg.activate("/usr/share/5T4/Alejandro/sosp_vaso/sim/")
-# Pkg.activate("/usr/share/PhD_2024/sosp_vaso/sim/")
+
+cd("/neurodesktop-storage/5T4/Alejandro/sosp_vaso")
+# cd("/neurodesktop-storage/5T3/Alejandro/sosp_vaso/")
+Pkg.activate("./sim/")
 
 using Revise
-using MRIReco, MRISimulation, MAT, NIfTI, ImagePhantoms
+using MRIReco, MRISimulation, ImagePhantoms
+using MAT, NIfTI , JLD #, MriResearchTools
 using MIRTjim: jim, prompt; jim(:prompt, true)
 using Infiltrator
 using ImageTransformations
@@ -15,29 +18,29 @@ using SphericalHarmonicExpansions
 using MRIOperators
 using Interpolations
 
-using FFTW
-FFTW.set_provider!("mkl")
+# using FFTW
+# FFTW.set_provider!("mkl")
 
 include("../recon/functions/fn_addCorrelatedNoise.jl")
 include("../recon/functions/fn_calculateGfactor.jl")
 include("../recon/functions/fn_save_nii.jl")
-include("../recon/functions/fn_CalculateSensitivityOffresonanceMaps.jl")
+# include("../recon/functions/fn_CalculateSensitivityOffresonanceMaps.jl")
 
-phn_sim = 0            # 1=brain, 0=point (psf), for point (PSF), set all to false
+phn_sim = 1            # 1=brain, 0=point (psf), for point (PSF), set all to false
 cs_sim = true
 cs_recon = true
 b0_sim = false
 b0_recon = false
 coco_sim = false
 coco_recon = false
-t2s_sim = true
+t2s_sim = false
 t2s_recon = false
 high_order_recon = false
 order_recon =  1            # Recon order (1,2,3)
 add_noise = false
-gfactor = false
-is2d = true
-gfactor_replicas = 2
+gfactor = true              # G-factor....
+is2d = false
+gfactor_replicas = 100
 channels = 32            # 0-channels from CS file, >0 less channels (it will be cropped)]
 changeBW = 0             # Integer to change the value of the BW.. (ex. 2 = half the BW), 0 = No change
 # For PSF only.. T2* and b0
@@ -45,22 +48,21 @@ psf_t2s = 28e-3     # T2* in s
 psf_b0 = 20         # off-resonance in Hz
 
 # Folder and name of sequence to simulate
-folder_sim = "simulations_deni"
-scan_sim = ["spi_vaso"]
+folder_sim = "simulations_sosp_bold"
+# scan_sim = ["DS_SO_96fovz_1rz_NOrot"]
 traj_type = "nom"
-# scan_sim = ["sb_01","sb_02","sb_03","sb_04","sb_05","sb_06","sb_07","sb_08","sb_09","sb_10"]
+scan_sim =  ["DS_SO_96fovz_3rxy_2rz_1p3vd_NOrot_kzCAIPI"]
 
 # Folder and name of sensitivity maps and b0 map to use for simulation
-folder = "05192023_sv_paper"
-scan = "sv_01"
-fieldmap = "s01"
-path = string("/usr/share/5T3/Alejandro/sosp_vaso_paper_data/",folder)
-path_sim = string("/usr/share/5T4/Alejandro/sosp_vaso/data/",folder_sim)
+folder = "12102024_sb_7T"
+scan = "sb_003_DS_SO_96fovz_2rz_8ov"
+fieldmap = "s003"   # Normally S00X 
+path = string("/neurodesktop-storage/5T3/Alejandro/sosp_vaso/data/",folder)
+path_sim = string("/neurodesktop-storage/5T4/Alejandro/sosp_vaso/data/",folder_sim)
 
 ##### Load parameters
 params = matread(string(path,"/acq/",scan,"_params.mat"))
 params = params["params"]
-params["gen"]["n"][3] = params["gen"]["n"][3]*params["gen"]["kz"]
 scan_suffix = string(fieldmap,"_",Int(params["gen"]["n"][1]),"_",Int(params["gen"]["n"][2]),"_",Int(params["gen"]["n_ov"][3]*params["gen"]["kz"]))
 params["scan_suffix"] = scan_suffix
 params["path_sim"] = path_sim
@@ -78,12 +80,16 @@ if high_order_recon
     traj_type = "sk"
 end
 
+idx = findall.("_",scan)[1][1]+1:findall.("_",scan)[2][1]-1
+file_name = string(string(scan[1],scan[idx]),"_",Int(params["gen"]["n_ov"][1]),"_",Int(params["gen"]["n_ov"][2]),"_",Int(params["gen"]["n_ov"][3]),"_",traj_type)
+
 ###### Load volume for simulation
 if phn_sim == 1
-    phn = matread(string(path,"/acq/fm_",scan,".mat"))
+    # phn = matread(string(path,"/acq/fm_",scan,".mat"))
+    phn = load(string(path,"/acq/me_",file_name,".jld"))
     # phn = matread(string(path,"/acq/fm_","sv_01",".mat"))
-    phn = phn["fieldmap"] 
-    phn = dropdims(sqrt.(sum(abs.(phn).^2; dims=5));dims=5)
+    phn = phn["recon_b0"] 
+    phn = dropdims(sqrt.(sum(abs.(phn).^2; dims=4));dims=4)
     phn = phn[:,:,:,1]
     phn = convert(Array{ComplexF64,3},phn)
     phn = imresize(phn,(Int(params["gen"]["n"][1]),Int(params["gen"]["n"][2]),Int(params["gen"]["n"][3])))
@@ -109,8 +115,8 @@ end
 phn_orig = deepcopy(phn)
 
 ###### Load Coil Sensitivities
-cs = matread(string(path,"/acq/cs_",scan_suffix,".mat"))
-cs = cs["coil_sens"]
+cs = load(string(path,"/acq/cs_",file_name,".jld"))
+cs = cs["SensitivityMap"] 
 cs = convert(Array{ComplexF64,4},cs)
 cs = imresize(cs,(Int(params["gen"]["n"][1]),Int(params["gen"]["n"][2]),Int(params["gen"]["n"][3])))
 cs_orig = deepcopy(cs)
@@ -122,8 +128,8 @@ end
 
 ##### Load B0 map
 if b0_sim
-    b0 = matread(string(path,"/acq/b0_",scan_suffix,".mat"))
-    b0 = b0["b0"]
+    b0 = load(string(path,"/acq/b0_",file_name,".jld"))
+    b0 = b0["OffResonanceMap"] 
     # b0 = convert(Array{ComplexF64,3},b0)
     b0 = imresize(b0,(Int(params["gen"]["n"][1]),Int(params["gen"]["n"][2]),Int(params["gen"]["n"][3])))
     
@@ -140,16 +146,12 @@ end
 
 ##### Calcualte Coco field
 if coco_sim
-    RotMatrix = [[0,-1,0] [0.7108,0,0.7034] [-0.7034,0,0.7108]]
-    RotMatrix = convert(Matrix{Float32},RotMatrix)
-    # RotMatrix = Matrix(transpose(RotMatrix))
-    CenterPosition = (0,-7.94e-3,10e-3) # 10.83e-3 
-    CocoFieldMap = CalculateConcomitantFieldMap(RotMatrix,CenterPosition, params)
-    CocoFieldMap = reverse(CocoFieldMap,dims=(1,2,3)) # Do I want to do this?
+    co = load(string(path,"/acq/co_",file_name,".jld"))
+    c0 = co["CocoFieldMap"] 
     if b0_sim
-        b0 .= b0 .+ CocoFieldMap.*im
+        b0 .= b0 .+ co.*im
     else
-        b0 = CocoFieldMap.*im
+        b0 = co.*im
     end
     b0 = convert(Array{ComplexF32},b0)
     b0_orig = deepcopy(b0)
@@ -166,14 +168,13 @@ if t2s_sim
         t2s = convert(Array{ComplexF64,3},t2s)
         t2s = imresize(t2s,(Int(params["gen"]["n"][1]),Int(params["gen"]["n"][2]),Int(params["gen"]["n"][3])))
     end
-
     t2s_orig = deepcopy(t2s)
 end
 
 if gfactor
     ##########################  Fully sampled trajectory
     ###### Load simulation parameters
-    full_scan = string(scan_sim[1][1:2],"_full")
+    full_scan = string(scan_sim[1][1:5],"_full")
     params_pulseq_full = matread(string(path_sim,"/acq/",full_scan,"_params.mat"))
     params_pulseq_full = params_pulseq_full["params"]
 
@@ -203,6 +204,8 @@ if gfactor
     end
 
     ks_full = permutedims(traj_full,(2,1))
+    traj_full = convert(AbstractMatrix{Float32},traj_full)
+    times_full = convert(AbstractVector{Float32},times_full)
     ks_full = Trajectory(traj_full,Int64(params_pulseq_full["spi"]["interl"]),Int64(params_pulseq_full["gen"]["ro_samples"]);times = times_full)
 
     ###### Simulation
@@ -315,7 +318,7 @@ for i = 1:Int(length(scan_sim))
     elseif params_pulseq["gen"]["ro_type"] == "s"
         ks = Trajectory(ks_traj,1,Int(params_pulseq["gen"]["ro_samples"]*params_pulseq["spi"]["interl"]); 
             times=times,TE=params_pulseq["gen"]["TE"],AQ=params_pulseq["gen"]["ro_time"], 
-            numSlices=Int(params_pulseq["gen"]["n_ov"][3]),circular=true)
+            numSlices=Int(params_pulseq["gen"]["n_ov"][3]),circular=false)
     end
 
     if is2d
@@ -414,6 +417,7 @@ for i = 1:Int(length(scan_sim))
     if mtx_pulseq < mtx
         tmp = imresize(tmp, (mtx_pulseq[1:2]))
     end
+
     global phn = deepcopy(tmp)
     global phn_abs = abs.(phn)
     global phn_abs = (phn_abs.- minimum(last,phn_abs))./(maximum(last,phn_abs)-minimum(last,phn_abs))
@@ -538,10 +542,10 @@ for i = 1:Int(length(scan_sim))
         # params_reco[:reconSize] = Int(params_pulseq["gen"]["n"][1]),Int(params_pulseq["gen"]["n"][2]),Int(params_pulseq["gen"]["n"][3])
         params_reco[:reconSize] = size(phn)
     end
-    params_reco[:regularization] = "L1"
+    # params_reco[:regularization] = "L1"
     params_reco[:λ] = 1.e-2
     params_reco[:iterations] = 20
-    params_reco[:solver] = "admm"
+    # params_reco[:solver] = "admm"
     params_reco[:method] = "nfft"
     if scan_sim[i][1] == 's'
         params_reco[:rxyz] = params_pulseq["gen"]["kz"]*params_pulseq["spi"]["rxy"]
@@ -585,9 +589,9 @@ for i = 1:Int(length(scan_sim))
 
     # load covariance Matrix
     if  params["gen"]["field_strength"] == 7
-        cov = matread(string("/usr/share/5T3/Alejandro/sosp_vaso/data/tmp/noise_cov_7T.mat")); cov = cov["C"]
+        cov = matread(string("/neurodesktop-storage/5T3/Alejandro/sosp_vaso/data/tmp/noise_cov_7T.mat")); cov = cov["C"]
     elseif params["gen"]["field_strength"] == 9
-        cov = matread(string("/usr/share/5T3/Alejandro/sosp_vaso/data/tmp/noise_cov_9T.mat")); cov = cov["C"]
+        cov = matread(string("/neurodesktop-storage/5T3/Alejandro/sosp_vaso/data/tmp/noise_cov_9T.mat")); cov = cov["C"]
     end
 
     # G-factor map
@@ -595,6 +599,8 @@ for i = 1:Int(length(scan_sim))
         @info ("Calculating G-factor ...")
         params_reco[:path_sim] = params["path_sim"] 
         params_reco[:scan_suffix] = string(scan_sim[i],"_",mtx_pulseq[1],"_",mtx_pulseq[2],"_",mtx_pulseq[3])
+        params_reco[:rxyz] = params_pulseq["gen"]["kz"]*params_pulseq["spi"]["rxy"]
+        params_reco[:ro_type] = params_pulseq["gen"]["ro_type"]
         gfactor_map = calculateGfactor(acqData,acqData_full,gfactor_replicas,cov,params_reco)
         gfactor_map = NIVolume(gfactor_map)
         path_gfactor = string(path_sim,"/sim/",scan_sim[i],"_gmap.nii")
@@ -637,6 +643,9 @@ for i = 1:Int(length(scan_sim))
     # Do reconstruction
     @info ("Reconstruction ...")
     Ireco = reconstruction(acqData, params_reco)
+
+    # Scaling Ireco
+    Ireco .*= 1e10
 
     ###### Quality measurments
     # Normalize datasets
