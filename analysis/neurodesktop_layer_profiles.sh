@@ -1,19 +1,29 @@
+# After upsampling, you need to create a rim.nii mask..
+# follow video: https://www.youtube.com/watch?v=VUDi2Iskzz4&t=913s
+# starting from 26:00
 # Neurodesktop tools to use:
 ml afni
 ml laynii
 
-cd /neurodesktop-storage/5T4/Alejandro/sosp_vaso/data
+cd /neurodesktop-storage/5T3/Alejandro/sosp_vaso/data
 
-folder="07042024_sv_josh"
-scan="sv_013_touch"
+folder="08302024_sb_9T"
+scan="sb_22_OUT_2shot_6te_14fa"
+t1_file="sb_22_OUT_2shot_6te_14fa_t1_full_brain"
 
 cd ${folder}$"/analysis/"${scan}
 
+# if [ "${scan:1:2}" = "v" ]; then
+#     t1_file=T1_msk.nii # FOR VASO
+# else
+#     t1_file=${scan}_t1.nii # FOR BOLD ...
+# fi
+
 ##### 9) Layering
 # Upsample
-delta_x=$(3dinfo -di T1_msk.nii)
-delta_y=$(3dinfo -dj T1_msk.nii)
-delta_z=$(3dinfo -dk T1_msk.nii)
+delta_x=$(3dinfo -di ${t1_file}.nii)
+delta_y=$(3dinfo -dj ${t1_file}.nii)
+delta_z=$(3dinfo -dk ${t1_file}.nii)
 sdelta_x=$(echo "((sqrt($delta_x * $delta_x) / 5))"|bc -l)
 sdelta_y=$(echo "((sqrt($delta_y * $delta_y) / 5))"|bc -l)
 sdelta_z=$(echo "((sqrt($delta_z * $delta_z) / 1))"|bc -l) 
@@ -21,7 +31,7 @@ sdelta_z=$(echo "((sqrt($delta_z * $delta_z) / 1))"|bc -l)
 ## Scaling with AFNI... Not the best for oblique datasets
 # here I only upscale in 2 dimensions. 
 #3dresample -dxyz $sdelta_x $sdelta_y $sdelta_z -rmode NN -overwrite -prefix scaled_$1 -input $1 
-3dresample -dxyz $sdelta_x $sdelta_y $sdelta_z -rmode Cu -overwrite -prefix scaled_T1.nii -input T1_msk.nii
+3dresample -dxyz $sdelta_x $sdelta_y $sdelta_z -rmode Cu -overwrite -prefix scaled_T1.nii -input ${t1_file}.nii
 3dresample -dxyz $sdelta_x $sdelta_y $sdelta_z -rmode Cu -overwrite -prefix scaled_VASO.nii -input clustered_VASO.nii
 3dresample -dxyz $sdelta_x $sdelta_y $sdelta_z -rmode Cu -overwrite -prefix scaled_BOLD.nii -input clustered_BOLD.nii
 

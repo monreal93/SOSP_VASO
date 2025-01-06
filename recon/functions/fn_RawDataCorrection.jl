@@ -23,18 +23,17 @@ CorrectRepetitionDORK(RawData::RawAcquisitionData,params::Dict{Symbol,Any})
 Performs partition DORK correction
 """
 
-function CorrectRepetitionDORK(tmp,nav_ref,nav_range,params::Dict{Symbol,Any})
+function CorrectRepetitionDORK(tmp,nav_ref,nav_range,params::Dict{Symbol,Any},nav)
     
-    if params[:kz_enc] == 0  # Linear
-        nav = tmp[nav_range,Int(params_pulseq["gen"]["n_ov"][3]/2)+1,:,1]
-        nav = mean(nav, dims=2)
-    elseif params[:kz_enc] == 1 # Center-out
-        nav = tmp[nav_range,1,:,1]
-        nav = mean(nav, dims=2)
+    if nav === nothing
+        if params[:kz_enc] == 0  # Linear
+            nav = tmp[nav_range,Int(params_pulseq["gen"]["n_ov"][3]/2)+1,:,1]
+            nav = mean(nav, dims=2)
+        elseif params[:kz_enc] == 1 # Center-out
+            nav = tmp[nav_range,1,:,1]
+            nav = mean(nav, dims=2)
+        end
     end
-
-    @info("Stop.. rDORK...")
-    @infiltrate
 
     del_omg = mean(angle.(nav)-angle.(nav_ref))/params[:TE]
 
@@ -87,7 +86,8 @@ function Correctk0(tmp,k0_meas::AbstractMatrix{Float64},k0_sim::AbstractMatrix{F
     tmp = tmp./exp.(1im.*k0_sim)
 
     # Apply Skope/girf K0
-    tmp = tmp.*exp.(1im.*k0_meas.*-2π)
+    # tmp = tmp.*exp.(1im.*k0_meas.*-2π)
+    tmp = tmp.*exp.(1im.*k0_meas.*-1)
 
     return tmp
 end

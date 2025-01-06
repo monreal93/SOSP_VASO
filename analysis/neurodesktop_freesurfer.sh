@@ -1,10 +1,10 @@
-cd /neurodesktop-storage/5T4/Alejandro/sosp_vaso/data
+cd /neurodesktop-storage/5T3/Alejandro/sosp_vaso/data
 
 
-folder="05252023_sv_paper"
-subject="t1"
-# scan="registered_Warped_cv_01"
-scan="brain_t1"
+folder="08302024_sb_9T"
+subject="t1_test1"
+# scan="s2_brain_t1"
+scan="sb_22_OUT_2shot_6te_14fa"
 recon_all=0
 
 
@@ -24,15 +24,15 @@ ml afni
 # 3drefit -orient LPI./tmp/sample.nii -overwrite
 # 3dLRflip -Y -prefix ./tmp/sample.nii ./tmp/sample.nii
 
-# t1_file=./ants/${scan}.nii
-t1_file=../raw/nifti/${scan}.nii
+# t1_file=./${scan}_t1_full_brain.nii
+t1_file=./${scan}/${scan}_t1.nii
 
 if [ $recon_all -eq 1 ]; then
     #### ) recon-all
     recon-all -subject ${subject} -i ${t1_file} -all -notal-check
 else
     #### ) autorecon1
-    # recon-all -autorecon1 -notal-check -subject ${subject} -i ${t1_file}
+    recon-all -autorecon1 -notal-check -notalairach -subject ${subject} -i ${t1_file}
 
     # If skull srip did a bad job, add some control points.. and then run -normalization
     # mri_normalize -f ./freesurfer/cv_01/tmp/control.dat ./freesurfer/cv_01/mri/orig.mgz ./freesurfer/cv_01/mri/orig.mgz
@@ -41,11 +41,11 @@ else
     # To Fix a bad skull stip, wsthresh values 1:50.. 
     # recon-all -skullstrip -wsthresh 5 -clean-bm -no-wsgcaatlas -subjid ${subject}
 
-    ### ) autorecon2
-    recon-all -autorecon2 -subject ${subject}
+    # ### ) autorecon2
+    # recon-all -autorecon2 -subject ${subject}
 
-    ### ) autorecon3
-    recon-all -autorecon3 -subject ${subject}
+    # ### ) autorecon3
+    # recon-all -autorecon3 -subject ${subject}
 fi
 
 # If WM segmentation fails, add some control points and thren recon again...
