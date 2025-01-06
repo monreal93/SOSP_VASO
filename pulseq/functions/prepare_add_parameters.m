@@ -18,7 +18,7 @@ function params = prepare_add_parameters(ks_traj,gx,rf,adc,te0,te1,tr0,tr1,seq_t
     params.gen.n(1:2) = round(params.gen.fov(1:2)./params.gen.res(1:2));
     tmp = mod(params.gen.n(1:2),2); 
     params.gen.n(1:2) = params.gen.n(1:2)+tmp; % making in-plane even
-    params.gen.n(1:2) = max(params.gen.n(1),params.gen.n(2)); % Making it square
+    params.gen.n(1:2) = max(params.gen.n(1),params.gen.n(2)); % Making it square??
     % Adjust for phase oversampling
     params.gen.n_ov(1:2) = params.gen.n(1:2);
     % ToDo: Check what value I really want in n_ov (to be used in recon)
@@ -63,8 +63,9 @@ function params = prepare_add_parameters(ks_traj,gx,rf,adc,te0,te1,tr0,tr1,seq_t
     if params.gen.ro_type == 's'
         julia_time = repmat(params.gen.TE+(0:adc.dwell:adc.duration-adc.dwell),1,params.spi.interl);
     elseif params.gen.ro_type == 'c'
-        julia_time = (0:adc.dwell:(mr.calcDuration(gx)*params.epi.n_lines/params.epi.seg)-adc.dwell);
-        julia_time = julia_time + (mr.calcDuration(gx)*3) + mr.calcDuration(rf)/2 + 0.6e-3 + 4e-4; % Calibration lines + ~0.6e-3 of gy_pre + 4e-4 of reph-rf_grad
+        julia_time = (0:adc.dwell:(adc.duration*params.epi.n_lines/params.epi.seg)-adc.dwell);
+        julia_time = params.gen.TE+ julia_time + (mr.calcDuration(gx)*3) + mr.calcDuration(rf)/2 + 0.6e-3 + 4e-4; % Calibration lines + ~0.6e-3 of gy_pre + 4e-4 of reph-rf_grad
+        julia_time = repmat(julia_time,1,params.epi.seg);
     end
     params.gen.t_vector = julia_time;
     

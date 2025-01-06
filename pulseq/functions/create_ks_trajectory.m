@@ -1,4 +1,6 @@
-function ks_traj = create_ks_trajectory(seq,adc,params,j)
+function ks_traj = create_ks_trajectory(seq,adc,params,j,flag)
+
+% flag is to select if the trajectory is from ME-GRE=0 
 
     [ktraj_adc, t_adc, ktraj, t_ktraj, t_excitation, t_refocusing, slicepos, t_slicepos] = seq.calculateKspacePP();
     % j = 1;
@@ -23,7 +25,7 @@ function ks_traj = create_ks_trajectory(seq,adc,params,j)
                 if params.gen.ro_type == 'c'
                     j = j+(adc.numSamples*3);
                 end
-                if params.gen.fid_nav
+                if params.gen.fid_nav && flag
                     j = j+200;          % The FIDs are 100samples each, we have two
                 end
         end
