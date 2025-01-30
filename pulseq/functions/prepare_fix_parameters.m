@@ -42,7 +42,7 @@ function [params,ro_blocks] = prepare_fix_parameters(params)
         if params.gen.field_strength == 7  || params.gen.field_strength == 7i 
             params.gen.fs_angle = 80; % 110/80
         elseif params.gen.field_strength == 9
-            params.gen.fs_angle = 40; % 110/80
+            params.gen.fs_angle = 80; % 110/80 (I had 40 before)...
         end
     end
     
