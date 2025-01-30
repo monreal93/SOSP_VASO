@@ -19,7 +19,11 @@ function ks_traj = create_ks_trajectory(seq,adc,params,j,flag)
                 ks_traj.kx(l:l+plane_samples-1,i) = ktraj_adc(1,j:j+plane_samples-1);
                 ks_traj.ky(l:l+plane_samples-1,i) = ktraj_adc(2,j:j+plane_samples-1);
                 ks_traj.kz(l:l+plane_samples-1,i) = ktraj_adc(3,j:j+plane_samples-1);
-                j = j+(plane_samples*params.gen.echos);
+                if flag == 0
+                    j = j+(plane_samples*params.gen.echos);
+                else
+                    j = j+plane_samples;
+                end
                 l = l+plane_samples;
                 if params.gen.dork; j = j+adc_post.numSamples;  end
                 if params.gen.ro_type == 'c'
@@ -28,6 +32,14 @@ function ks_traj = create_ks_trajectory(seq,adc,params,j,flag)
                 if params.gen.fid_nav && flag
                     j = j+200;          % The FIDs are 100samples each, we have two
                 end
+        end
+        
+        if params.gen.seq == 3 && params.gen.echos > 1 && flag
+            if params.gen.fid_nav && flag
+                j = j + ((plane_samples+200)*((params.gen.seg*params.gen.echos-params.gen.seg)));
+            else
+                j = j + (plane_samples*(params.gen.seg*params.gen.echos-params.gen.seg));
+            end
         end
     end
     % Splitting trajectories for ech1 and ech2 of IN-OUT
