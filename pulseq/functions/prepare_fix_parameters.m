@@ -8,6 +8,11 @@ function [params,ro_blocks] = prepare_fix_parameters(params)
     %     that the area of the circle equals the area of the square).
     params.gen.res(1:2) = params.gen.res(1:2)./1.13;
 
+    % If ME-GRE.. set params.gen.echos to # of echos/contrasts
+    if params.gen.seq == 3
+        params.gen.echos = length(params.gen.multi_te);
+    end
+
     params.gen.del_k = (1./params.gen.fov);
     if params.gen.ro_type == 's'; params.gen.del_k(1:2) = params.gen.del_k(1:2).*params.spi.rxy; end
     if params.gen.ro_type == 'c'; params.gen.me_gre =0; end % ME-GRE only for spiral
@@ -20,8 +25,8 @@ function [params,ro_blocks] = prepare_fix_parameters(params)
     params.gen.n = round(params.gen.fov./params.gen.res);
     if and(params.gen.seq == 1,params.vaso.bold_ref == 1) || and(params.gen.seq == 2,params.mt.bold)
         ro_blocks = 2; 
-    elseif params.gen.seq == 3
-        ro_blocks = length(params.gen.multi_te);
+%     elseif params.gen.seq == 3
+%         ro_blocks = length(params.gen.multi_te);
     else
         ro_blocks = 1; 
     end
@@ -37,7 +42,7 @@ function [params,ro_blocks] = prepare_fix_parameters(params)
         if params.gen.field_strength == 7  || params.gen.field_strength == 7i 
             params.gen.fs_angle = 80; % 110/80
         elseif params.gen.field_strength == 9
-            params.gen.fs_angle = 40; % 110/80
+            params.gen.fs_angle = 80; % 110/80 (I had 40 before)...
         end
     end
     

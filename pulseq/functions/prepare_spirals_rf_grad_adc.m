@@ -186,13 +186,17 @@ adcDwell = floor(adcDwell/lims.adcRasterTime/2)*lims.adcRasterTime*2;
 
 time_new = size(spiral_grad_shape,2).*lims.adcRasterTime/1e-2;
 % gradient should finish at gradRaster time
-time_new = round(time_new/lims.gradRasterTime)*lims.gradRasterTime;
+time_new = round(time_new/lims.gradRasterTime)*lims.gradRasterTime; % original
+time_new = round(time_new/lims.adcRasterTime)*lims.adcRasterTime; % New with adc Raster
 adcSamples = round(time_new./adcDwell);
 % AMM: ToDo: This makes the ADC unecessary longer, but seems to be needed
 % to run at the scanner, fix it, should it be a multiple of 1000? or 100?
 % In SIEMENS number of ADC samples should be divisible by 4
 % adcSamples = ceil(ceil(adcSamples/4)*4/1000)*1000; % original
-adcSamples = round(round(adcSamples/4)*4/100)*100; % New, rounding to 100
+% adcSamples = round(round(adcSamples/4)*4/100)*100; % New, rounding to 100
+% adcSamples = round(round(adcSamples/4)*4/10)*10; % New, rounding to 10
+% adcSamples = round(round(adcSamples/4)*4); % New, No rounding to multiple of 10
+adcSamples = round(round(adcSamples/4)*4/200)*200; % New, rounding to 200
 
 % Checking forbidden frequencies, simple approach
 scanner = params.gen.field_strength;
