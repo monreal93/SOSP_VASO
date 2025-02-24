@@ -3,24 +3,25 @@ ml afni
 ml fsl
 ml laynii
 
-cd /neurodesktop-storage/5T3/Alejandro/sosp_vaso/data
+cd /neurodesktop-storage/5T4/Alejandro/sosp_vaso/data
 
-folder="12192024_sb_9T_paper"
-scan="sb_402_DS_SO_06mm_12te"
-r_a_tr=7    # rest/activity TRs
-tr=4.37  # volume TR paper=sv(1.66), cv(1.81)
-recon_file="sb_402_DS_SO_06mm_12te_b_nom_cs_fsb0_co_rDORK"  # name of the reconstructred volume.. it should be in the recon folder...
-motion_glm=1     # GLM including motion parametrs
+folder="02202025_sb_9T_paper"
+scan="sb_601_DS_SO_06mm_18fovz_12te_6te"
+traj="girf"   # nom or girf
+r_a_tr=7   # rest/activity TRs
+tr=2.7 # volume TR paper=sv(1.66), cv(1.81)
+recon_file="sb_601_DS_SO_06mm_18fovz_12te_6te_ech2_girf_cs_fsb0_co_rDORK"  # name of the reconstructred volume.. it should be in the recon folder...
+motion_glm=0     # GLM including motion parametrs
 stim=1           # number of stimulus for block desig
 
 cd ${folder}
 
-mkdir ./analysis/${scan}
-chmod ugo+rwx ./analysis/${scan}
-cd ./analysis/${scan}
+mkdir ./analysis/${scan}_${traj}
+chmod ugo+rwx ./analysis/${scan}_${traj}
+cd ./analysis/${scan}_${traj}
 
 ### Starting... 
-gre1=../../tmp/${scan}_nom.nii
+gre1=../../tmp/${scan}_${traj}.nii
 file=../../recon/${recon_file}.nii
 file_rev_ph=../../recon/${recon_file}_rev_ph.nii  # Reversed phase enc EPI volume...
 
@@ -72,20 +73,20 @@ block_trs=$(echo ${block_trs%.*})
 
 # 1) Creating Mask
 #--- with FSL
-# bet $gre1 ./tmp -Z -f 0.4 -g 0 -n -m
-# mv tmp_mask.nii.gz mask.nii.gz
-# gzip -d mask.nii.gz
+bet $gre1 ./tmp -Z -f 0.5 -g 0 -n -m
+mv tmp_mask.nii.gz mask.nii.gz
+gzip -d mask.nii.gz
+3drefit -xorigin cen -yorigin cen -zorigin cen mask.nii
 #--- with AFNI
+# if [ "${scan:0:1}" = "s" ]; then
+#     3dAutomask -prefix mask.nii -peels 3 -dilate 2 ${gre1}'[2]' -overwrite
+# else
+#     3dAutomask -prefix mask.nii -peels 3 -dilate 2 ${file} -overwrite
+# fi
 
-if [ "${scan:0:1}" = "s" ]; then
-    3dAutomask -prefix mask.nii -peels 3 -dilate 2 ${gre1}'[2]' -overwrite
-else
-    3dAutomask -prefix mask.nii -peels 3 -dilate 2 ${file} -overwrite
-fi
-
-3drefit -xdel $(3dinfo -adi ${file}) mask.nii
-3drefit -ydel $(3dinfo -adj ${file}) mask.nii
-3drefit -zdel $(3dinfo -adk ${file}) mask.nii
+# 3drefit -xdel $(3dinfo -adi ${file}) mask.nii
+# 3drefit -ydel $(3dinfo -adj ${file}) mask.nii
+# 3drefit -zdel $(3dinfo -adk ${file}) mask.nii
 
 # Replacing non-steady state volumes..
 # ToDo: How many volumes should I replace?
@@ -95,13 +96,13 @@ fi
 # ToDo: Check if mask can be used...
 # ToDo: Use same function as Renzo's new scripts... 3dAllineate
 echo "Motion correction..."
-# --- 3dvolreg
-3dvolreg -base 4 -heptic -zpad 1 -overwrite -prefix ./${scan}_mc.nii -1Dfile motion.1D ${file}
+# --- 3dvolreg, only works for small motion...
+# 3dvolreg -base 4 -cubic -zpad 1 -overwrite -prefix ./${scan}_mc.nii -1Dfile motion.1D ${file}
 # --- 3dAllineate
-# 3dTstat -mean -overwrite -prefix ./n_ref.nii ${b_file}'[0..3]'  # create reference
-# 3dAllineate -1Dmatrix_save  matrix.aff12.1D -1Dparam_save   param.aff12 -cost lpa \
-#     -prefix ./${scan}_b_mc.nii -base ${output_dir} ./n_ref.nii -source ${b_file} \
-#     -weight ./mask.nii -warp shift_rotate -final wsinc5
+3dTstat -mean -overwrite -prefix ./n_ref.nii ${file}'[2..3]'  # create reference
+3dAllineate -1Dmatrix_save  matrix.aff12.1D -1Dparam_save   param.aff12 -cost lpa \
+    -prefix ./${scan}_mc.nii -base ${output_dir} ./n_ref.nii -source ${file} \
+    -weight ./mask.nii -warp shift_rotate -final wsinc5 -overwrite
 
 3drefit -TR $tr ./${scan}_mc.nii 
 
@@ -110,14 +111,14 @@ echo "Motion correction..."
 echo "Temporal High-pass filter..."
 bptf=$(echo $block_dur/$tr | bc -l)
 bptf=$(echo ${bptf%.*})
-fslmaths ./${scan}_mc.nii -Tmean tempmean
-fslmaths ./${scan}_mc.nii -bptf $bptf -1 -add tempmean ./${scan}_mc_hpf.nii
+fslmaths ./${scan}_mc.nii -Tmean tempmean.nii.gz
+fslmaths ./${scan}_mc.nii -bptf $bptf -1 -add tempmean.nii.gz ./${scan}_mc_hpf.nii
 fslchfiletype NIFTI ${scan}_mc_hpf.nii
 
 #### ) Quality metrics
 echo "calculating Mean and tSNR maps ..."
 3dTstat -mean -prefix mean.nii ./${scan}_mc_hpf.nii'[1..$]' -overwrite
-3dTstat  -overwrite -cvarinv  -prefix tSNR.nii ./${scan}_mc_hpf.nii'[1..$]'
+3dTstat -cvarinv  -prefix tSNR.nii ./${scan}_mc_hpf.nii'[1..$]' -overwrite
 
 #### ) Activation maps
 block_dur=$(echo $tr*$block_trs | bc -l)
@@ -236,8 +237,8 @@ fi
 
 ####### ) Masking relevant volumes
 3dcalc -a mean.nii -b mask.nii -expr 'a*b' -prefix mean_msk.nii -overwrite
-3dcalc -a 2_STATS_BOLD.nii -b mask.nii -expr 'a*b' -prefix BOLD_msk.nii -overwrite
 3dcalc -a tSNR.nii -b mask.nii -expr 'a*b' -prefix tSNR_msk.nii -overwrite
+3dcalc -a 2_STATS_BOLD.nii -b mask.nii -expr 'a*b' -prefix BOLD_msk.nii -overwrite
 
 # Let's ommit the first two slices (fold over artifacts)
 # ToDo: Find better way of doing this
@@ -249,7 +250,7 @@ slices=$(($slices-1))
 
 ##### ) Cluster activations, sometimes I use -sided RIGHT_TAIL 3 , sometimes 4 (check the clustering result...)
 # 3dclust -1noneg -overwrite -prefix clustered_BOLD.nii -1clip 3 1.4 120 BOLD_msk.nii
-thr=2
+thr=1.6
 3dClusterize -inset BOLD_msk.nii -ithr 0 -idat 0 -NN 1 -1sided RIGHT_TAIL $thr -clust_nvox 40 -pref_dat clustered_BOLD.nii -overwrite
 
 ########### Writing some metrics in results.txt
@@ -272,24 +273,45 @@ echo -e "BOLD brain mean tSNR: \n $mean_tSNR_b" >> results.txt
 mean_tSNR_b=$(3dBrickStat -mean -non-negative -nonan -mask ./mask.nii ./eff_tSNR.nii) 
 echo -e "BOLD brain mean effective tSNR: \n $mean_tSNR_b" >> results.txt
 
-## temporal Contrast to Noise Ratio
-3dcalc -prefix b_bin_output_neg.nii -a mask.nii -b b_bin_output.nii -expr "a-b" -overwrite
-std_activity=$(3dBrickStat -stdev -non-zero -mask b_bin_output.nii ./${scan}_mc_hpf.nii)
-std_noise=$(3dBrickStat -stdev -non-zero -mask b_bin_output_neg.nii ./${scan}_mc_hpf.nii)
-# 3dTstat -prefix std_act.nii -mask b_bin_output.nii -stdev ./${scan}_mc_hpf.nii -overwrite -overwrite
-# 3dTstat -prefix std_noise.nii -mask b_bin_output_neg.nii -stdev ./${scan}_mc_hpf.nii -overwrite -overwrite
-# std_activity=$(3dBrickStat -stdev -non-zero -mask b_bin_output.nii std_act.nii)
-# std_noise=$(3dBrickStat -stdev -non-zero -mask b_bin_output_neg.nii std_noise.nii)
-tCNR_b=$(echo $std_activity/$std_noise | bc -l)
-echo -e "tCNR: \n $tCNR_b" >> results.txt
+###########
+
+# ## temporal Contrast to Noise Ratio
+# 3dcalc -prefix b_bin_output_neg.nii -a mask.nii -b b_bin_output.nii -expr "a-b" -overwrite
+# std_activity=$(3dBrickStat -stdev -non-zero -mask b_bin_output.nii ./${scan}_mc_hpf.nii)
+# std_noise=$(3dBrickStat -stdev -non-zero -mask b_bin_output_neg.nii ./${scan}_mc_hpf.nii)
+# # 3dTstat -prefix std_act.nii -mask b_bin_output.nii -stdev ./${scan}_mc_hpf.nii -overwrite -overwrite
+# # 3dTstat -prefix std_noise.nii -mask b_bin_output_neg.nii -stdev ./${scan}_mc_hpf.nii -overwrite -overwrite
+# # std_activity=$(3dBrickStat -stdev -non-zero -mask b_bin_output.nii std_act.nii)
+# # std_noise=$(3dBrickStat -stdev -non-zero -mask b_bin_output_neg.nii std_noise.nii)
+# tCNR_b=$(echo $std_activity/$std_noise | bc -l)
+# echo -e "tCNR: \n $tCNR_b" >> results.txt
 
 ##### ) Get mean of activations and percentage change
 ### BOLD
-3dcalc -overwrite -a clustered_BOLD.nii -expr 'step(a-1.8)' -prefix bin_output.nii
+3dcalc -overwrite -a clustered_BOLD.nii -expr "step(a-$thr)" -prefix bin_output.nii
 # Might be needed to clean up the binary mask before getting mean
 3dROIstats -mask bin_output.nii -1DRformat -quiet ./${scan}_mc_hpf.nii > timecourse_BOLD.dat
 
 ### BOLD mean residual
-3dcalc -overwrite -a clustered_BOLD.nii -expr 'step(a-1.8)' -prefix b_bin_output.nii
+3dcalc -overwrite -a clustered_BOLD.nii -expr "step(a-$thr)" -prefix b_bin_output.nii
 # Might be needed to clean up the binary mask before getting mean
 3dROIstats -mask b_bin_output.nii -1DRformat -quiet ./residual_BOLD.nii > residual_BOLD.dat
+
+################################## ROI quality metrics....
+# ToDo: Open clustered_BOLD and mean_mask.nii in FSLeyes, then create a mask with brush size 6 covering the desired area...
+### Percentage of active voxels
+# thr=1.6
+active_vox=$(3dBrickStat -count -non-zero -mask ./roi_mask.nii ./clustered_BOLD.nii)
+mask_vox=$(3dBrickStat -count -non-zero -mask ./roi_mask.nii ./roi_mask.nii)
+active_vox_per=$(echo $active_vox/$mask_vox*100 | bc -l)
+echo -e "ROI Percentage active voxels threshold = $thr \n $active_vox_per" >> results.txt
+
+### Median z-score
+3dcalc -overwrite -a clustered_BOLD.nii -b roi_mask.nii -expr "a*b" -prefix clustered_BOLD_ROI.nii
+med_z_score=$(3dBrickStat -median -non-zero -mask ./roi_mask.nii ./clustered_BOLD.nii)
+echo -e "ROI Median z-score: \n $med_z_score" >> results.txt
+
+####### ) Mean tSNR and effective tSNR
+3dcalc -overwrite -a tSNR_msk.nii -b roi_mask.nii -expr "a*b" -prefix tSNR_ROI.nii
+mean_tSNR_b=$(3dBrickStat -mean -non-negative -nonan -mask ./roi_mask.nii ./tSNR_msk.nii) 
+echo -e "ROI BOLD brain mean tSNR: \n $mean_tSNR_b" >> results.txt

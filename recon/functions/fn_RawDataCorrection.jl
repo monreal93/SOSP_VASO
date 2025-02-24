@@ -37,7 +37,7 @@ function CorrectRepetitionDORK(tmp,nav,nav_ref,params::Dict{Symbol,Any})
         nav = nav[:,1,Int(params_pulseq["gen"]["n_ov"][3]/2)+1,:,1,1]
     end
 
-    del_omg = mean(angle.(nav)-angle.(nav_ref))/params[:TE]
+    del_omg = mean(DSP.unwrap(angle.(nav), dims=1)-DSP.unwrap(angle.(nav_ref),dims=1))/params[:TE]
 
     tmp = tmp.*exp.(-1im.*del_omg.*params[:acq_times]')
 
@@ -118,9 +118,6 @@ Performs partition DORK correction
 """
 
 function Correctk0(tmp,k0_meas::AbstractMatrix{Float64},k0_sim::Any,params::Dict{Symbol,Any})
-    
-    @info("Stop... Correct K0...")
-    @infiltrate
 
     # Un-do Siemens ECC
     if params[:traj_type] == "sk"

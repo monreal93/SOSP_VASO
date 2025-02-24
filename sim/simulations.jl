@@ -38,7 +38,7 @@ t2s_recon = false
 high_order_recon = false
 order_recon =  1            # Recon order (1,2,3)
 add_noise = false
-gfactor = true              # G-factor....
+gfactor = false              # G-factor....
 is2d = false
 gfactor_replicas = 100
 channels = 32            # 0-channels from CS file, >0 less channels (it will be cropped)]
@@ -51,12 +51,12 @@ psf_b0 = 20         # off-resonance in Hz
 folder_sim = "simulations_sosp_bold"
 # scan_sim = ["DS_SO_96fovz_1rz_NOrot"]
 traj_type = "nom"
-scan_sim =  ["DS_SO_96fovz_3rxy_2rz_1p3vd_NOrot_kzCAIPI"]
+scan_sim =  ["DS_SO_06mm_24fovz_3p3rxy_1rz_120rot","DS_SO_06mm_24fovz_3p6rxy_1rz_120rot","DS_SO_06mm_24fovz_4p0rxy_1rz_120rot"]
 
 # Folder and name of sensitivity maps and b0 map to use for simulation
 folder = "12102024_sb_7T"
-scan = "sb_003_DS_SO_96fovz_2rz_8ov"
-fieldmap = "s003"   # Normally S00X 
+scan = "sb_001_DS_SO_24fovz_1rz_8ov"
+fieldmap = "s001"   # Normally S00X 
 path = string("/neurodesktop-storage/5T3/Alejandro/sosp_vaso/data/",folder)
 path_sim = string("/neurodesktop-storage/5T4/Alejandro/sosp_vaso/data/",folder_sim)
 

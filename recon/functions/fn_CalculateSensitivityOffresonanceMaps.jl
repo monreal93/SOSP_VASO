@@ -24,15 +24,18 @@ function CalculateSensitivityMap(recon,MtxSize::Tuple;calib_size::Int=12)
     # calibration = fft(calibration,2)
     # calibration = fftshift(fft(calibration,3),3)
 
-    calibration = calibration[Int(round(end/2+1-calib_size)):Int(round(end/2+calib_size)),Int(round(end/2+1-calib_size)):Int(round(end/2+calib_size)),Int(floor(end/2+1)-calib_size):Int(floor(end/2)+calib_size),:]
-    ## ESPIRIT wants even numbers in slice direction, lets add some slices
+    if MtxSize[3] > calib_size*2
+        calibration = calibration[Int(round(end/2+1-calib_size)):Int(round(end/2+calib_size)),Int(round(end/2+1-calib_size)):Int(round(end/2+calib_size)),Int(floor(end/2+1)-calib_size):Int(floor(end/2)+calib_size),:]
+    else
+        calibration = calibration[Int(round(end/2+1-calib_size)):Int(round(end/2+calib_size)),Int(round(end/2+1-calib_size)):Int(round(end/2+calib_size)),:,:]
+    end
+        ## ESPIRIT wants even numbers in slice direction, lets add some slices
     # if mod(Int(MtxSize[3]./2),2) == 1
     #     MtxSize_tmp = (MtxSize[1],MtxSize[2],Int(MtxSize[3]+2))
     # else
     #     MtxSize_tmp = copy(MtxSize)
     # end
 
-    
     SensitivityMap = espirit(calibration,MtxSize)
     SensitivityMap = fftshift(fftshift(SensitivityMap,1),2)
 

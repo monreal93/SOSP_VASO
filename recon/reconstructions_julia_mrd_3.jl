@@ -7,16 +7,17 @@ Pkg.activate("./recon/")
 using Revise
 using Infiltrator
 using MRIReco, MRIFieldmaps, MRIFiles, MRICoilSensitivities
-using MAT, NIfTI , JLD #, MriResearchTools
+using MAT, NIfTI , JLD, MriResearchTools
 using StatsBase: mean
 using Unitful: s, ustrip
-using MIRTjim: jim, prompt; jim(:prompt, true)
+# using MIRTjim: jim, prompt; jim(:prompt, true)
 using ImageTransformations, Interpolations
 using NFFT
 using FLoops
 using Statistics
 using DSP
-using Plots
+using ImageMorphology
+# using Plots
 # using ROMEO
 
 using FFTW
@@ -48,21 +49,20 @@ params[:do_motion_corr] = false         # Motion correction, FID navigators (WIP
 params[:do_t2s_corr] = false
 params[:is2d] = false
 params[:isPhantom] = false              # If true, it will use params[:scan_b0] for recon
-params[:rep_recon] = 76:200            # Range of rep to recon, 0 for all rep, single number for 1 rep, or range (2:10) 
-params[:traj_type] = "nom"                 # Trajectory type nominal="nom",skope="sk",poet = "poet", girf = "girf"
+params[:rep_recon] =   334:336 # 169:(168*2) # 155:(154*2)            # Range of rep to recon, 0 for all rep, single number for 1 rep, or range (2:10) 
+params[:traj_type] = "girf"                 # Trajectory type nominal="nom",skope="sk",poet = "poet", girf = "girf"
 params[:save_ph] = false                       # Save phase of recon as nifti
 params[:mcorr] = ""           # Motion correction with navigators "_mCorr"
 params[:recon_order] =  1                  # Higher order recon (2,3)
 params[:coil_compression] = true
 
 # Some parameters
-params[:scan] = "sb_302_DS_SO_06mm_6te_48fovz_2rz_kzCAIPI"            # For now: if multipe echos, include _e1.. _e2..
+params[:scan] = "sb_601_DS_SO_06mm_18fovz_12te_6te"            # For now: if multipe echos, include _e1.. _e2..
 params[:scan_b0] = "..."           # Name of the ME-GRE to use for CS and B0map, ONLY USED WHEN SEPARATE FIELDMAP SCAN...
-params[:directory] = "12132024_sb_9T_paper"        # directory where the data is stored
+params[:directory] = "02202025_sb_9T_paper"        # directory where the data is stored
 
 # Drive where data is stored... (5T4/5T3)
-# path_tmp = "/usr/share/5T3/Alejandro/sosp_vaso/"
-path_tmp = "/neurodesktop-storage/5T3/Alejandro/sosp_vaso/"
+path_tmp = "/neurodesktop-storage/5T4/Alejandro/sosp_vaso/"
 params[:path] = string(path_tmp,"data/",params[:directory])
 
 # Read pulseq parameters
@@ -75,6 +75,9 @@ if params[:traj_type] == "girf"
     params_pulseq["gen"]["res"] = deepcopy(params_pulseq["girf"]["res"])
     params_pulseq["gen"]["n"] = deepcopy(params_pulseq["girf"]["n"])
     params_pulseq["gen"]["n_ov"] = deepcopy(params_pulseq["girf"]["n_ov"])
+end
+if params_pulseq["spi"]["type"] == 1
+    params[:do_iDORK_corr] = params[:do_pDORK_corr] = false 
 end
 
 # File names
@@ -242,6 +245,9 @@ else
             numSet = maximum(unique([rawData_b0_ech.profiles[l].head.idx.set+1 for l=1:length(rawData_b0_ech.profiles)]))
             numCha = size(rawData_b0_ech.profiles[1].data,2)
             numRep = rawData_b0_ech.params["userParameters"]["sWipMemBlock.alFree[7]"]  # I think this is repetitions in special card
+            # numEch = Int(params_me_gre_pulseq["gen"]["me_gre_echos"])
+            numEch = 1
+
             # Adding some extra parameters
             params[:numRead] = numRead*numSet
             params[:numInterl] = numInterl
@@ -249,8 +255,9 @@ else
             params[:numPar] = numPar
             params[:numCha] = numCha
             params[:numRep] = numRep
+            params[:numEch] = numEch
 
-            tmp, ndata = FormatRawData(rawData_b0_ech,params;single_rep=true,rep_format=1)
+            tmp, ndata = FormatRawData(rawData_b0_ech,params;single_rep=true,rep_format=1,MultiEchoGRE=true)
 
             # K0 correction
             if params[:do_k0_corr]  && params[:traj_type] == "girf"
@@ -310,6 +317,7 @@ else
     b0_nii = NIVolume(b0_nii)
     niwrite(string(params[:path],"/tmp/",params[:scan],"_",params[:traj_type],".nii"),b0_nii)
 end
+
 recon_b0_sos = dropdims(sqrt.(((sum(abs.(recon_b0).^2; dims=4)))), dims=4)
 
 # Getting some parameters from the raw data
@@ -321,7 +329,11 @@ numPar = Int(params_pulseq["gen"]["n_ov"][3])
 numSet = maximum(unique([rawData.profiles[l].head.idx.set+1 for l=1:length(rawData.profiles)]))
 numCha = size(rawData.profiles[1].data,2)
 numRep = rawData.params["userParameters"]["sWipMemBlock.alFree[7]"]  # I think this is repetitions in special card
+numEch = Int(params_pulseq["gen"]["echos"])
 # numRep = Int(length(rawData.profiles)/numPar/numSet)
+if params_pulseq["gen"]["seq"] == 3
+    numRep = numRep * Int(length(params_pulseq["gen"]["multi_te"]))
+end
 
 # Adding some extra parameters
 params[:numRead] = numRead*numSet
@@ -330,6 +342,7 @@ params[:numSet] = numSet
 params[:numPar] = numPar
 params[:numCha] = numCha
 params[:numRep] = numRep
+params[:numEch] = numEch
 params[:kz_enc] = params_pulseq["gen"]["kz_enc"]
 params[:TE] = params_pulseq["gen"]["TE"]
 params[:acq_times] = params_pulseq["gen"]["t_vector"].+6e-3
@@ -343,6 +356,9 @@ if params_pulseq["gen"]["seq"] == 1
 elseif params_pulseq["gen"]["seq"] == 2
     # ABC
     params[:contrasts] = ["abc"]
+elseif params_pulseq["gen"]["seq"] == 3
+    params[:contrasts] = ["b1"]
+    for i_contr in 1:length(params_pulseq["gen"]["multi_te"]);params[:contrasts]=cat(params[:contrasts],string("b",i_contr),dims=1); end
 elseif params_pulseq["gen"]["seq"] == 4
     # BOLD
     params[:contrasts] = ["b"]
@@ -443,6 +459,24 @@ if params[:do_coco_corr] && params[:do_b0_corr]
         end
 end
 
+# Creating Brain mask and Brain+skull mask
+# AMM: Ideally I would like to do this either when I recon ME-GRE or calculate Sensitivity/OffResonance
+@info("Stop.. temp..")
+@infiltrate
+cs = imresize(SensitivityMap,size(recon_b0)[1:4])
+recon_b0_cc = sum(conj.(cs) .* recon_b0; dims=4)
+recon_b0_cc = dropdims(recon_b0_cc, dims=4)
+phase=angle.(recon_b0_cc[:,:,:,1])
+mag=abs.(recon_b0_cc[:,:,:,1])
+brain = brain_mask(robustmask(romeovoxelquality(phase; mag); threshold=0.6))
+brain_skull_mask = Float32.(dilate(brain; r=15))
+brain_skull_mask = imresize(brain_skull_mask, size(SensitivityMap)[1:3])
+if params[:do_pi_recon]; SensitivityMap = SensitivityMap .* brain_skull_mask; end
+if params[:do_b0_corr]; OffResonanceMap = OffResonanceMap .* brain_skull_mask; end
+
+@info("Stop.. temp..")
+@infiltrate
+
 # Higher order B0 correction, FID navigators approach
 if params[:do_dyn_b0_corr] && params[:do_b0_corr]
     @info("Calculating δB0 Maps....")
@@ -455,7 +489,7 @@ if params[:do_motion_corr]
     save_suffix = string(save_suffix,"_mCorr")
     @info("Calculating motion calibration matrix....")
     # Calibration matrix
-    MotionCalibrationMatrix = getMotionCalibrationMatrix(recon_b0_sos,SensitivityMap; calib_steps=500)
+    MotionCalibrationMatrix = getMotionCalibrationMatrix(recon_b0,SensitivityMap; calib_steps=40)
     # MotionCalibrationMatrix = zeros(31,6) # Temp.. to test manual moiton params..
 end
 
@@ -538,7 +572,9 @@ if params[:do_b0_corr]
         end
     end
     ######## ******* AMM: Temp: Adding some rad to fieldmap.. test...
-    OffResonanceMap = OffResonanceMap .- ComplexF32(500*im) 
+    # OffResonanceMap[imag.(OffResonanceMap).<-1000] .= 0
+    # OffResonanceMap[imag.(OffResonanceMap).>1000] .= 0
+    OffResonanceMap = OffResonanceMap .- ComplexF32(400*im) 
     ######## ******* AMM: Temp: Adding some rad to fieldmap.. test...
     if params[:do_b0_corr_seg] == 0
         params_recon[:correctionMap] = deepcopy(OffResonanceMap)  # Original
@@ -715,8 +751,10 @@ end
             if isnothing(ndata)
                 nav = mean(tmp[nav_range,Int(params_pulseq["gen"]["n_ov"][3]/2)+1,:,:,1],dims=1)      # Taking just first FID
             else
-                nav = mean(ndata[nav_range,:,:,:,1,1],dims=2)      # Taking just first FID
+                nav = mean(ndata[end-2:end,:,:,:,1,1],dims=2)      # Taking just first FID
             end
+            @info("Stop.. Apply motion Corr..")
+            @infiltrate
             tmp, ksTraj = applyMotionCalibrationMatrix(tmp,ks_traj.nodes,nav,MotionCalibrationMatrix)
             ks_traj.nodes = ksTraj
         end
@@ -778,6 +816,8 @@ end
     for i_contrasts = 1:length(params[:contrasts])
         if params_pulseq["gen"]["seq"] == 1
             tmp_rep_recon = params[:rep_recon][1]-1+i_contrasts:2:params[:rep_recon][end]#+i_contrasts
+        elseif params_pulseq["gen"]["seq"] == 3
+            tmp_rep_recon = params[:rep_recon][1]-1+i_contrasts:length(params_pulseq["gen"]["multi_te"]):params[:rep_recon][end]#+i_contrasts
         else
             tmp_rep_recon = params[:rep_recon]
         end 

@@ -3,14 +3,14 @@ ml afni
 
 cd /neurodesktop-storage/5T4/Alejandro/sosp_vaso/data
 
-folder="06272024_sv_cv_josh"
-scan="cv_01"
-r_a_tr=6     # rest/activity TRs paper=sv(8), cv(7), josh=sv/cv(6)
-tr=2.344    # volume TR paper=sv(1.66), cv(1.81), josh=sv(2.1651),cv(2.344)
+folder="02132025_sb_9T"
+scan="sb_121_DS_SO_06mm_18fovz_12te_6te_girf_ech1"
+r_a_tr=7     # rest/activity TRs paper=sv(8), cv(7), josh=sv/cv(6)
+tr=2.7    # volume TR paper=sv(1.66), cv(1.81), josh=sv(2.1651),cv(2.344)
 motion_glm=0
 
 # Spiral reconstruction options
-traj="_nom" && cs="_cs" && b0="_b0" && co="" && k0="" && rDORK="_rDORK"
+traj="_girf" && cs="_cs" && b0="_b0" && co="_co" && k0="" && rDORK="_rDORK"
 
 cd ${folder}
 
@@ -31,7 +31,8 @@ cd ./analysis/${scan}
 #     b_file=../../recon/${scan}_b_epi.nii
 # fi
 
-b_file=./${scan}_b_ups_mc_hpf.nii
+b_file=./${scan}_ups_mc.nii
+# b_file=./${scan}_ups_mc_hpf.nii
 
 vol=$(3dinfo -nv ${b_file})
 

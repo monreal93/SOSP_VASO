@@ -100,6 +100,9 @@ function CorrectOffResonanceFrequencySegmented(ks_traj,kdata,OffResonanceMap,par
     # Empty Ireco
     Ireco = zeros(ComplexF32, size(OffResonanceMap))
 
+    # @info("Stop... Frequency-Segmented B0...")
+    # @infiltrate
+
     @time @floop for i_FrequencySegments in 1:Int(FrequencySegments)-1
     # for i_FrequencySegments in 1:Int(FrequencySegments)-1
 
@@ -126,9 +129,6 @@ function CorrectOffResonanceFrequencySegmented(ks_traj,kdata,OffResonanceMap,par
         GC.gc()
 
     end
-
-    # @info("Stop... Frequency-Segmented B0...")
-    # @infiltrate
 
     return Ireco
 

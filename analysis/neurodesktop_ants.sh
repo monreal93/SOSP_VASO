@@ -1,14 +1,14 @@
-cd /neurodesktop-storage/5T3/Alejandro/sosp_vaso/data
+cd /neurodesktop-storage/5T4/Alejandro/sosp_vaso/data
 
-folder="11262024_sb_9T_paper"
-scan="sb_101_DS_SO_06mm_6te"
+folder="01152025_sb_9T"
+scan="sb_001_DS_SO_06mm_18fovz_12te_6te_girf_ech1"
 # scan_t1="dicom_mp2rage_iso0.7mm_iPAT3_20230519112423_17"
 scan_t1="s1_brain_t1"          # subject # =  s#_ brain 
 
 ##### README.... 
 # Before running this script:
 # - do an intial registration in ITKsnap... save the values in a file called ./analysis/ants/initial_matrix_$scan
-# - Also create a ROI mask, that will be used for registration... save it as ./scan/scan_roi_msk.nii
+# - Also create a ROI mask, that will be used for registration... save it as ./scan/$scan_roi_msk.nii
 
 cd ${folder}
 cd ./analysis/
@@ -28,8 +28,8 @@ fi
 
 t1_file=../../raw/nifti/${scan_t1}.nii
 # t1_vaso_file=../${scan}/mean_v_msk.nii # original
-mask=../${scan}/${scan}_roi_msk.nii     # Mask created from ITKsnap..
-# mask=../${scan}/mask.nii     # General mask...
+# mask=../${scan}/${scan}_roi_msk.nii     # Mask created from ITKsnap..
+mask=../${scan}/mask.nii     # General mask...
 output1=registered_Warped_${scan}.nii
 output2=registered_InverseWarped_${scan}.nii
 initial_mtx=initial_matrix_${scan}.txt                     
