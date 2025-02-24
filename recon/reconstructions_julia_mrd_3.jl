@@ -39,27 +39,27 @@ params = Dict{Symbol, Any}()
 params[:do_pi_recon] = true             # Perform PI reconstruction or direct recon
 params[:do_b0_corr] = true
 params[:do_b0_corr_seg] = 2   # Perform custom  0=Gridding(MRIReco), 1=Time Segmented, 2=Frequency segmented,
-params[:do_rDORK_corr] = true      
+params[:do_rDORK_corr] = false      
 params[:do_iDORK_corr] = false            # Perform Interleaf DORK (WIP)
 params[:do_pDORK_corr] = false            # Perform Partition DORK (WIP)
-params[:do_coco_corr] = true           # Perform concomitant field correction (WIP)  
+params[:do_coco_corr] = false           # Perform concomitant field correction (WIP)  
 params[:do_k0_corr] = false             # Perform K0 demodulation of raw data, only works with sk/girf trajectory (WIP)
 params[:do_dyn_b0_corr] = false         # Higher order correction, FID navigators (WIP) 
 params[:do_motion_corr] = false         # Motion correction, FID navigators (WIP)
 params[:do_t2s_corr] = false
 params[:is2d] = false
 params[:isPhantom] = false              # If true, it will use params[:scan_b0] for recon
-params[:rep_recon] =   334:336 # 169:(168*2) # 155:(154*2)            # Range of rep to recon, 0 for all rep, single number for 1 rep, or range (2:10) 
-params[:traj_type] = "girf"                 # Trajectory type nominal="nom",skope="sk",poet = "poet", girf = "girf"
+params[:rep_recon] =   0 # 169:(168*2) # 155:(154*2)            # Range of rep to recon, 0 for all rep, single number for 1 rep, or range (2:10) 
+params[:traj_type] = "nom"                 # Trajectory type nominal="nom",skope="sk",poet = "poet", girf = "girf"
 params[:save_ph] = false                       # Save phase of recon as nifti
 params[:mcorr] = ""           # Motion correction with navigators "_mCorr"
 params[:recon_order] =  1                  # Higher order recon (2,3)
 params[:coil_compression] = true
 
 # Some parameters
-params[:scan] = "sb_601_DS_SO_06mm_18fovz_12te_6te"            # For now: if multipe echos, include _e1.. _e2..
+params[:scan] = "sv_001_SS_SO"            # For now: if multipe echos, include _e1.. _e2..
 params[:scan_b0] = "..."           # Name of the ME-GRE to use for CS and B0map, ONLY USED WHEN SEPARATE FIELDMAP SCAN...
-params[:directory] = "02202025_sb_9T_paper"        # directory where the data is stored
+params[:directory] = "02242025_sv_7T"        # directory where the data is stored
 
 # Drive where data is stored... (5T4/5T3)
 path_tmp = "/neurodesktop-storage/5T4/Alejandro/sosp_vaso/"
@@ -365,8 +365,8 @@ elseif params_pulseq["gen"]["seq"] == 4
 end
 
 # # AMM: Temp... trying to mask CS
-# @info("stop.. temp...")
-# @infiltrate
+@info("stop.. temp...")
+@infiltrate
 # mask = recon_b0_sos[:,:,:,1]
 # mask[abs.(mask) .< 0.5e-7] .= 0
 # mask[abs.(mask) .!= 0] .= 1
@@ -461,8 +461,6 @@ end
 
 # Creating Brain mask and Brain+skull mask
 # AMM: Ideally I would like to do this either when I recon ME-GRE or calculate Sensitivity/OffResonance
-@info("Stop.. temp..")
-@infiltrate
 cs = imresize(SensitivityMap,size(recon_b0)[1:4])
 recon_b0_cc = sum(conj.(cs) .* recon_b0; dims=4)
 recon_b0_cc = dropdims(recon_b0_cc, dims=4)
@@ -473,9 +471,6 @@ brain_skull_mask = Float32.(dilate(brain; r=15))
 brain_skull_mask = imresize(brain_skull_mask, size(SensitivityMap)[1:3])
 if params[:do_pi_recon]; SensitivityMap = SensitivityMap .* brain_skull_mask; end
 if params[:do_b0_corr]; OffResonanceMap = OffResonanceMap .* brain_skull_mask; end
-
-@info("Stop.. temp..")
-@infiltrate
 
 # Higher order B0 correction, FID navigators approach
 if params[:do_dyn_b0_corr] && params[:do_b0_corr]
@@ -574,7 +569,7 @@ if params[:do_b0_corr]
     ######## ******* AMM: Temp: Adding some rad to fieldmap.. test...
     # OffResonanceMap[imag.(OffResonanceMap).<-1000] .= 0
     # OffResonanceMap[imag.(OffResonanceMap).>1000] .= 0
-    OffResonanceMap = OffResonanceMap .- ComplexF32(400*im) 
+    # OffResonanceMap = OffResonanceMap .- ComplexF32(60*im) # (400 for 9.4T)
     ######## ******* AMM: Temp: Adding some rad to fieldmap.. test...
     if params[:do_b0_corr_seg] == 0
         params_recon[:correctionMap] = deepcopy(OffResonanceMap)  # Original
@@ -618,10 +613,29 @@ if params[:do_rDORK_corr]
     # ndata format = (numRead,numInterl,numPar,numCha,numRep,numFID)
     nav_ref, ndata_ref = FormatRawData(rawData,params;single_rep=true,rep_format=RepRef,fid_nav=Int(params_pulseq["gen"]["fid_nav"]))
 
-    if params_pulseq["gen"]["fid_nav"] == 1
+    if params_pulseq["gen"]["fid_nav"] == 1 && params_pulseq["gen"]["seq"] ≠ 1
         # Separate Navigator module
         nav_ref = mean(ndata_ref[nav_range,1,Int(params_pulseq["gen"]["n_ov"][3]/2)+1,:,1,1],dims=2)
-    else 
+    elseif  params_pulseq["gen"]["fid_nav"] == 1 && params_pulseq["gen"]["seq"] == 1
+        # VASO
+        if params_pulseq["gen"]["seq"] == 1
+            RepRef = RepRef+1         # DORK reference repetition
+            nav_ref1, ndata_ref1 = FormatRawData(rawData,params;single_rep=true,rep_format=Int(RepRef+1),fid_nav=Int(params_pulseq["gen"]["fid_nav"]))
+            @info("Stop.. nav rep...")
+            @infiltrate
+            if Int(params_pulseq["gen"]["fid_nav"]) == 1
+                nav_ref = mean(deepcopy(ndata_ref[nav_range,:,:,:,1,1]),dims=4)   # Taking only the first FID
+                nav_ref1 = mean(deepcopy(ndata_ref1[nav_range,:,:,:,1,1]),dims=4)   # Taking only the first FID
+            end
+            # if params[:kz_enc] == 0  # Linear
+            #     nav_ref1 = nav_ref1[nav_range,Int(params_pulseq["gen"]["n_ov"][3]/2)+1,:,1]
+            #     nav_ref1 = mean(nav_ref1, dims=2)
+            # elseif params[:kz_enc] == 1 # Center-out
+            #     nav_ref1 = nav_ref1[nav_range,1,:,1]
+            #     nav_ref1 = mean(nav_ref1, dims=2)
+            # end
+        end
+    else
         # No separate Navigator
         if params[:kz_enc] == 0  # Linear
             nav_ref = nav_ref[nav_range,Int(params_pulseq["gen"]["n_ov"][3]/2)+1,:,1]
@@ -629,21 +643,6 @@ if params[:do_rDORK_corr]
         elseif params[:kz_enc] == 1 # Center-out
             nav_ref = nav_ref[nav_range,1,:,1]
             nav_ref = mean(nav_ref, dims=2)     # Mean over channels
-        end
-        # VASO
-        if params_pulseq["gen"]["seq"] == 1
-            RepRef = RepRef+1         # DORK reference repetition
-            nav_ref1, ndata_ref1 = FormatRawData(rawData,params;single_rep=true,rep_format=RepRef,fid_nav=Int(params_pulseq["gen"]["fid_nav"]))
-            if Int(params_pulseq["gen"]["fid_nav"]) == 1
-                nav_ref1 = deepcopy(ndata_ref1[:,:,:,1,1])   # Taking only the first FID
-            end
-            if params[:kz_enc] == 0  # Linear
-                nav_ref1 = nav_ref1[nav_range,Int(params_pulseq["gen"]["n_ov"][3]/2)+1,:,1]
-                nav_ref1 = mean(nav_ref1, dims=2)
-            elseif params[:kz_enc] == 1 # Center-out
-                nav_ref1 = nav_ref1[nav_range,1,:,1]
-                nav_ref1 = mean(nav_ref1, dims=2)
-            end
         end
     end
 end
@@ -683,11 +682,13 @@ end
         # repetition DORK correction
         if params[:do_rDORK_corr]
             if Int(params_pulseq["gen"]["fid_nav"]) == 1
-                nav = mean(ndata[nav_range,:,:,:,1,:],dims=4)      # Taking just first FID, mean over ch
+                nav = mean(ndata[nav_range,:,:,:,1,1],dims=4)      # Taking just first FID, mean over ch
                 # nav = ndata[nav_range,:,:,:,:,:]
             else
                 nav = mean(tmp[nav_range,Int(params_pulseq["gen"]["n_ov"][3]/2)+1,:,1],dims=2)      # Taking just first FID, mean over ch
             end
+            @info("Stop. rDORK")
+            @infiltrate
             if params_pulseq["gen"]["seq"] == 1  # VASO and BOLD separately
                 if isodd(i_rep)  # VASO
                     tmp = CorrectRepetitionDORK(tmp,nav,nav_ref,params)

@@ -33,9 +33,10 @@ function CorrectRepetitionDORK(tmp,nav,nav_ref,params::Dict{Symbol,Any})
             nav = tmp[:,1,:,1]
             nav = mean(nav, dims=2)
         end
-    else
-        nav = nav[:,1,Int(params_pulseq["gen"]["n_ov"][3]/2)+1,:,1,1]
     end
+    # else
+    #     nav = nav[:,1,Int(params_pulseq["gen"]["n_ov"][3]/2)+1,:,1,1]
+    # end
 
     del_omg = mean(DSP.unwrap(angle.(nav), dims=1)-DSP.unwrap(angle.(nav_ref),dims=1))/params[:TE]
 
