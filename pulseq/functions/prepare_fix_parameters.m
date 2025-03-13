@@ -36,6 +36,7 @@ function [params,ro_blocks] = prepare_fix_parameters(params)
         % Increase FOV?
         params.gen.del_k(3) = params.gen.del_k(3)/(1+(params.gen.ph_oversampling/100)); 
         params.gen.n(3) = round(round(params.gen.n(3)*(1+(params.gen.ph_oversampling/100)))/2)*2;
+%         params.gen.fov(3) = 1 / params.gen.del_k(3);
     end
     % Fat sat angle
     if params.gen.fs_angle == 0

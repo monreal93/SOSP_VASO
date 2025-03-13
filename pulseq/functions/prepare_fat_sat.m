@@ -25,9 +25,9 @@ function [rf_fs,gx_fs,gy_fs,gz_fs] = prepare_fat_sat(params, sat_ppm)
 %     gz_fs = mr.makeTrapezoid('z',lims,'MaxGrad',grad_ampl*lims.gamma,'Area',grad_area,'Duration',grad_dur);
 
     % Using system limits
-    gx_fs = mr.makeTrapezoid('x',lims,'Area',grad_area);
-    gy_fs = mr.makeTrapezoid('y',lims,'Area',-grad_area);
-    gz_fs = mr.makeTrapezoid('z',lims,'Area',grad_area);
+    gx_fs = mr.makeTrapezoid('x',lims,'Area',grad_area,'Duration',1e-3);
+    gy_fs = mr.makeTrapezoid('y',lims,'Area',-grad_area,'Duration',1e-3);
+    gz_fs = mr.makeTrapezoid('z',lims,'Area',grad_area,'Duration',1e-3);
 
 %     gx_fs.delay = mr.calcDuration(rf_fs);
 %     gy_fs.delay = mr.calcDuration(rf_fs);

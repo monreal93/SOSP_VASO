@@ -118,7 +118,8 @@ function [B1,phase,rf_complex,Gz,fa] = tr_foci(params)
    
    % Here I want to calculate the FA taking into account the amplitude
    m_dBW_kHz = 1.0E-3 * mu * beta* Amax / pi()* 1/(1.0E-6 *length(t));
-   ampl = 2*pi*m_dBW_kHz/(267522209. * params.vaso.foci_ampl);
+   ampl = 2*pi*m_dBW_kHz/(267522209. * params.vaso.foci_ampl); % Original
+%    ampl = 2*pi*m_dBW_kHz/(params.gen.lims.gamma * params.vaso.foci_ampl); 
    fa = (2*pi)/(ampl*360*(larmor_freq*1e3*2*pi)*trapz(0:1e-6:params.vaso.foci_dur-1e-6,abs(rf_complex)));
    fa = fa*180/pi;   % FA in degrees
    
