@@ -64,7 +64,8 @@ function FormatRawData(rawData,params;single_rep::Bool=false,rep_format::Int,fid
         if params_pulseq["gen"]["seq"] == 3 && MultiEchoGRE == false
             i_prof = i_prof+(2*(mod(rep_format-1,numEch))*numSet) 
         else
-            i_prof = ((i_prof-1)*2)+1 
+            # i_prof = ((i_prof-1)*2)+1  # Original
+            i_prof +=  ((rep_format-1)*numPar*numInterl*2)
         end
         ndata = Array{ComplexF32}(undef,size(rawData.profiles[1].data,1),numInterl,numPar,numCha,numRep,2)
     end
@@ -79,7 +80,6 @@ function FormatRawData(rawData,params;single_rep::Bool=false,rep_format::Int,fid
                     end
                 end
                 for i_set=1:numSet
-                    # print(i_prof,",")
                     tmp[:,i_set,i_interl,i_par,:,i_rep] = rawData.profiles[i_prof].data # Original
                     # tmp[:,i_set,i_interl,i_par,:,i_rep] = rawData.profiles[i_prof].data[1:numRead,:]
                     i_prof += 1

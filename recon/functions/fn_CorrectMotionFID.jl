@@ -1,6 +1,6 @@
 using CoordinateTransformations, Rotations, Distributions
 
-function getMotionCalibrationMatrix(recon_b0,SensitivityMap;calib_steps=500)
+function getMotionCalibrationMatrix(recon_b0,SensitivityMap,nav_ref;calib_steps=500)
 
     n_channels = size(SensitivityMap,4)
     n_times = calib_steps
@@ -27,8 +27,14 @@ function getMotionCalibrationMatrix(recon_b0,SensitivityMap;calib_steps=500)
     fid = Matrix{Float32}(undef,n_channels,n_times)
     calib = Matrix{ComplexF32}(undef,n_channels,6)
 
+
     @info("Stop... Motion corr...")
     @infiltrate
+
+    # Find scaling factor...
+    fid_ref = (recon_b0_cc.*cs)
+    fid_ref = abs.(dropdims(sum(fid_ref,dims=(1,2,3)),dims=(1,2,3)))
+    nav_scaling = abs.(nav_ref) ./ abs.(fid_ref)
 
     @floop for i=1:calib_steps
 
@@ -46,20 +52,20 @@ function getMotionCalibrationMatrix(recon_b0,SensitivityMap;calib_steps=500)
 
         img_trans = warp(recon_b0_cc, tr)
         img_trans = img_trans.parent
-        replace!(img_trans, NaN=>0)   
+        replace!(img_trans, NaN=>0)
 
         # Cropping img_trans
-        crop = Int.(ceil.((size(img_trans) .- size(recon_b0_cc))./2))
-        crop_tmp = mod.(size(img_trans),2)
-        # img_trans = img_trans[crop[1]+crop_tmp[1]+1:end-crop[1],crop[2]+crop_tmp[2]+1:end-crop[2],crop[3]+crop_tmp[3]+1:end-crop[3]]
-        img_trans = img_trans[crop[1]-crop_tmp[1]+1:end-crop[1],crop[2]-crop_tmp[2]+1:end-crop[2],crop[3]-crop_tmp[3]+1:end-crop[3]]
+        crop = Int.(floor.((size(img_trans) .- size(recon_b0_cc))./2))
+        # crop_tmp = mod.(size(img_trans),2)
+        crop_tmp = (isinteger.((size(img_trans) .- size(recon_b0_cc))./2))
+        crop_tmp = ([Int(!crop_tmp[1]),Int(!crop_tmp[2]),Int(!crop_tmp[3])])
+        img_trans = img_trans[crop[1]+crop_tmp[1]+1:end-crop[1],crop[2]+crop_tmp[2]+1:end-crop[2],crop[3]+crop_tmp[3]+1:end-crop[3]]
+        # img_trans = img_trans[crop[1]+1:end-crop[1],crop[2]+1:end-crop[2],crop[3]+1:end-crop[3]]
 
-        # @info("Stop... Motion corr...")
-        # @infiltrate
-        
         img_trans = (img_trans.*cs)
 
         fid[:,i] = abs.(dropdims(sum(img_trans,dims=(1,2,3)),dims=(1,2,3)))
+        fid[:,i] = fid[:,i] .* nav_scaling
 
         img_trans = []
 
@@ -81,7 +87,8 @@ function applyMotionCalibrationMatrix(rawData,ksTraj::Matrix{Float32},nav,calib)
     # AMM: Temp...
     nav = abs.(mean(nav,dims=3))
     nav = abs.(mean(nav,dims=1))
-    nav = nav[:] .* 10
+    nav = nav[:]
+    # nav = nav[:] .* 10
     # nav = nav[1,1,21,:]
 
     motion_params = nav' / calib'
@@ -93,11 +100,11 @@ function applyMotionCalibrationMatrix(rawData,ksTraj::Matrix{Float32},nav,calib)
     # motion_params = [0 0 0 0 0 0] # op3
     # motion_params = [-0.113 -1.377 -0.004 0.547 -0.065 0.0005] # op4
     # motion_params = [-0.113 -1.377 -0.004 -0.065 0.547 0.0005] # op5 BEst one...
-    # motion_params = [-0.1063 0.5812 -0.4436 0.6845 0.0847 0.0334]  # rep=240, sb_001_... 01092025_sb_9T 
+    # motion_params = [-0.1063 0.5812 -0.4436 0.6845 0.0847 0.0334]  # rep=240, sb_001_... 01092025_sb_9T
 
     motion_params[1:3] =  motion_params[1:3]./(params_pulseq["gen"]["res"].*1e3)'
     motion_params[4:6] =  motion_params[4:6]*(pi/180)
-    
+
     # # Try 1, I got this sample values from the motion correction step of post-processing
     # motion_params[1:3] = [-0.7284,-0.0572,0.1293]./(params_pulseq["gen"]["res"].*1e3)'
     # motion_params[4:6] = [-0.1767*(pi/180), 0.1369*(pi/180), -0.246*(pi/180)]

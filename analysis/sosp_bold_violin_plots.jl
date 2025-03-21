@@ -12,6 +12,10 @@ using Statistics
 
 # List all directories.. it will plot 1-2 per each two-sided violin plot
 scans = [
+        "sb_001_DS_SO_06mm_18fovz_12te_6te_girf_ech2",
+        "sb_001_DS_SO_06mm_18fovz_12te_6te_girf_ech1",
+        "sb_011_DS_SO_06mm_18fovz_12te_6te_girf_ech2",
+        "sb_011_DS_SO_06mm_18fovz_12te_6te_girf_ech1",
         "sb_311_DS_SO_06mm_18fovz_12te_6te_girf_ech2",
         "sb_311_DS_SO_06mm_18fovz_12te_6te_girf_ech1",
         "sb_312_DS_SO_06mm_18fovz_12te_6te_girf_ech2",
@@ -25,6 +29,8 @@ scans = [
         ]
 
 directories = [
+                "01152025_sb_9T_paper",
+                "01152025_sb_9T_paper",
                 "02062025_sb_9T_paper",
                 "02062025_sb_9T_paper",
                 "02132025_sb_9T_paper",
@@ -32,7 +38,7 @@ directories = [
                 "02202025_sb_9T_paper",
                 ]
 
-drive = ["5T4","5T4","5T4","5T4","5T4"]
+drive = ["5T4","5T4","5T4","5T4","5T4","5T4","5T4"]
 
 categories = 1:0.01:10
 # echos=["ech1","ech2"]requ

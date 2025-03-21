@@ -10,13 +10,14 @@ using MRIReco, MRIFieldmaps, MRIFiles, MRICoilSensitivities
 using MAT, NIfTI , JLD, MriResearchTools
 using StatsBase: mean
 using Unitful: s, ustrip
-# using MIRTjim: jim, prompt; jim(:prompt, true)
+using MIRTjim: jim, prompt; jim(:prompt, true)
 using ImageTransformations, Interpolations
 using NFFT
 using FLoops
 using Statistics
 using DSP
 using ImageMorphology
+using PaddedViews
 # using Plots
 # using ROMEO
 
@@ -38,19 +39,19 @@ include("./functions/fn_CorrectOffResonance.jl")
 params = Dict{Symbol, Any}()
 params[:do_pi_recon] = true             # Perform PI reconstruction or direct recon
 params[:do_b0_corr] = true
-params[:do_b0_corr_seg] = 2   # Perform custom  0=Gridding(MRIReco), 1=Time Segmented, 2=Frequency segmented,
-params[:do_rDORK_corr] = false      
+params[:do_b0_corr_seg] = 1   # Perform custom  0=Gridding(MRIReco), 1=Time Segmented, 2=Frequency segmented,
+params[:do_rDORK_corr] = true      
 params[:do_iDORK_corr] = false            # Perform Interleaf DORK (WIP)
 params[:do_pDORK_corr] = false            # Perform Partition DORK (WIP)
 params[:do_coco_corr] = false           # Perform concomitant field correction (WIP)  
-params[:do_k0_corr] = false             # Perform K0 demodulation of raw data, only works with sk/girf trajectory (WIP)
+params[:do_k0_corr] = true             # Perform K0 demodulation of raw data, only works with sk/girf trajectory (WIP)
 params[:do_dyn_b0_corr] = false         # Higher order correction, FID navigators (WIP) 
-params[:do_motion_corr] = false         # Motion correction, FID navigators (WIP)
+params[:do_motion_corr] = true         # Motion correction, FID navigators (WIP)
 params[:do_t2s_corr] = false
 params[:is2d] = false
 params[:isPhantom] = false              # If true, it will use params[:scan_b0] for recon
-params[:rep_recon] =   0 # 169:(168*2) # 155:(154*2)            # Range of rep to recon, 0 for all rep, single number for 1 rep, or range (2:10) 
-params[:traj_type] = "nom"                 # Trajectory type nominal="nom",skope="sk",poet = "poet", girf = "girf"
+params[:rep_recon] =   1 # 169:(168*2) # 155:(154*2)            # Range of rep to recon, 0 for all rep, single number for 1 rep, or range (2:10) 
+params[:traj_type] = "girf"                 # Trajectory type nominal="nom",skope="sk",poet = "poet", girf = "girf"
 params[:save_ph] = false                       # Save phase of recon as nifti
 params[:mcorr] = ""           # Motion correction with navigators "_mCorr"
 params[:recon_order] =  1                  # Higher order recon (2,3)
@@ -59,7 +60,7 @@ params[:coil_compression] = true
 # Some parameters
 params[:scan] = "sv_001_SS_SO"            # For now: if multipe echos, include _e1.. _e2..
 params[:scan_b0] = "..."           # Name of the ME-GRE to use for CS and B0map, ONLY USED WHEN SEPARATE FIELDMAP SCAN...
-params[:directory] = "02242025_sv_7T"        # directory where the data is stored
+params[:directory] = "02242025_sv_7T_prf"        # directory where the data is stored
 
 # Drive where data is stored... (5T4/5T3)
 path_tmp = "/neurodesktop-storage/5T4/Alejandro/sosp_vaso/"
@@ -289,6 +290,13 @@ else
         end
     end
 
+    # Remove extra slices due to phase oversampling
+    if params_me_gre_pulseq["gen"]["n_ov"] ≠ params_me_gre_pulseq["gen"]["n"]
+        ph_ov_slices = (params_me_gre_pulseq["gen"]["n_ov"][3]*params_me_gre_pulseq["gen"]["kz"]) - params_me_gre_pulseq["gen"]["n"][3]
+        ph_ov_slices = Int(ph_ov_slices/2)
+        recon_b0 = recon_b0[:,:,ph_ov_slices+1:end-ph_ov_slices,:,:]
+    end
+
     save(string(params[:path],"/acq/me_",file_name,".jld"),"recon_b0",recon_b0)
 
     if params_pulseq["gen"]["me_gre"] == 0
@@ -300,7 +308,17 @@ else
     # Saving ME GRE for reference in tmp folder
     b0_nii = recon_b0[:,:,:,:,:]
     b0_nii = dropdims(sqrt.(sum(abs.(b0_nii).^2, dims=4)), dims=4)
-    b0_nii = imresize(b0_nii,Int(params_pulseq["gen"]["n"][1]),Int(params_pulseq["gen"]["n"][2]),Int(params_pulseq["gen"]["n"][3]))
+    # Note AMM (03062025): seems like I need to reshape to 60 in z... also need to circshift 
+    # circshift(b0_nii,(0,2,-2,0));
+    recon_b0_resize = round.(params_me_gre_pulseq["gen"]["fov"] ./ params_pulseq["gen"]["res"])  # oP1
+    # recon_b0_resize = [params_pulseq["gen"]["n"][1:2]... round.(params_me_gre_pulseq["gen"]["fov"][3] ./ params_pulseq["gen"]["res"][3])] # oP 2
+    b0_nii = imresize(b0_nii,Int(recon_b0_resize[1]),Int(recon_b0_resize[2]),Int(recon_b0_resize[3]))
+    crop_size = Int(ceil((recon_b0_resize[3]-params_pulseq["gen"]["n"][3])/2))
+    if crop_size > 0
+        b0_nii = b0_nii[:,:,crop_size+1:end-crop_size+1,:]
+    end
+
+    # b0_nii = imresize(b0_nii,Int(params_pulseq["gen"]["n_ov"][1]),Int(params_pulseq["gen"]["n_ov"][2]),Int(params_pulseq["gen"]["n_ov"][3]))
     # if rawData.profiles[1].head.read_dir[1] == 1 && rawData.profiles[1].head.phase_dir[3] == 1 && rawData.profiles[1].head.slice_dir[2] == 1     # Coronal
     #     quatern_b=0.7; quatern_c=0; quatern_d=0;
     # elseif rawData.profiles[1].head.read_dir[1] == 1 && rawData.profiles[1].head.phase_dir[3] == 1 && rawData.profiles[1].head.slice_dir[2] == 1
@@ -317,6 +335,9 @@ else
     b0_nii = NIVolume(b0_nii)
     niwrite(string(params[:path],"/tmp/",params[:scan],"_",params[:traj_type],".nii"),b0_nii)
 end
+
+@info("Stop.. temp..")
+@infiltrate
 
 recon_b0_sos = dropdims(sqrt.(((sum(abs.(recon_b0).^2; dims=4)))), dims=4)
 
@@ -365,8 +386,8 @@ elseif params_pulseq["gen"]["seq"] == 4
 end
 
 # # AMM: Temp... trying to mask CS
-@info("stop.. temp...")
-@infiltrate
+# @info("stop.. temp...")
+# @infiltrate
 # mask = recon_b0_sos[:,:,:,1]
 # mask[abs.(mask) .< 0.5e-7] .= 0
 # mask[abs.(mask) .!= 0] .= 1
@@ -388,7 +409,8 @@ if params[:do_pi_recon]
         SensitivityMap = SensitivityMap["SensitivityMap"]
     else
         @info("Calculating Sensitivity Maps...")
-        SensitivityMap = CalculateSensitivityMap(recon_b0,Tuple(Int.(params_pulseq["gen"]["n_ov"].*[1 1 params_pulseq["gen"]["kz"]])))
+        # SensitivityMap = CalculateSensitivityMap(recon_b0,Tuple(Int.(params_pulseq["gen"]["n_ov"].*[1 1 params_pulseq["gen"]["kz"]]))) # Original
+        SensitivityMap = CalculateSensitivityMap(recon_b0,Tuple(Int.(recon_b0_resize)))
         save(string(params[:path],"/acq/cs_",file_name,".jld"),"SensitivityMap",SensitivityMap)
     end
 end
@@ -434,10 +456,10 @@ if params[:do_coco_corr] && params[:do_b0_corr]
             @info ("Loading Concomitant maps ...")
             CocoFieldMap = load(string(params[:path],"/acq/co_",file_name,".jld"))
             CocoFieldMap = CocoFieldMap["CocoFieldMap"]
+            OffResonanceMap .= OffResonanceMap .- (CocoFieldMap.*im)
         else
             @info("Calculating Concomitant Maps....")
             # phase,read,slice
-            @infiltrate
             RotMat =vcat(transpose(collect(rawData_b0.profiles[1].head.read_dir)),
                     transpose(collect(rawData_b0.profiles[1].head.phase_dir)),
                     transpose(collect(rawData_b0.profiles[1].head.slice_dir)))
@@ -472,21 +494,8 @@ brain_skull_mask = imresize(brain_skull_mask, size(SensitivityMap)[1:3])
 if params[:do_pi_recon]; SensitivityMap = SensitivityMap .* brain_skull_mask; end
 if params[:do_b0_corr]; OffResonanceMap = OffResonanceMap .* brain_skull_mask; end
 
-# Higher order B0 correction, FID navigators approach
-if params[:do_dyn_b0_corr] && params[:do_b0_corr]
-    @info("Calculating δB0 Maps....")
-    # Calibration matrix
-    DynOffResonanceCalibrationMatrix, sh_basis = getDynamicOffResonanceCalibrationMatrix(params,OffResonanceMap,recon_b0)
-end
-
-# Motion correction, FID navigators approach
-if params[:do_motion_corr]
-    save_suffix = string(save_suffix,"_mCorr")
-    @info("Calculating motion calibration matrix....")
-    # Calibration matrix
-    MotionCalibrationMatrix = getMotionCalibrationMatrix(recon_b0,SensitivityMap; calib_steps=40)
-    # MotionCalibrationMatrix = zeros(31,6) # Temp.. to test manual moiton params..
-end
+# @info("Stop... temp...")
+# @infiltrate
 
 # Normalize k-space trajectory and create Trajectory object
 if params[:traj_type] == "sk"
@@ -541,12 +550,26 @@ if params[:do_k0_corr]
     save_suffix = string(save_suffix,"_k0")
 end
 
+# If me_gre FOV > FOV
+if params[:do_pi_recon] && (params_pulseq["gen"]["fov"][3] != params_me_gre_pulseq["gen"]["fov"][3])
+    crop_size = Int(ceil((size(SensitivityMap,3) - params_pulseq["gen"]["n_ov"][3])/2))
+    SensitivityMap_crop = SensitivityMap[:,:,crop_size+1:end-crop_size+1,:]
+    if params[:do_b0_corr] 
+        OffResonanceMap_crop = OffResonanceMap[:,:,crop_size+1:end-crop_size+1]
+    end
+elseif params[:do_pi_recon] && (params_pulseq["gen"]["fov"][3] == params_me_gre_pulseq["gen"]["fov"][3])
+    SensitivityMap_crop = SensitivityMap
+    if params[:do_b0_corr] 
+        OffResonanceMap_crop = OffResonanceMap
+    end
+end
+
 # Reconstruction parameters
 params_recon = Dict{Symbol, Any}()
 params_recon = merge(defaultRecoParams(), params_recon)
 if params[:do_pi_recon]
     params_recon[:reco] = "multiCoil"
-    params_recon[:senseMaps] = SensitivityMap
+    params_recon[:senseMaps] = SensitivityMap_crop
 end
 if params[:do_b0_corr]
     # Temp: Scaling fieldmap for testing...
@@ -569,17 +592,18 @@ if params[:do_b0_corr]
     ######## ******* AMM: Temp: Adding some rad to fieldmap.. test...
     # OffResonanceMap[imag.(OffResonanceMap).<-1000] .= 0
     # OffResonanceMap[imag.(OffResonanceMap).>1000] .= 0
-    # OffResonanceMap = OffResonanceMap .- ComplexF32(60*im) # (400 for 9.4T)
+    OffResonanceMap_crop = OffResonanceMap_crop .- ComplexF32(60*im) # (400 for 9.4T)
+    # OffResonanceMap = OffResonanceMap.*2.5
     ######## ******* AMM: Temp: Adding some rad to fieldmap.. test...
     if params[:do_b0_corr_seg] == 0
-        params_recon[:correctionMap] = deepcopy(OffResonanceMap)  # Original
+        params_recon[:correctionMap] = OffResonanceMap_crop  # Original
     end
 end
 if params[:recon_order] > 1 || (params[:traj_type] == "sk" && params[:recon_order] > 1)
     params_recon[:reco] = "expandedSignalModel"
     params_recon[:higherOrderTrajectory] = convert(Matrix{Float32},ks_traj_high)
     params_recon[:senseMaps] = SensitivityMap
-    params_recon[:correctionMap] = deepcopy(OffResonanceMap)
+    params_recon[:correctionMap] = OffResonanceMap_crop
 end
 
 params_pulseq["gen"]["n_ov"] = Int.(params_pulseq["gen"]["n_ov"])
@@ -620,9 +644,7 @@ if params[:do_rDORK_corr]
         # VASO
         if params_pulseq["gen"]["seq"] == 1
             RepRef = RepRef+1         # DORK reference repetition
-            nav_ref1, ndata_ref1 = FormatRawData(rawData,params;single_rep=true,rep_format=Int(RepRef+1),fid_nav=Int(params_pulseq["gen"]["fid_nav"]))
-            @info("Stop.. nav rep...")
-            @infiltrate
+            nav_ref1, ndata_ref1 = FormatRawData(rawData,params;single_rep=true,rep_format=RepRef,fid_nav=Int(params_pulseq["gen"]["fid_nav"]))
             if Int(params_pulseq["gen"]["fid_nav"]) == 1
                 nav_ref = mean(deepcopy(ndata_ref[nav_range,:,:,:,1,1]),dims=4)   # Taking only the first FID
                 nav_ref1 = mean(deepcopy(ndata_ref1[nav_range,:,:,:,1,1]),dims=4)   # Taking only the first FID
@@ -657,6 +679,24 @@ if params[:do_pDORK_corr]
     save_suffix = string(save_suffix,"_pDORK")
 end
 
+# Higher order B0 correction, FID navigators approach
+if params[:do_dyn_b0_corr] && params[:do_b0_corr]
+    @info("Calculating δB0 Maps....")
+    # Calibration matrix
+    DynOffResonanceCalibrationMatrix, sh_basis = getDynamicOffResonanceCalibrationMatrix(params,OffResonanceMap,recon_b0)
+end
+
+# Motion correction, FID navigators approach
+if params[:do_motion_corr]
+    save_suffix = string(save_suffix,"_mCorr")
+    @info("Calculating motion calibration matrix....")
+    # Calibration matrix
+    nav_ref_mot = ndata_ref[nav_range,1,:,:,1,1]
+    nav_ref_mot = dropdims(mean(nav_ref_mot, dims=(1,2)), dims=(1,2))
+    MotionCalibrationMatrix = getMotionCalibrationMatrix(recon_b0,SensitivityMap,nav_ref_mot; calib_steps=200)
+    # MotionCalibrationMatrix = zeros(31,6) # Temp.. to test manual moiton params..
+end
+
 # Reconstruct repetition by repetition....
 kdata = Array{Array{ComplexF32,2},3}(undef,1,1,1)
 if params[:rep_recon] == 0:0 || params[:rep_recon] == 0 
@@ -687,8 +727,6 @@ end
             else
                 nav = mean(tmp[nav_range,Int(params_pulseq["gen"]["n_ov"][3]/2)+1,:,1],dims=2)      # Taking just first FID, mean over ch
             end
-            @info("Stop. rDORK")
-            @infiltrate
             if params_pulseq["gen"]["seq"] == 1  # VASO and BOLD separately
                 if isodd(i_rep)  # VASO
                     tmp = CorrectRepetitionDORK(tmp,nav,nav_ref,params)
@@ -766,7 +804,7 @@ end
         if params[:coil_compression]
             numVC = 16
             kdata[1], ccMat = softwareCoilCompression(kdata[1],numVC)
-            params_recon[:senseMaps] = applyCoilCompressionSensitivityMaps(SensitivityMap, ccMat, numVC)
+            params_recon[:senseMaps] = applyCoilCompressionSensitivityMaps(SensitivityMap_crop, ccMat, numVC)
         end
 
         @info("Stop before recon ....")
@@ -775,9 +813,9 @@ end
         # Reconstruction
         @info(string("Reconstructing Repetition # ",i_rep))
         if params[:do_b0_corr] && params[:do_b0_corr_seg] == 1
-            @time Ireco = CorrectOffResonanceTimeSegmented(ks_traj,kdata,OffResonanceMap,params_pulseq,params_recon)
+            @time Ireco = CorrectOffResonanceTimeSegmented(ks_traj,kdata,OffResonanceMap_crop,params_pulseq,params_recon)
         elseif params[:do_b0_corr] && params[:do_b0_corr_seg] == 2
-            @time Ireco = CorrectOffResonanceFrequencySegmented(ks_traj,kdata,OffResonanceMap,params_pulseq,params_recon)
+            @time Ireco = CorrectOffResonanceFrequencySegmented(ks_traj,kdata,OffResonanceMap_crop,params_pulseq,params_recon)
         else
             # Create AcqData object
             acqData = AcquisitionData(ks_traj,kdata; encodingSize=(Int(params_pulseq["gen"]["ro_samples"]*params_pulseq["spi"]["interl"]),1,Int(params_pulseq["gen"]["n_ov"][3])), fov=Tuple(params_pulseq["gen"]["fov"]))

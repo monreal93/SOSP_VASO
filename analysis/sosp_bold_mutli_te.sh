@@ -4,7 +4,7 @@ ml afni
 cd /neurodesktop-storage/5T4/Alejandro/sosp_vaso/data
 
 folder="02132025_sb_9T_paper"
-scan="sb_122_DS_SO_06mm_18fovz_12te_6te"
+scan="sb_121_DS_SO_06mm_18fovz_12te_6te"
 traj="girf"   # nom or girf
 thr=1.6                    # z-score threshold
 

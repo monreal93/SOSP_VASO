@@ -23,8 +23,11 @@ function CorrectOffResonanceTimeSegmented(ks_traj,kdata,OffResonanceMap,params,p
 
     SegmentLength = round(params["gen"]["ro_samples"]/TimeSegments/2)*2
 
+    @info("Stop... Time-Segmented B0...")
+    @infiltrate
+
     # Empty Ireco
-    Ireco = Array{ComplexF32}(undef,Tuple([params["gen"]["n"]... TimeSegments]))
+    Ireco = Array{ComplexF32}(undef,Tuple([params["gen"]["n_ov"]... TimeSegments]))
 
     @time @floop for i_TimeSegments in 1:TimeSegments
     # for i_TimeSegments in 1:Int(TimeSegments)
@@ -87,7 +90,7 @@ function CorrectOffResonanceFrequencySegmented(ks_traj,kdata,OffResonanceMap,par
     # Frequency Segments
     FrequencySegments = Int(round(4*(maximum(OffResonanceMap)-minimum(OffResonanceMap))*params["gen"]["ro_time"]))
     FrequencySegments = Int(ceil(FrequencySegments/2)*2)
-    # FrequencySegments = 40
+    # FrequencySegments = 80
     SegmentRanges = LinRange(minimum(OffResonanceMap),maximum(OffResonanceMap),FrequencySegments)
 
     for i_FrequencySegments in 1:Int(FrequencySegments)-1
@@ -100,8 +103,8 @@ function CorrectOffResonanceFrequencySegmented(ks_traj,kdata,OffResonanceMap,par
     # Empty Ireco
     Ireco = zeros(ComplexF32, size(OffResonanceMap))
 
-    # @info("Stop... Frequency-Segmented B0...")
-    # @infiltrate
+    @info("Stop... Frequency-Segmented B0...")
+    @infiltrate
 
     @time @floop for i_FrequencySegments in 1:Int(FrequencySegments)-1
     # for i_FrequencySegments in 1:Int(FrequencySegments)-1
@@ -124,9 +127,9 @@ function CorrectOffResonanceFrequencySegmented(ks_traj,kdata,OffResonanceMap,par
         # @info("Stop... Frequency-Segmented B0...")
         # @infiltrate
 
-        # Trying to clear some memory
-        ccall(:malloc_trim, Cvoid, (Cint,), 0) 
-        GC.gc()
+        # # Trying to clear some memory
+        # ccall(:malloc_trim, Cvoid, (Cint,), 0) 
+        # GC.gc()
 
     end
 
