@@ -24,15 +24,18 @@ function CalculateSensitivityMap(recon,MtxSize::Tuple;calib_size::Int=12)
     # calibration = fft(calibration,2)
     # calibration = fftshift(fft(calibration,3),3)
 
-    calibration = calibration[Int(round(end/2+1-calib_size)):Int(round(end/2+calib_size)),Int(round(end/2+1-calib_size)):Int(round(end/2+calib_size)),Int(floor(end/2+1)-calib_size):Int(floor(end/2)+calib_size),:]
-    ## ESPIRIT wants even numbers in slice direction, lets add some slices
+    if MtxSize[3] > calib_size*2
+        calibration = calibration[Int(round(end/2+1-calib_size)):Int(round(end/2+calib_size)),Int(round(end/2+1-calib_size)):Int(round(end/2+calib_size)),Int(floor(end/2+1)-calib_size):Int(floor(end/2)+calib_size),:]
+    else
+        calibration = calibration[Int(round(end/2+1-calib_size)):Int(round(end/2+calib_size)),Int(round(end/2+1-calib_size)):Int(round(end/2+calib_size)),:,:]
+    end
+        ## ESPIRIT wants even numbers in slice direction, lets add some slices
     # if mod(Int(MtxSize[3]./2),2) == 1
     #     MtxSize_tmp = (MtxSize[1],MtxSize[2],Int(MtxSize[3]+2))
     # else
     #     MtxSize_tmp = copy(MtxSize)
     # end
 
-    
     SensitivityMap = espirit(calibration,MtxSize)
     SensitivityMap = fftshift(fftshift(SensitivityMap,1),2)
 
@@ -78,10 +81,7 @@ function CalculateOffresonanceMap(recon_b0,SensitivityMap,EchoTimes::Vector{Floa
 
     finit = b0init(ydata, echotime; smap)
 
-    @info ("Stop... B0 map...")
-    @infiltrate
-
-    ## Trying ROMEO phase unwrapping... Naive approach
+    # ## Trying ROMEO phase unwrapping... Naive approach (1)
     # ph = angle.(yik_sos)
     # mag = abs.(yik_sos)
     # te = ustrip.(echotime) 
@@ -91,18 +91,22 @@ function CalculateOffresonanceMap(recon_b0,SensitivityMap,EchoTimes::Vector{Floa
     # b0_romeo = (b0_romeo1.+b0_romeo2)./2
     # finit = b0_romeo .* s^-1
 
-    # ## Trying ROMEO phase unwrapping..
-    # mag = abs.(yik_sos)
-    # te = ustrip.(echotime) 
-    # del_phi = angle.(recon_b0[:,:,:,:,1] .* conj.(recon_b0[:,:,:,:,2]))
-    # del_phi = ROMEO.unwrap(del_phi; mag=mag[:,:,:,1:2], TEs=te[1:2])
-    # del_phi = sum(del_phi, dims=4)
-    # finit = del_phi./(((te[2]-te[1]).*1e3))
+    ## Trying ROMEO phase unwrapping..(2)
+    mag = abs.(yik_sos)
+    te = ustrip.(echotime) 
+    del_phi = angle.(recon_b0[:,:,:,:,1] .* conj.(recon_b0[:,:,:,:,2]))
+    del_phi = ROMEO.unwrap(del_phi; mag=mag[:,:,:,1:2], TEs=te[1:2])
+    del_phi = sum(del_phi, dims=4)
+    finit = del_phi./(((te[2]-te[1]).*1e3))
+    finit = finit[:,:,:,1] .* s^-1
 
     # # Original "Low smoothing":
     # fmap_run = (niter, precon, track; kwargs...) ->
     #     b0map(yik_scale, echotime; finit, smap, mask,
     #     order=1, l2b=0.002, gamma_type=:PR, niter, precon, track, kwargs...)
+
+    @info ("Stop... B0 map...")
+    @infiltrate
 
     # Different smoothing values:
     # Default order =1

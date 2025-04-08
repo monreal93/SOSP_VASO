@@ -17,6 +17,7 @@ using SphericalHarmonicExpansions
 # using Plots, ImageView,
 using MRIOperators
 using Interpolations
+using Plots
 
 # using FFTW
 # FFTW.set_provider!("mkl")
@@ -26,37 +27,40 @@ include("../recon/functions/fn_calculateGfactor.jl")
 include("../recon/functions/fn_save_nii.jl")
 # include("../recon/functions/fn_CalculateSensitivityOffresonanceMaps.jl")
 
-phn_sim = 1            # 1=brain, 0=point (psf), for point (PSF), set all to false
+phn_sim = 0            # 1=brain, 0=point (psf), for point (PSF), set all to false
 cs_sim = true
 cs_recon = true
 b0_sim = false
 b0_recon = false
 coco_sim = false
 coco_recon = false
-t2s_sim = false
+t2s_sim = true
 t2s_recon = false
 high_order_recon = false
 order_recon =  1            # Recon order (1,2,3)
 add_noise = false
-gfactor = true              # G-factor....
+gfactor = false              # G-factor....
 is2d = false
 gfactor_replicas = 100
 channels = 32            # 0-channels from CS file, >0 less channels (it will be cropped)]
 changeBW = 0             # Integer to change the value of the BW.. (ex. 2 = half the BW), 0 = No change
 # For PSF only.. T2* and b0
-psf_t2s = 28e-3     # T2* in s
+psf_t2s = 20e-3     # T2* in s
 psf_b0 = 20         # off-resonance in Hz
+bold_sim = true
 
 # Folder and name of sequence to simulate
-folder_sim = "simulations_sosp_bold"
+folder_sim = "simulations_bold_psf"
 # scan_sim = ["DS_SO_96fovz_1rz_NOrot"]
 traj_type = "nom"
-scan_sim =  ["DS_SO_96fovz_3rxy_2rz_1p3vd_NOrot_kzCAIPI"]
+scan_sim = ["sb_OUT_2shots_6te_0p6mm","sb_OUT_2shots_12te_0p6mm","sb_OUT_2shots_18te_0p6mm"]  
+# ["sb_OUT_2shots_2te_0p6mm","sb_OUT_2shots_4te_0p6mm","sb_OUT_2shots_6te_0p6mm","sb_OUT_2shots_8te_0p6mm",
+# "sb_OUT_2shots_10te_0p6mm","sb_OUT_2shots_12te_0p6mm","sb_OUT_2shots_14te_0p6mm","sb_OUT_2shots_16te_0p6mm","sb_OUT_2shots_18te_0p6mm","sb_OUT_2shots_20te_0p6mm","sb_OUT_2shots_22te_0p6mm"]
 
 # Folder and name of sensitivity maps and b0 map to use for simulation
 folder = "12102024_sb_7T"
-scan = "sb_003_DS_SO_96fovz_2rz_8ov"
-fieldmap = "s003"   # Normally S00X 
+scan = "sb_001_DS_SO_24fovz_1rz_8ov"
+fieldmap = "s001"   # Normally S00X 
 path = string("/neurodesktop-storage/5T3/Alejandro/sosp_vaso/data/",folder)
 path_sim = string("/neurodesktop-storage/5T4/Alejandro/sosp_vaso/data/",folder_sim)
 
@@ -341,7 +345,7 @@ for i = 1:Int(length(scan_sim))
     end
     # mtx = size(cs)[1:3]
 
-    if cs_sim
+    if cs_sim || t2s_sim
         cs = deepcopy(cs_orig)
         if is2d
             cs = cs[:,:,sl,:]
@@ -363,20 +367,20 @@ for i = 1:Int(length(scan_sim))
             tmp1 = tmp1.+(0,0,Int((mtx_pulseq[3].-mtx[3])./2))
         end
         tmp = convert(Array{ComplexF32,4},tmp)
+
         if is2d
             tmp = tmp[:,:,1,:]
             tmp[tmp1[1]:tmp1[1]+mtx[1]-1,tmp1[2]:tmp1[2]+mtx[2]-1,:] = cs
             tmp = reshape(tmp,(size(tmp)...,1));
             tmp = permutedims(tmp, (1,2,4,3));
         else
-            tmp[tmp1[1]:tmp1[1]+mtx[1]-1,tmp1[2]:tmp1[2]+mtx[2]-1,tmp1[3]:tmp1[3]+mtx[3]-1,:] = cs
+            tmp[tmp1[1]:tmp1[1]+mtx[1]-1,tmp1[2]:tmp1[2]+mtx[2]-1,tmp1[3]:tmp1[3]+mtx[3]-1,:,:] = cs
         end
-
         # Downsampling if requested:
-        if mtx_pulseq < mtx
+        if mtx_pulseq != mtx
             mtx_pulseq_tmp = (mtx_pulseq[1:2]..., 32)
             tmp = permutedims(tmp,(1,2,4,3))
-            tmp = imresize(tmp[:,:,:,1], (mtx_pulseq_tmp))
+            tmp = imresize(tmp[:,:,:,:], (mtx_pulseq_tmp))
             tmp = cat(tmp, dims=4)
             tmp = permutedims(tmp,(1,2,4,3))
         end
@@ -414,7 +418,7 @@ for i = 1:Int(length(scan_sim))
         tmp[tmp1[1]:tmp1[1]+mtx[1]-1,tmp1[2]:tmp1[2]+mtx[2]-1,tmp1[3]:tmp1[3]+mtx[3]-1] = phn
     end
     # Downsampling if requested:
-    if mtx_pulseq < mtx
+    if mtx_pulseq != mtx
         tmp = imresize(tmp, (mtx_pulseq[1:2]))
     end
 
@@ -451,7 +455,7 @@ for i = 1:Int(length(scan_sim))
             tmp[tmp1[1]:tmp1[1]+mtx[1]-1,tmp1[2]:tmp1[2]+mtx[2]-1,tmp1[3]:tmp1[3]+mtx[3]-1] = b0
         end
         # Downsampling if requested:
-        if mtx_pulseq < mtx
+        if mtx_pulseq != mtx
             mtx_pulseq_tmp = (mtx_pulseq[1:2]..., 32)
             tmp = permutedims(tmp,(1,2,4,3))
             tmp = imresize(tmp[:,:,:,1], (mtx_pulseq_tmp))
@@ -468,7 +472,7 @@ for i = 1:Int(length(scan_sim))
             tmp[tmp1[1]:tmp1[1]+mtx[1]-1,tmp1[2]:tmp1[2]+mtx[2]-1,tmp1[3]:tmp1[3]+mtx[3]-1] = t2s
         end
         # Downsampling if requested:
-        if mtx_pulseq < mtx
+        if mtx_pulseq != mtx
             mtx_pulseq_tmp = (mtx_pulseq[1:2]..., 32)
             tmp = permutedims(tmp,(1,2,4,3))
             tmp = imresize(tmp[:,:,:,1], (mtx_pulseq_tmp))
@@ -481,7 +485,7 @@ for i = 1:Int(length(scan_sim))
         b0 = deepcopy(b0_orig)
         tmp = deepcopy(tmp_orig)
         # Downsampling if requested:
-        if mtx_pulseq < mtx
+        if mtx_pulseq != mtx
             # tmp = imresize(tmp, mtx_pulseq)
             b0 = imresize(b0, mtx_pulseq)
         else
@@ -504,16 +508,22 @@ for i = 1:Int(length(scan_sim))
             tmp[tmp1[1]:tmp1[1]+mtx[1]-1,tmp1[2]:tmp1[2]+mtx[2]-1,tmp1[3]:tmp1[3]+mtx[3]-1] = t2s
         end
         # Downsampling if requested:
-        if mtx_pulseq < mtx
+        if mtx_pulseq != mtx
             tmp = imresize(tmp, mtx_pulseq[1:2])
         end
         global t2s = deepcopy(tmp)
-        @infiltrate
-        acqData = simulation(ks, phn, t2s; senseMaps=cs, params_sim)
+        acqData = simulation(ks, phn, t2s; senseMaps=cs, params_sim) # Original
+        # acqData = simulation(ks, phn, t2s; params_sim)
     elseif cs_sim
         acqData = simulation(ks, phn; senseMaps=cs, params_sim)
     else
         acqData = simulation(ks, phn; senseMaps=[], params_sim)
+    end
+
+    if bold_sim
+        @info("stop.. BOLD PSF..")
+        @infiltrate
+        acqData.kdata[1] .*= (times ./ (psf_t2s.^2))
     end
 
     # Adding extra parameters to acqData
@@ -645,7 +655,7 @@ for i = 1:Int(length(scan_sim))
     Ireco = reconstruction(acqData, params_reco)
 
     # Scaling Ireco
-    Ireco .*= 1e10
+    Ireco .*= 1e3
 
     ###### Quality measurments
     # Normalize datasets
@@ -693,6 +703,9 @@ for i = 1:Int(length(scan_sim))
     end
     if changeBW > 0
         suffix = string(suffix,"_BW_scale_",changeBW)
+    end
+    if bold_sim
+        suffix = string(suffix,"_BOLDsim")
     end
 
     if cs_sim == true && cs_recon ==false
