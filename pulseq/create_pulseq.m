@@ -5,7 +5,8 @@ cd /home/amonreal/Documents/PhD/PhD_2025/sosp_vaso/
 %% Adding paths 
 addpath(genpath("./pulseq/functions"))                                                                  % Functions to create pulseq sequence
 addpath(genpath("/home/amonreal/Documents/PhD/tools/pulseq_1.4.1/"))                                    % Pulseq toolbox
-addpath(genpath("/home/amonreal/Documents/PhD/tools/tOptGrad_V0.2/minTimeGradient/mex_interface/"))     % Minminue time gradieng Lusitg
+% addpath(genpath("/home/amonreal/Documents/PhD/tools/tOptGrad_V0.2/minTimeGradient/mex_interface/"))     % Minminue time gradieng Lusitg
+addpath(genpath("/home/amonreal/Documents/PhD/tools/tOptGrad_V0.2/minTimeGradient/Matlab/"))     % Minminue time gradieng Lusitg
 addpath(genpath("/home/amonreal/Documents/PhD/tools/pns_prediction/"))                                  % PNS prediction
 addpath(genpath("/home/amonreal/Documents/PhD/tools/check_grad_idea_Des/"))                             % Check Forbidden Fq
 warning('OFF', 'mr:restoreShape')
@@ -13,13 +14,13 @@ warning('OFF', 'mr:restoreShape')
 %% Define parameters
 folder_name = '03062025_sv_7T';                % Folder will be created in ./data
 seq_name = 'sample';                % use sv/abc/sb_n (n for the diff scans at each day)
-params.gen.seq = 1;                 % 1-VASO 2-ABC 3-Multi-Echo 4-BOLD
+params.gen.seq = 4;                 % 1-VASO 2-ABC 3-Multi-Echo 4-BOLD
 params.gen.field_strength = 7;      % Field Strength (7=7T,7i=7T-impuse_grad,9=9.4T,11=11.7T)
-params.gen.pns_check = 1;           % PNS check, .acs files to be added in ./tools/pns_check/grad_files
+params.gen.pns_check = 0;           % PNS check, .acs files to be added in ./tools/pns_check/grad_files
 
 %%%% General parameters
-params.gen.fov = [192 192 160].*1e-3;% FOV (Logan/Jan: 150,150,32
-params.gen.res = [0.85 0.85 0.85].*1e-3;% Nominal resolution
+params.gen.fov = [140 140 40].*1e-3;% FOV (Logan/Jan: 150,150,32
+params.gen.res = [0.8 0.8 0.8].*1e-3;% Nominal resolution
 params.gen.fa = 0;                  % FA in degrees. Set to 0, to use Ernst Angle 
 params.gen.vfa = 0;                 % Variable FA (WIP)
 params.gen.vfa_cutoff = 33;         % Variable FA cut-off (WIP) in degrees
@@ -28,10 +29,10 @@ params.gen.te = 0e-3;               % Set to 0 to shortest TE possible
 params.gen.multi_te = [6e-3 12e-3]; % Echo times for ME seq=3 start with longest (WIP)
 params.gen.tr_delay = 0e-3;         % Delay between acquisitions in sec (0e-3)
 params.gen.ro_type = 's';           % 's'-Spiral, 'c'-Cartesiaen (WIP)
-params.gen.kz = 4;                  % Acceleration in Kz (1)
+params.gen.kz = 1;                  % Acceleration in Kz (1)
 params.gen.kz_enc = 0;              % k-space partition encoding 0=linear,1=center-out For Cartesian now only linear encoding
 params.gen.pf = 1;                  % Partial fourier in Kz
-params.gen.fat_sat = 0;             % Fat saturation (1=yes,0=no)
+params.gen.fat_sat = 1;             % Fat saturation (1=yes,0=no)
 params.gen.fs_angle = 0;            % Fat sat angle (0=default)
 params.gen.fs_interl = 0;           % Fat sat in every shot/interl? (WIP)
 params.gen.skope = 0;               % Add skope sync scan and triggers, 0=N0, 1=sep scan, 2=concurrent(center partition), 3=1&2
@@ -49,13 +50,13 @@ params.gen.me_gre_tr = 60e-3;       % ME GRE TR (30e-3/50e-3)
 params.gen.me_gre_interl = 42;      % ME GRE Shots (42)
 
 % Spiral parameters
-params.spi.type = 0;                % spiral type 0=spiral-Out , 1=spiral-In, 3=In-Out (WIP), 4=In-Out kspace interleavead (WIP)
+params.spi.type = 3;                % spiral type 0=spiral-Out , 1=spiral-In, 3=In-Out (WIP), 4=In-Out kspace interleavead (WIP)
 params.spi.in_out_order = 0;        % 0=In-Out same k-space path (separate vol.), 1=In-Out k-space path shift (WIP)
 params.spi.rotate = 'none';         % Spiral rotation ('none','golden','180','120')
 params.spi.increment = 'linear';    % Spiral increment mode (for now only 'linear') (WIP)
 params.spi.max_grad  = 40;          % Peak gradient amplitude for spiral (mT/m)
-params.spi.max_sr = 180;            % Max gradient slew rate for spiral (mT/m/ms) (155).
-params.spi.interl = 1;              % Spiral interleaves
+params.spi.max_sr = 160;            % Max gradient slew rate for spiral (mT/m/ms) (155).
+params.spi.interl = 2;              % Spiral interleaves
 params.spi.vd = 1.3;                % Variability density (accepts negative values)
 params.spi.rxy = 3.6;               % In-plane (radial) undersampling
 params.spi.rxy_az = 1;              % In-plane (azimuthal) undersampling (WIP)

@@ -71,14 +71,17 @@ for j=1:params.gen.n(3)
         kaa=[real(kaa); imag(kaa)];
 
         %%%%% Calculating Gradients with Lustig approach %%%%%%%
-        rv = 16; T = 4e-3; ds = -1;
+%         rv = 16; T = 4e-3; ds = -1; % Original for mex function
+        rv = []; T = 4e-3; ds = []; % For Matlab function.
         g_max = params.spi.max_grad*10/100;  % convert mT/m -> G/cm
         sr_max = params.spi.max_sr*10/100; % convert mT/m/ms -> G/cm/ms   
         C = [squeeze(kaa(1,:)).', squeeze(kaa(2,:)).']./100; % times 100 to make it 1/cm
 
+        C(:,3) = zeros(size(C,1),1);  % For Matlab function...
+
         if j==1 || contains('none',params.spi.rotate) == 0
             % Make Gradient within SR and Grad limits
-            [C,time,g,s,k] = minTimeGradient(C,rv, C(1,1), 0, g_max, sr_max,T,ds,0);
+            [C,time,g,s,k] = minTimeGradient(C,rv, 0, 0, g_max, sr_max,T,ds,0);
 
 
             %%%%% Temp: trying to make safe spirals...
@@ -103,10 +106,15 @@ for j=1:params.gen.n(3)
             % Finding the points when we enter the forbidden frequencies...
 %             fb_fq(1) = length(ff);
             tmp = find(ff>500); fb_fq=tmp(end); % 500
-%             tmp = find(ff>600); fb_fq(2)=tmp(end); % 600
-%             tmp = find(ff>950); fb_fq(3)=tmp(end); % 950
-%             tmp = find(ff>1250); fb_fq(4)=tmp(end); % 1250
+            tmp = find(ff>600); fb_fq(2)=tmp(end); % 600
+            tmp = find(ff>950); fb_fq(3)=tmp(end); % 950
+            tmp = find(ff>1250); fb_fq(4)=tmp(end); % 1250
 
+%             % Temp.. manually setting them...
+%             fb_fq(1) = 3339;
+%             fb_fq(2) = 2671;
+%             fb_fq(3) = 1378;
+%             fb_fq(4) = 908;
 
             fb_fq = flip(fb_fq);
 %             fb_fq = [1,fb_fq];
@@ -133,7 +141,9 @@ for j=1:params.gen.n(3)
             zzz = [1;zzz];
             zzz = [zzz;length(ff)];
 
-            fb_fq = zzz.';
+            fb_fq = zzz.';  % Original
+            fb_fq(2:end) = fb_fq(2:end)-1;
+%             fb_fq(2) = fb_fq(2) - 88;
 % 
 %             figure; plot(tmp1.*tmp2)
 %             hold on
@@ -147,22 +157,26 @@ for j=1:params.gen.n(3)
             time_safe = 0;
             %%%%%% Gradient scaling....
             % The ones I want to sacale are positions 3 and 5
-            scaling = [1,1.4,1.4,1,1.4];
+            sr_scaling = [1,2,2,2,2];
+            g_scaling = [1,1.75,1.75,1.75,1.75];
             %%%%%%%%%%%%%
             for i_seg=1:length(fb_fq)-1
                 if mod(i_seg,2)
 %                     [C,time,g,s,k] = minTimeGradient(C_orig(fb_fq(i_seg):fb_fq(i_seg+1),:),rv, g_safe(end,1), g_max, g_max, sr_max,T,ds,0);
                     if i_seg == 1
-                        [C,time,g,s,k] = minTimeGradient(C_orig(fb_fq(i_seg):fb_fq(i_seg+1),:),rv, 0, 0, g_max/scaling(i_seg), sr_max/scaling(i_seg),T,ds,0);
+%                         [C,time,g,s,k] = minTimeGradient(C_orig(fb_fq(i_seg):fb_fq(i_seg+1),:),rv, 0, 0, g_max/scaling(i_seg), sr_max/scaling(i_seg),T,ds,0); % Orig
+                        [C,time,g,s,k] = minTimeGradient(C_orig(fb_fq(i_seg):fb_fq(i_seg+1),:),rv, 0, [],  g_max/g_scaling(i_seg), sr_max/sr_scaling(i_seg),T,ds,0);
                     else
-                        [C,time,g,s,k] = minTimeGradient(C_orig(fb_fq(i_seg):fb_fq(i_seg+1),:),rv, 0, 0, g_max/scaling(i_seg), sr_max/scaling(i_seg),T,ds,0);
+%                         [C,time,g,s,k] = minTimeGradient(C_orig(fb_fq(i_seg):fb_fq(i_seg+1),:),rv, 0, 0, g_max/scaling(i_seg), sr_max/scaling(i_seg),T,ds,0); % Orig
+                          [C,time,g,s,k] = minTimeGradient(C_orig(fb_fq(i_seg):fb_fq(i_seg+1),:),rv, abs(sqrt((g(end,1)^2)+g(end,2)^2)), [],  g_max/g_scaling(i_seg), sr_max/sr_scaling(i_seg),T,ds,0);
                     end
 %                     g = g.*-1;
 %                     tmp = find(g(:,1)>g_safe(end,1));
 %                     g = g(tmp(1):end,:);
                 else
 %                     [C,time,g,s,k] = minTimeGradient(C_orig(fb_fq(i_seg)+1:fb_fq(i_seg+1),:),rv, g_safe(end-1,1), g_max/1.7, g_max/1.7, sr_max,T,ds,0);
-                    [C,time,g,s,k] = minTimeGradient(C_orig(fb_fq(i_seg):fb_fq(i_seg+1),:),rv, 0, 0, g_max/scaling(i_seg), sr_max/scaling(i_seg),T,ds,0);
+%                     [C,time,g,s,k] = minTimeGradient(C_orig(fb_fq(i_seg):fb_fq(i_seg+1),:),rv, 0, 0, g_max/scaling(i_seg), sr_max/scaling(i_seg),T,ds,0);  % Orig
+                      [C,time,g,s,k] = minTimeGradient(C_orig(fb_fq(i_seg):fb_fq(i_seg+1),:),rv,abs(sqrt((g(end,1)^2)+g(end,2)^2)), [],  g_max/g_scaling(i_seg), sr_max/sr_scaling(i_seg),T,ds,0);
 %                     g = g.*-1;
 %                     tmp = find(g(:,1)>g_safe(end,1));
 %                     g = g(tmp(1):end,:);

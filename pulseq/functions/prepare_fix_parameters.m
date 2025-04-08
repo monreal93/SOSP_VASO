@@ -6,6 +6,7 @@ function [params,ro_blocks] = prepare_fix_parameters(params)
     % to match resolution as Cartesian (square k-space) they must measure a
     %     diameter of 2/sqrt(pi) ~ 1.13 larger than conventional k-space limits (so
     %     that the area of the circle equals the area of the square).
+    % Reference: Pipe JG, Zwart NR (2014) Spiral trajectory design: A flexible numerical algorithm and base analytical equations. 
     params.gen.res(1:2) = params.gen.res(1:2)./1.13;
 
     % If ME-GRE.. set params.gen.echos to # of echos/contrasts
