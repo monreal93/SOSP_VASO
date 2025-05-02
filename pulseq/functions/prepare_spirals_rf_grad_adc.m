@@ -83,8 +83,8 @@ for j=1:params.gen.n(3)
         kaa=[real(kaa); imag(kaa)];
 
         %%%%% Calculating Gradients with Lustig approach %%%%%%%
-%         rv = 16; T = 4e-3; ds = -1; % Original
-        rv = []; T = 4e-3; ds = []; % For Matlab function.
+        rv = 16; T = 4e-3; ds = -1; % Original
+%         rv = []; T = 4e-3; ds = []; % For Matlab function.
         g_max = params.spi.max_grad*10/100;  % convert mT/m -> G/cm
         sr_max = params.spi.max_sr*10/100; % convert mT/m/ms -> G/cm/ms   
         C = [squeeze(kaa(1,:)).', squeeze(kaa(2,:)).']./100; % times 100 to make it 1/cm
