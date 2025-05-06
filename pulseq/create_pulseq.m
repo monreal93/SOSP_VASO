@@ -12,8 +12,8 @@ addpath(genpath("/home/amonreal/Documents/PhD/tools/check_grad_idea_Des/"))     
 warning('OFF', 'mr:restoreShape')
 
 %% Define parameters
-folder_name = '05022025_sv_7T';                % Folder will be created in ./data
-seq_name = 'sv_01_DS_SO';                % use sv/abc/sb_n (n for the diff scans at each day)
+folder_name = '05072025_sv_7T';                % Folder will be created in ./data
+seq_name = 'sample';                % use sv/abc/sb_n (n for the diff scans at each day)
 params.gen.seq = 1;                 % 1-VASO 2-ABC 3-Multi-Echo 4-BOLD
 params.gen.field_strength = 7;      % Field Strength (7=7T,7i=7T-impuse_grad,9=9.4T,11=11.7T)
 params.gen.pns_check = 1;           % PNS check, .acs files to be added in ./tools/pns_check/grad_files
@@ -44,7 +44,7 @@ params.gen.echos = 1;               % Echos per RF pulse (WIP)
 params.gen.fid_nav = 1;             % FID navigators before each readout for Spiral
 params.gen.kz_caipi = 1;            % CAIPI shift in partition direction (1-No,2-half) (WIP)
 %%%% ME-GRE parameters
-params.gen.me_gre = 2;              % ME GRE calibration scan, 0=NO, 1=same seq, 2=separate seq
+params.gen.me_gre = 0;              % ME GRE calibration scan, 0=NO, 1=same seq, 2=separate seq
 params.gen.me_gre_echos = 3;        % ME GRE calibration scan echos (>1)
 params.gen.me_gre_tr = 60e-3;       % ME GRE TR (30e-3/50e-3)
 params.gen.me_gre_interl = 42;      % ME GRE Shots (42)
@@ -52,7 +52,7 @@ params.gen.me_gre_interl = 42;      % ME GRE Shots (42)
 % Spiral parameters
 params.spi.type = 0;                % spiral type 0=spiral-Out , 1=spiral-In, 3=In-Out (WIP), 4=In-Out kspace interleavead (WIP)
 params.spi.in_out_order = 0;        % 0=In-Out same k-space path (separate vol.), 1=In-Out k-space path shift (WIP)
-params.spi.rotate = '120';         % Spiral rotation ('none','golden','180','120')
+params.spi.rotate = 'none';         % Spiral rotation ('none','golden','180','120')
 params.spi.increment = 'linear';    % Spiral increment mode (for now only 'linear') (WIP)
 params.spi.max_grad  = 30;          % Peak gradient amplitude for spiral (mT/m)
 params.spi.max_sr = 155;            % Max gradient slew rate for spiral (mT/m/ms) (155).
@@ -642,7 +642,9 @@ for i_ro_blocks = 1:ro_blocks
                             seq.addBlock(gx_pre(i,j),gy_pre(i,j));                       
                         end
                         if i==1 && params.spi.type==0 && j==1; te1 = seq.duration(); end                           % save seq dur to calc TE
+                        if i==1 && j==1 && k==1; grad_ro_t0=seq.duration(); end                                    % save seq dur of readout...
                         seq.addBlock(gx(i,j),gy(i,j),adc);
+                        if i==1 && j==1 && k==1; grad_ro_t1=seq.duration(); end                                    % save seq dur of readout...
     %                     seq.addBlock(gx_ramp(i,j),gy_ramp(i,j));
                         if i==1 && params.spi.type==1 && j==1; te1 = seq.duration(); end                           % save seq dur to calc TE
                         if i==1 && (params.spi.type==3 || params.spi.type==4) && j==1; te1 = seq.duration()-(mr.calcDuration(gx(1)))/2; end                           % save seq dur to calc TE
@@ -719,7 +721,7 @@ else
 end
 
 %% Check accoustic resonance frequencies, Des script
-check_accoustic_fq_pns(seq,params,seq_t0)
+check_accoustic_fq_pns(seq,params,grad_ro_t0,grad_ro_t1)
 
 %% Set definitions
 seq.setDefinition('MaxAdcSegmentLength',params.gen.adc_split);
@@ -780,9 +782,11 @@ ks_traj = create_ks_trajectory(seq,adc,params,traj_st,1);
 
 %% Adding some extra parameters to params directory
 if params.gen.me_gre > 0
-    params_me_gre = prepare_add_parameters(ks_traj_me_gre,gx_me_gre,rf,adc_me_gre,te0_me_gre,te1,tr0_me_gre,tr1_me_gre,seq_t0,seq_t1,params_me_gre);
+    params_me_gre.gen.effTR = seq_me_gre.duration();
+    params_me_gre = prepare_add_parameters(ks_traj_me_gre,gx_me_gre,rf,adc_me_gre,te0_me_gre,te1,tr0_me_gre,tr1_me_gre,params_me_gre);
 end
-params = prepare_add_parameters(ks_traj,gx,rf,adc,te0,te1,tr0,tr1,seq_t0,seq_t1,params);
+params.gen.effTR = seq.duration();
+params = prepare_add_parameters(ks_traj,gx,rf,adc,te0,te1,tr0,tr1,params);
 
 if params.spi.type == 3 && params.gen.ro_type == 's'
     % ToDo : Fix this part so it works for more echos..
