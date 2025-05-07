@@ -9,6 +9,9 @@ Calculates Sensitivity map
 """
 function CalculateSensitivityMap(recon,MtxSize::Tuple;calib_size::Int=12)
 
+    @info("Stop... Sensitivity map...")
+    @infiltrate
+
     SensitivityMap = Array{ComplexF32}(undef,MtxSize)
     calibration = Array{ComplexF32}(undef,size(recon)[1:4])
 

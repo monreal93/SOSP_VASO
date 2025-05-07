@@ -5,13 +5,13 @@ ml laynii
 
 cd /neurodesktop-storage/5T4/Alejandro/sosp_vaso/data
 
-folder="02242025_sv_7T"
-scan="sv_001_SS_SO"
-r_a_tr=4     # rest/activity TRs paper=sv(8), cv(7)
-tr=2.59   # volume TR paper=sv(1.66), cv(1.81)
+folder="08122024_sv_cv_josh_thesis"
+scan="sv_512_OUT_2shot"
+r_a_tr=6     # rest/activity TRs paper=sv(8), cv(7)
+tr=2.41   # volume TR paper=sv(1.66), cv(1.81)
 
 # Spiral reconstruction options
-traj="_nom" && cs="_cs" && b0="_fsb0" && co="" && k0="" && rDORK=""
+traj="_nom" && cs="_cs" && b0="_b0" && co="_co" && k0="" && rDORK="_rDORK"
 suffix=""
 
 cd ${folder}
@@ -23,8 +23,8 @@ cd ./analysis/${scan}
 if [ "${scan:0:2}" = "sv" ]; then
     echo "Spiral VASO .."
     # Set path for reconstruction
-    v_file=../../recon/${scan}_v${traj}${cs}${b0}${k0}${rDORK}${suffix}.nii
-    b_file=../../recon/${scan}_b${traj}${cs}${b0}${k0}${rDORK}${suffix}.nii
+    v_file=../../recon/${scan}_v${traj}${cs}${b0}${co}${k0}${rDORK}${suffix}.nii
+    b_file=../../recon/${scan}_b${traj}${cs}${b0}${co}${k0}${rDORK}${suffix}.nii
     gre1=../../tmp/${scan}${traj}.nii
 elif [ "${scan:0:2}" = "cv" ]; then
     echo "Cartesian VASO .."
@@ -175,7 +175,7 @@ tmp=$(echo ${tmp%%.*})
 ublock=$(echo "UBLOCK($tmp,1)")
 
 ### Temp.. Manually writing the stim times...
-stim_times="1D: 15.9200 50.3600 80.3600 114.8000 149.2400 183.6800 218.1200 252.5600 287.0000 321.4400"
+# stim_times="1D: 15.9200 50.3600 80.3600 114.8000 149.2400 183.6800 218.1200 252.5600 287.0000 321.4400"
 # stim_times="1D: 31.8400  100.7200  160.7200  229.6000  298.4800  367.3600"
 
 # Finding rest and activity volumes

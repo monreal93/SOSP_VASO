@@ -40,27 +40,27 @@ params = Dict{Symbol, Any}()
 params[:do_pi_recon] = true             # Perform PI reconstruction or direct recon
 params[:do_b0_corr] = true
 params[:do_b0_corr_seg] = 1   # Perform custom  0=Gridding(MRIReco), 1=Time Segmented, 2=Frequency segmented,
-params[:do_rDORK_corr] = true      
+params[:do_rDORK_corr] = false      
 params[:do_iDORK_corr] = false            # Perform Interleaf DORK (WIP)
 params[:do_pDORK_corr] = false            # Perform Partition DORK (WIP)
 params[:do_coco_corr] = false           # Perform concomitant field correction (WIP)  
-params[:do_k0_corr] = true             # Perform K0 demodulation of raw data, only works with sk/girf trajectory (WIP)
+params[:do_k0_corr] = false             # Perform K0 demodulation of raw data, only works with sk/girf trajectory (WIP)
 params[:do_dyn_b0_corr] = false         # Higher order correction, FID navigators (WIP) 
-params[:do_motion_corr] = true         # Motion correction, FID navigators (WIP)
+params[:do_motion_corr] = false         # Motion correction, FID navigators (WIP)
 params[:do_t2s_corr] = false
 params[:is2d] = false
 params[:isPhantom] = false              # If true, it will use params[:scan_b0] for recon
-params[:rep_recon] =   1 # 169:(168*2) # 155:(154*2)            # Range of rep to recon, 0 for all rep, single number for 1 rep, or range (2:10) 
-params[:traj_type] = "girf"                 # Trajectory type nominal="nom",skope="sk",poet = "poet", girf = "girf"
+params[:rep_recon] =   4:5 # 169:(168*2) # 155:(154*2)            # Range of rep to recon, 0 for all rep, single number for 1 rep, or range (2:10) 
+params[:traj_type] = "nom"                 # Trajectory type nominal="nom",skope="sk",poet = "poet", girf = "girf"
 params[:save_ph] = false                       # Save phase of recon as nifti
 params[:mcorr] = ""           # Motion correction with navigators "_mCorr"
 params[:recon_order] =  1                  # Higher order recon (2,3)
 params[:coil_compression] = true
 
 # Some parameters
-params[:scan] = "sv_001_SS_SO"            # For now: if multipe echos, include _e1.. _e2..
+params[:scan] = "sv_302_DS_SO_fs_pp"            # For now: if multipe echos, include _e1.. _e2..
 params[:scan_b0] = "..."           # Name of the ME-GRE to use for CS and B0map, ONLY USED WHEN SEPARATE FIELDMAP SCAN...
-params[:directory] = "02242025_sv_7T_prf"        # directory where the data is stored
+params[:directory] = "05072025_sv_7T_m1"        # directory where the data is stored
 
 # Drive where data is stored... (5T4/5T3)
 path_tmp = "/neurodesktop-storage/5T4/Alejandro/sosp_vaso/"
@@ -79,6 +79,9 @@ if params[:traj_type] == "girf"
 end
 if params_pulseq["spi"]["type"] == 1
     params[:do_iDORK_corr] = params[:do_pDORK_corr] = false 
+end
+if params_pulseq["spi"]["interl"] == 1
+    params[:do_iDORK_corr] = false
 end
 
 # File names
@@ -310,12 +313,17 @@ else
     b0_nii = dropdims(sqrt.(sum(abs.(b0_nii).^2, dims=4)), dims=4)
     # Note AMM (03062025): seems like I need to reshape to 60 in z... also need to circshift 
     # circshift(b0_nii,(0,2,-2,0));
-    recon_b0_resize = round.(params_me_gre_pulseq["gen"]["fov"] ./ params_pulseq["gen"]["res"])  # oP1
-    # recon_b0_resize = [params_pulseq["gen"]["n"][1:2]... round.(params_me_gre_pulseq["gen"]["fov"][3] ./ params_pulseq["gen"]["res"][3])] # oP 2
-    b0_nii = imresize(b0_nii,Int(recon_b0_resize[1]),Int(recon_b0_resize[2]),Int(recon_b0_resize[3]))
-    crop_size = Int(ceil((recon_b0_resize[3]-params_pulseq["gen"]["n"][3])/2))
-    if crop_size > 0
-        b0_nii = b0_nii[:,:,crop_size+1:end-crop_size+1,:]
+    if params_pulseq["gen"]["n_ov"][3] != params_me_gre_pulseq["gen"]["n_ov"][3]
+        recon_b0_resize = round.(params_me_gre_pulseq["gen"]["fov"] ./ params_pulseq["gen"]["res"])  # oP1
+        # recon_b0_resize = [params_pulseq["gen"]["n"][1:2]... round.(params_me_gre_pulseq["gen"]["fov"][3] ./ params_pulseq["gen"]["res"][3])] # oP 2
+        b0_nii = imresize(b0_nii,Int(recon_b0_resize[1]),Int(recon_b0_resize[2]),Int(recon_b0_resize[3]))
+        crop_size = Int(ceil((recon_b0_resize[3]-params_pulseq["gen"]["n"][3])/2))
+        if crop_size > 0
+            b0_nii = b0_nii[:,:,crop_size+1:end-crop_size+1,:]
+        end
+    else
+        recon_b0_resize = params_pulseq["gen"]["n_ov"]
+        b0_nii = imresize(b0_nii,Int(recon_b0_resize[1]),Int(recon_b0_resize[2]),Int(recon_b0_resize[3]))
     end
 
     # b0_nii = imresize(b0_nii,Int(params_pulseq["gen"]["n_ov"][1]),Int(params_pulseq["gen"]["n_ov"][2]),Int(params_pulseq["gen"]["n_ov"][3]))
@@ -335,9 +343,6 @@ else
     b0_nii = NIVolume(b0_nii)
     niwrite(string(params[:path],"/tmp/",params[:scan],"_",params[:traj_type],".nii"),b0_nii)
 end
-
-@info("Stop.. temp..")
-@infiltrate
 
 recon_b0_sos = dropdims(sqrt.(((sum(abs.(recon_b0).^2; dims=4)))), dims=4)
 
@@ -456,7 +461,7 @@ if params[:do_coco_corr] && params[:do_b0_corr]
             @info ("Loading Concomitant maps ...")
             CocoFieldMap = load(string(params[:path],"/acq/co_",file_name,".jld"))
             CocoFieldMap = CocoFieldMap["CocoFieldMap"]
-            OffResonanceMap .= OffResonanceMap .- (CocoFieldMap.*im)
+            OffResonanceMap .= OffResonanceMap .+ (CocoFieldMap.*im)
         else
             @info("Calculating Concomitant Maps....")
             # phase,read,slice
@@ -592,7 +597,7 @@ if params[:do_b0_corr]
     ######## ******* AMM: Temp: Adding some rad to fieldmap.. test...
     # OffResonanceMap[imag.(OffResonanceMap).<-1000] .= 0
     # OffResonanceMap[imag.(OffResonanceMap).>1000] .= 0
-    OffResonanceMap_crop = OffResonanceMap_crop .- ComplexF32(60*im) # (400 for 9.4T)
+    # OffResonanceMap_crop = OffResonanceMap_crop .+ ComplexF32(60*im) # (400 for 9.4T)
     # OffResonanceMap = OffResonanceMap.*2.5
     ######## ******* AMM: Temp: Adding some rad to fieldmap.. test...
     if params[:do_b0_corr_seg] == 0
@@ -620,8 +625,9 @@ fftShift = (rawData.profiles[1].head.position .- rawData_b0.profiles[1].head.pos
 
 # Getting navigator range
 if Int(params_pulseq["gen"]["fid_nav"]) == 1
-    # params[:fid_nav_ΔTE] = params_pulseq["gen"]["fid_nav_te"][2]-params_pulseq["gen"]["fid_nav_te"][1]
-    nav_range = 6:50
+    params[:fid_nav_ΔTE] = params_pulseq["gen"]["fid_nav_te"][2]-params_pulseq["gen"]["fid_nav_te"][1]
+    # nav_range = 6:50 # Original
+    nav_range = 40:60
 else 
     if params_pulseq["spi"]["type"] == 0
         nav_range = 6:20
@@ -639,15 +645,18 @@ if params[:do_rDORK_corr]
 
     if params_pulseq["gen"]["fid_nav"] == 1 && params_pulseq["gen"]["seq"] ≠ 1
         # Separate Navigator module
-        nav_ref = mean(ndata_ref[nav_range,1,Int(params_pulseq["gen"]["n_ov"][3]/2)+1,:,1,1],dims=2)
+        # nav_ref = mean(ndata_ref[nav_range,1,Int(params_pulseq["gen"]["n_ov"][3]/2)+1,:,1,1],dims=2)  # Mean over channels
+        nav_ref = ndata_ref[nav_range,1,Int(params_pulseq["gen"]["n_ov"][3]/2)+1,:,1,1] 
     elseif  params_pulseq["gen"]["fid_nav"] == 1 && params_pulseq["gen"]["seq"] == 1
         # VASO
         if params_pulseq["gen"]["seq"] == 1
             RepRef = RepRef+1         # DORK reference repetition
             nav_ref1, ndata_ref1 = FormatRawData(rawData,params;single_rep=true,rep_format=RepRef,fid_nav=Int(params_pulseq["gen"]["fid_nav"]))
             if Int(params_pulseq["gen"]["fid_nav"]) == 1
-                nav_ref = mean(deepcopy(ndata_ref[nav_range,:,:,:,1,1]),dims=4)   # Taking only the first FID
-                nav_ref1 = mean(deepcopy(ndata_ref1[nav_range,:,:,:,1,1]),dims=4)   # Taking only the first FID
+                # nav_ref = mean(deepcopy(ndata_ref[nav_range,:,:,:,1,1]),dims=4)   # Taking only the first FID, mean channels
+                # nav_ref1 = mean(deepcopy(ndata_ref1[nav_range,:,:,:,1,1]),dims=4)   # Taking only the first FID, mean channels
+                nav_ref = deepcopy(ndata_ref[nav_range,:,:,:,1,1])   # Taking only the first FID
+                nav_ref1 = deepcopy(ndata_ref1[nav_range,:,:,:,1,1])   # Taking only the first FID
             end
             # if params[:kz_enc] == 0  # Linear
             #     nav_ref1 = nav_ref1[nav_range,Int(params_pulseq["gen"]["n_ov"][3]/2)+1,:,1]
@@ -719,14 +728,17 @@ end
             tmp = Correctk0(tmp,k0_meas,nothing,params)
         end
 
+        if Int(params_pulseq["gen"]["fid_nav"]) == 1
+            # nav = mean(ndata[nav_range,:,:,:,1,1],dims=4)      # Taking just first FID, mean over ch
+            # nav = ndata[nav_range,:,:,:,:,1]                    # Taking just the first FID
+            nav = ndata[nav_range,:,:,:,:,:]
+            # nav = dropdims(nav, dims=5)
+        else
+            nav = mean(tmp[nav_range,Int(params_pulseq["gen"]["n_ov"][3]/2)+1,:,1],dims=2)      # Taking just first FID, mean over ch
+        end
+
         # repetition DORK correction
         if params[:do_rDORK_corr]
-            if Int(params_pulseq["gen"]["fid_nav"]) == 1
-                nav = mean(ndata[nav_range,:,:,:,1,1],dims=4)      # Taking just first FID, mean over ch
-                # nav = ndata[nav_range,:,:,:,:,:]
-            else
-                nav = mean(tmp[nav_range,Int(params_pulseq["gen"]["n_ov"][3]/2)+1,:,1],dims=2)      # Taking just first FID, mean over ch
-            end
             if params_pulseq["gen"]["seq"] == 1  # VASO and BOLD separately
                 if isodd(i_rep)  # VASO
                     tmp = CorrectRepetitionDORK(tmp,nav,nav_ref,params)
