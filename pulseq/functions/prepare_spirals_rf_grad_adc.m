@@ -83,10 +83,13 @@ for j=1:params.gen.n(3)
         kaa=[real(kaa); imag(kaa)];
 
         %%%%% Calculating Gradients with Lustig approach %%%%%%%
-        rv = 16; T = 4e-3; ds = -1;
+        rv = 16; T = 4e-3; ds = -1; % Original
+%         rv = []; T = 4e-3; ds = []; % For Matlab function.
         g_max = params.spi.max_grad*10/100;  % convert mT/m -> G/cm
         sr_max = params.spi.max_sr*10/100; % convert mT/m/ms -> G/cm/ms   
         C = [squeeze(kaa(1,:)).', squeeze(kaa(2,:)).']./100; % times 100 to make it 1/cm
+
+        C(:,3) = zeros(size(C,1),1);  % For Matlab function...
 
         if j==1 || contains('none',params.spi.rotate) == 0
             % Make Gradient within SR and Grad limits
@@ -108,7 +111,7 @@ for j=1:params.gen.n(3)
             if params.spi.type == 3
                 tmp = flip(tmp);
                 tmp = tmp(1,:);
-                g = [ g; zeros(1,3)];
+                g = [ zeros(1,3); g; zeros(1,3)];
             elseif params.spi.type == 4
                 if i > 1
                     tmp = g1(:,end)/42.58e6*100;
@@ -196,7 +199,9 @@ adcSamples = round(time_new./adcDwell);
 % adcSamples = round(round(adcSamples/4)*4/100)*100; % New, rounding to 100
 % adcSamples = round(round(adcSamples/4)*4/10)*10; % New, rounding to 10
 % adcSamples = round(round(adcSamples/4)*4); % New, No rounding to multiple of 10
-adcSamples = round(round(adcSamples/4)*4/200)*200; % New, rounding to 200
+if params.spi.type ~= 3 % Don't do it for spiral IN-OUT
+    adcSamples = round(round(adcSamples/4)*4/200)*200; % New, rounding to 200
+end
 
 % Checking forbidden frequencies, simple approach
 scanner = params.gen.field_strength;

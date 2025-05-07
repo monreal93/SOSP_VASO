@@ -6,6 +6,7 @@ function [params,ro_blocks] = prepare_fix_parameters(params)
     % to match resolution as Cartesian (square k-space) they must measure a
     %     diameter of 2/sqrt(pi) ~ 1.13 larger than conventional k-space limits (so
     %     that the area of the circle equals the area of the square).
+    % Reference: Pipe JG, Zwart NR (2014) Spiral trajectory design: A flexible numerical algorithm and base analytical equations. 
     params.gen.res(1:2) = params.gen.res(1:2)./1.13;
 
     % If ME-GRE.. set params.gen.echos to # of echos/contrasts
@@ -36,6 +37,7 @@ function [params,ro_blocks] = prepare_fix_parameters(params)
         % Increase FOV?
         params.gen.del_k(3) = params.gen.del_k(3)/(1+(params.gen.ph_oversampling/100)); 
         params.gen.n(3) = round(round(params.gen.n(3)*(1+(params.gen.ph_oversampling/100)))/2)*2;
+%         params.gen.fov(3) = 1 / params.gen.del_k(3);
     end
     % Fat sat angle
     if params.gen.fs_angle == 0

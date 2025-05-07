@@ -1,10 +1,10 @@
-function check_accoustic_fq_pns(seq,params,seq_t0)
+function check_accoustic_fq_pns(seq,params,grad_ro_t0,grad_ro_t1)
     lims = params.gen.lims;
     % t     time of samples in microseconds, y     sample values, Fs    sampling rate in Hz
     Fs = 1/lims.adcRasterTime/100;
 
     gradients = seq.gradient_waveforms1()/lims.gamma*1000;   % Full sequence
-    tmp = (round(seq_t0)*1e-2 / params.gen.lims.adcRasterTime)+1; % Gradients start point
+    tmp = (grad_ro_t0*1e-2 / params.gen.lims.adcRasterTime)+1; % Gradients start point
     gradients = gradients(1:2,tmp:end);               % taking only gx and gy
 
     % Full sequence (all readouts)
@@ -12,7 +12,7 @@ function check_accoustic_fq_pns(seq,params,seq_t0)
     time = (0:size(gradients,2)-1).*params.gen.lims.adcRasterTime.*1e8;
     
     % Only 1 readout
-    gradients = gradients(:,1:floor(length(gradients)/params.gen.n_ov(3)));   % 1 readout
+    gradients = gradients(:,1:floor(length(gradients)/(params.gen.n_ov(3)*params.spi.interl)));   % 1 readout
     time = time(1:length(gradients));   % 1 readout
 
     gaxes = ['X' 'Y'];

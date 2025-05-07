@@ -26,9 +26,11 @@ params.gen.lims = lims;
 
 % Set gradient files for PNS check
 if params.gen.field_strength == 7
-    grad_file = './tools/pns_prediction/gradient_files/MP_GPA_K2259_2000V_650A_SC72CD_EGA.asc';
+%     grad_file = './tools/pns_prediction/gradient_files/MP_GPA_K2259_2000V_650A_SC72CD_EGA.asc';
+    grad_file = '/home/amonreal/Documents/PhD/IDEA/gradient_files/MP_GPA_K2259_2000V_650A_SC72CD_EGA.asc';
 elseif params.gen.field_strength == 7i
-    grad_file = './tools/pns_prediction/gradient_files/MP_GPA_K2298_2250V_1250A_AC207_Base.asc';
+%     grad_file = './tools/pns_prediction/gradient_files/MP_GPA_K2298_2250V_1250A_AC207_Base.asc';
+    grad_file = '/home/amonreal/Documents/PhD/IDEA/gradient_files/MP_GPA_K2298_2250V_1250A_AC207_Base.asc';
 else
     grad_file = '';
 end
