@@ -41,11 +41,7 @@ function [params,ro_blocks] = prepare_fix_parameters(params)
     end
     % Fat sat angle
     if params.gen.fs_angle == 0
-        if params.gen.field_strength == 7  || params.gen.field_strength == 7i 
-            params.gen.fs_angle = 80; % 110/80
-        elseif params.gen.field_strength == 9
-            params.gen.fs_angle = 80; % 110/80 (I had 40 before)...
-        end
+        params.gen.fs_angle = 110; % 110/80
     end
     
     % Trying to make n multiple of 4,update res. % ToDo: Do I need this?

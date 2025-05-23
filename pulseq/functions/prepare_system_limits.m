@@ -21,8 +21,16 @@ elseif params.gen.field_strength == 7i
         'rfRingdownTime', 20e-6,'rfDeadtime', 100e-6,'adcDeadTime', 10e-6, 'B0',6.98);
     params.gen.lims.forbidden_fq = [575,1060,1410,1920];
     params.gen.lims.forbidden_band = [70,70,70,120];
+elseif params.gen.field_strength == 11
+    % 11.7T, SC72 gradient
+    lims = mr.opts('MaxGrad',50,'GradUnit','mT/m',...
+        'MaxSlew',190,'SlewUnit','T/m/s',...
+        'rfRingdownTime', 20e-6,'rfDeadtime', 100e-6,'adcDeadTime', 10e-6, 'B0',11.7);  % To read it in VM I need rfDeadtime = 180e-6, 100e-6 for scanner
+    params.gen.lims.forbidden_fq = [1100,550];
+    params.gen.lims.forbidden_band = [300,100];
 end
 params.gen.lims = lims;
+
 
 % Set gradient files for PNS check
 if params.gen.field_strength == 7

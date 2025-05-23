@@ -43,6 +43,10 @@ function [rf0,gz,gzReph,params] =  create_rf_gz_pulseq(params,tr_tmp)
                 % 9.4T
                 [rf0(i), gz(i)] = mr.makeSincPulse(params.gen.fa(i),'system',lims,'Duration',2.56e-3,...
                     'SliceThickness',params.gen.fov(3),'apodization',0.5,'timeBwProduct',25);
+            elseif params.gen.field_strength == 11
+                % 9.4T
+                [rf0(i), gz(i)] = mr.makeSincPulse(params.gen.fa(i),'system',lims,'Duration',2.56e-3,...
+                    'SliceThickness',params.gen.fov(3),'apodization',0.5,'timeBwProduct',25);
             end
         elseif params.gen.seq == 1
             % VASO
