@@ -3,14 +3,15 @@ ml afni
 
 cd /neurodesktop-storage/5T4/Alejandro/sosp_vaso/data
 
-folder="02132025_sb_9T"
-scan="sb_121_DS_SO_06mm_18fovz_12te_6te_girf_ech1"
-r_a_tr=7     # rest/activity TRs paper=sv(8), cv(7), josh=sv/cv(6)
-tr=2.7    # volume TR paper=sv(1.66), cv(1.81), josh=sv(2.1651),cv(2.344)
-motion_glm=0
+folder="08122024_sv_cv_josh_thesis"
+scan="sv_512_OUT_2shot"
+r_a_tr=12     # rest/activity TRs paper=sv(8), cv(7), josh=sv/cv(6)
+tr=2.41    # volume TR paper=sv(1.66), cv(1.81), josh=sv(2.1651),cv(2.344)
+motion_glm=1
+multi_runs=1        # Multiple runs concatenated???
 
 # Spiral reconstruction options
-traj="_girf" && cs="_cs" && b0="_b0" && co="_co" && k0="" && rDORK="_rDORK"
+traj="_nom" && cs="_cs" && b0="_b0" && co="_co" && k0="" && rDORK="_rDORK"
 
 cd ${folder}
 
@@ -18,20 +19,23 @@ mkdir ./analysis/${scan}
 chmod ugo+rwx ./analysis/${scan}
 cd ./analysis/${scan}
 
-# if [ "${scan:0:2}" = "sv" ]; then
-#     echo "Spiral VASO .."
-#     # Set path for reconstruction
-#     v_file=../../recon/${scan}_v${traj}${cs}${b0}${co}${k0}${rDORK}.nii
-#     b_file=../../recon/${scan}_b${traj}${cs}${b0}${co}${k0}${rDORK}.nii
-#     gre1=../../tmp/${scan}_1ech.nii
-# elif [ "${scan:0:2}" = "cv" ]; then
-#     echo "Cartesian VASO .."
-#     file=../../recon/${scan}_bv_epi.nii
-#     v_file=../../recon/${scan}_v_epi.nii
-#     b_file=../../recon/${scan}_b_epi.nii
-# fi
+if [ "${scan:0:2}" = "sv" ]; then
+    echo "Spiral VASO .."
+    # Set path for reconstruction
+    b_file=./${scan}_b_ups_mc_hpf.nii
+    3drefit -TR $tr ${b_file}
+    3drefit -TR $tr ./VASO_LN.nii
+elif [ "${scan:0:2}" = "cv" ]; then
+    echo "Cartesian VASO .."
+    b_file=./${scan}_b_ups_mc_hpf.nii
+    3drefit -TR $tr ${b_file}
+    3drefit -TR $tr ./VASO_LN.nii
+else
+    b_file=./${scan}_ups_mc_hpf.nii
+    3drefit -TR $tr ${b_file}
+fi
 
-b_file=./${scan}_ups_mc.nii
+# b_file=./${scan}_ups_mc.nii
 # b_file=./${scan}_ups_mc_hpf.nii
 
 vol=$(3dinfo -nv ${b_file})
@@ -41,7 +45,7 @@ blocks=$(echo ${blocks%.*})
 block_dur=$(echo $tr*$blocks*2 | bc -l)
 block_dur=$(echo ${block_dur%.*})
 block_upsample=$(echo $blocks*2 | bc -l)
-block_trs=$(echo $r_a_tr*2 | bc -l)
+block_trs=$(echo $r_a_tr | bc -l)
 block_trs=$(echo ${block_trs%.*})
 
 #### ) Activation maps
@@ -66,13 +70,19 @@ tmp=$(echo $block_dur | bc -l)
 tmp=$(echo ${tmp%%.*})
 ublock=$(echo "UBLOCK($tmp,1)")
 
-# Temp: Manually setting stim times.. with 1s TR
-# stim_times="1D: 12 36 60 84 108 132 156 180 204 228 252 276"
+# If runs concatenated
+if [ "$multi_runs" -gt 1 ]; then
+    stim_times_orig=$stim_times
+    for (( i=1; i<=$multi_runs-1; i++))
+    do
+        stim_times=$(echo "$stim_times | ${stim_times_orig:4:100}")
+    done
+fi
 
 if [ "$motion_glm" = 1 ]; then
     ### VASO GLM
     echo "VASO based on GLM..." 
-    3dDeconvolve -overwrite -jobs 16 -polort 1 \
+    3dDeconvolve -overwrite -jobs 16 -polort a \
                 -force_TR $tr \
                 -input VASO_LN.nii\
                 -num_stimts 7 \
@@ -92,7 +102,7 @@ if [ "$motion_glm" = 1 ]; then
 
     #### BOLD
     echo "BOLD based on GLM..."
-    3dDeconvolve -overwrite -jobs 16 -polort 1 \
+    3dDeconvolve -overwrite -jobs 16 -polort a \
                 -force_TR $tr \
                 -input ./${b_file}\
                 -num_stimts 7 \
@@ -112,7 +122,7 @@ if [ "$motion_glm" = 1 ]; then
 else
     ### VASO GLM
     echo "VASO based on GLM..." 
-    3dDeconvolve -overwrite -jobs 16 -polort 1 \
+    3dDeconvolve -overwrite -jobs 16 -polort a \
                 -force_TR $tr \
                 -input VASO_LN.nii \
                 -num_stimts 1 \
@@ -126,7 +136,7 @@ else
 
     #### BOLD
     echo "BOLD based on GLM..."
-    3dDeconvolve -overwrite -jobs 16 -polort 1 \
+    3dDeconvolve -overwrite -jobs 16 -polort a \
                 -force_TR $tr \
                 -input ${scan}_b_ups_mc_hpf.nii \
                 -num_stimts 1 \
@@ -138,6 +148,61 @@ else
                 -errts residual_BOLD.nii \
                 -bucket STATS_BOLD.nii
 fi
+
+# #### Temp....
+#     block_dur=$(echo $tr*$block_trs | bc -l)
+#     tmp=0
+#     start=1
+#     # end=$(echo $blocks-1 | bc -l) # original
+#     # stim_times='1D: 0 '  # original 
+#     end=$(echo $blocks-2 | bc -l)  # new
+#     stim_times=$(echo "1D: $block_dur ") # new
+#     tmp=$(echo $tmp+$block_dur*2+$block_dur | bc -l)  # If temporal upsampling # New
+#     stim_times=$(echo "$stim_times $tmp ") # new
+
+#     for (( i=$start; i<=$end; i++))
+#     do
+#         # tmp=$(echo $tmp+$block_dur*2+$block_dur | bc -l)  # If temporal upsampling # New
+#         tmp=$(echo $tmp+$block_dur*2 | bc -l)  # If temporal upsampling # Original
+#         # tmp=$(echo $tmp+$block_dur | bc -l)
+#         stim_times=$(echo "$stim_times $tmp ")
+#     done
+    
+#     # stim_times=$(echo "$stim_times | ${stim_times:4:100}")
+#     # stim_times=$(echo "$stim_times | 1D: ")
+#     # stim_times="1D: 28.92 86.76 144.60 202.44 260.28 318.12 375.96 433.80 491.64 549.48 607.32 665.16 | 28.92 86.76 144.60 202.44 260.28 318.12 375.96 433.80 491.64 549.48 607.32 665.16"
+
+#     # If runs concatenated
+#     if [ "$multi_runs" -gt 1 ]; then
+#         stim_times_orig=$stim_times
+#         for (( i=1; i<=$multi_runs-1; i++))
+#         do
+#             stim_times=$(echo "$stim_times | ${stim_times_orig:4:100}")
+#         done
+#     fi
+
+#     tmp=$(echo $block_dur | bc -l)
+#     tmp=$(echo ${tmp%%.*})
+#     ublock=$(echo "UBLOCK($tmp,1)")
+
+#     echo "BOLD based on GLM..."
+#     3dDeconvolve -overwrite -jobs 16 -polort a \
+#                 -force_TR $tr \
+#                 -input ./sv_51_VASO_LN.nii ./sv_52_VASO_LN.nii \
+#                 -num_stimts 1 \
+#                 -TR_times $tr \
+#                 -stim_times 1 "$stim_times" "$ublock" -stim_label 1 Task \
+#                 -tout \
+#                 -x1D MODEL_wm \
+#                 -iresp 1 HRF_BOLD.nii \
+#                 -errts residual_BOLD.nii \
+#                 -bucket STATS_BOLD.nii
+
+#     3dcalc -a STATS_BOLD.nii'[0]'  -expr 'a'    -prefix 0_STATS_BOLD.nii -overwrite 
+#     3dcalc -a STATS_BOLD.nii'[1]'  -expr '-1*a' -prefix 1_STATS_NEG_BOLD.nii -overwrite
+#     3dcalc -a STATS_BOLD.nii'[2]'  -expr '-1*a' -prefix 2_STATS_NEG_BOLD.nii -overwrite 
+#     3dcalc -a STATS_BOLD.nii'[2]'  -expr 'a'    -prefix 2_STATS_BOLD.nii -overwrite 
+# #################
 
 # VASO
 3dcalc -a HRF_VASO.nii'[1]'    -expr 'a'    -prefix 1_HRF_VASO.nii   -overwrite 
