@@ -4,17 +4,12 @@ function [rf_fs,gx_fs,gy_fs,gz_fs] = prepare_fat_sat(params, sat_ppm)
     sat_freq = sat_ppm*1e-6*lims.B0*lims.gamma;
     
     % What is the duration I want for the RF pulses??? (2.56 or 5ms)
-    if params.gen.field_strength == 7 || params.gen.field_strength == 7i 
-        rf_fs = mr.makeGaussPulse(params.gen.fs_angle*pi/180,'system',lims,'Duration',2.56e-3,...
+    rf_fs = mr.makeGaussPulse(params.gen.fs_angle*pi/180,'system',lims,'Duration',2.56e-3,...
             'bandwidth',abs(sat_freq),'freqOffset',sat_freq);
-    elseif params.gen.field_strength == 9
-        rf_fs = mr.makeGaussPulse(params.gen.fs_angle*pi/180,'system',lims,'Duration',2.56e-3,...
-            'bandwidth',abs(sat_freq),'freqOffset',sat_freq);
-    end
     
     % AMM: ToDo: Check correct values for spoiling gradient
     grad_moment = 25e-6; % T/m * s   (Got this moment from POET simulations of SIEMES EPI)
-    grad_ampl = 10e-3;   % T/m       (SIEMENS use 8mT/m)             
+    grad_ampl = 8e-3;   % T/m       (SIEMENS use 8mT/m)             
     grad_dur = grad_moment/grad_ampl; % s
     grad_dur = round(grad_dur/lims.gradRasterTime)*lims.gradRasterTime;
     grad_area = mr.convert(grad_moment,'T/m/s','Hz/m/s');
