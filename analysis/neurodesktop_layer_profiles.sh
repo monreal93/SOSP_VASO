@@ -5,11 +5,11 @@
 ml afni
 ml laynii
 
-cd /neurodesktop-storage/5T3/Alejandro/sosp_vaso/data
+cd /neurodesktop-storage/5T4/Alejandro/sosp_vaso/data
 
-folder="08302024_sb_9T"
-scan="sb_22_OUT_2shot_6te_14fa"
-t1_file="sb_22_OUT_2shot_6te_14fa_t1_full_brain"
+folder="05282025_sb_11T"
+scan="sb_01_DS_SO_08mm_tra_nom"
+t1_file="ana_reg_itk_rig_sl27"
 
 cd ${folder}$"/analysis/"${scan}
 
@@ -41,6 +41,29 @@ sdelta_z=$(echo "((sqrt($delta_z * $delta_z) / 1))"|bc -l)
 #estimating layers based on rim
 LN_GROW_LAYERS -rim rim.nii -N 11 -vinc 40
 
+#extractiong profiles for BOLD
+#get mean value, STDEV, and number of voxels
+3dROIstats -mask rim_layers.nii -1DRformat -quiet -nzmean scaled_BOLD.nii > layer_t.dat
+3dROIstats -mask rim_layers.nii -1DRformat -quiet -sigma scaled_BOLD.nii >> layer_t.dat
+3dROIstats -mask rim_layers.nii -1DRformat -quiet -nzvoxels scaled_BOLD.nii >> layer_t.dat
+#format file to be in columns, so gnuplot can read it.
+WRD=$(head -n 1 layer_t.dat|wc -w); for((i=2;i<=$WRD;i=i+2)); do awk '{print $'$i'}' layer_t.dat| tr '\n' ' ';echo; done > layer.dat
+# 1dplot -sepscl layer.dat 
+mv layer.dat layer_BOLD.dat
+
+########### DEVEINING
+#get mean value, STDEV, and number of voxels
+LN2_DEVEIN -linear -layer_file rim_layers.nii -input scaled_BOLD.nii
+devein="deveinLinear"
+3dROIstats -mask rim_layers.nii -1DRformat -quiet -nzmean scaled_BOLD_${devein}.nii > layer_t.dat
+3dROIstats -mask rim_layers.nii -1DRformat -quiet -sigma scaled_BOLD_${devein}.nii >> layer_t.dat
+3dROIstats -mask rim_layers.nii -1DRformat -quiet -nzvoxels scaled_BOLD_${devein}.nii >> layer_t.dat
+#format file to be in columns, so gnuplot can read it.
+WRD=$(head -n 1 layer_t.dat|wc -w); for((i=2;i<=$WRD;i=i+2)); do awk '{print $'$i'}' layer_t.dat| tr '\n' ' ';echo; done > layer.dat
+
+# 1dplot -sepscl layer.dat 
+mv layer.dat layer_BOLD_devein.dat
+
 #extractiong profiles for VASO
 #get mean value, STDEV, and number of voxels
 3dROIstats -mask rim_layers.nii -1DRformat -quiet -nzmean scaled_VASO.nii > layer_t.dat
@@ -51,14 +74,3 @@ WRD=$(head -n 1 layer_t.dat|wc -w); for((i=2;i<=$WRD;i=i+2)); do awk '{print $'$
 
 # 1dplot -sepscl layer.dat 
 mv layer.dat layer_VASO.dat
-
-#extractiong profiles for BOLD
-#get mean value, STDEV, and number of voxels
-3dROIstats -mask rim_layers.nii -1DRformat -quiet -nzmean scaled_BOLD.nii > layer_t.dat
-3dROIstats -mask rim_layers.nii -1DRformat -quiet -sigma scaled_BOLD.nii >> layer_t.dat
-3dROIstats -mask rim_layers.nii -1DRformat -quiet -nzvoxels scaled_BOLD.nii >> layer_t.dat
-#format file to be in columns, so gnuplot can read it.
-WRD=$(head -n 1 layer_t.dat|wc -w); for((i=2;i<=$WRD;i=i+2)); do awk '{print $'$i'}' layer_t.dat| tr '\n' ' ';echo; done > layer.dat
-
-# 1dplot -sepscl layer.dat 
-mv layer.dat layer_BOLD.dat

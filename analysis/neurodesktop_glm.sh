@@ -3,11 +3,11 @@ ml afni
 
 cd /neurodesktop-storage/5T4/Alejandro/sosp_vaso/data
 
-folder="08122024_sv_cv_josh_thesis"
-scan="sv_512_OUT_2shot"
-r_a_tr=12     # rest/activity TRs paper=sv(8), cv(7), josh=sv/cv(6)
-tr=2.41    # volume TR paper=sv(1.66), cv(1.81), josh=sv(2.1651),cv(2.344)
-motion_glm=1
+folder="05072025_sv_7T_m1"
+scan="sv_002_DS_SO_fs_pp"
+r_a_tr=6     # rest/activity TRs paper=sv(8), cv(7), josh=sv/cv(6)
+tr=2.453    # volume TR paper=sv(1.66), cv(1.81), josh=sv(2.1651),cv(2.344)
+motion_glm=0
 multi_runs=1        # Multiple runs concatenated???
 
 # Spiral reconstruction options
@@ -124,7 +124,7 @@ else
     echo "VASO based on GLM..." 
     3dDeconvolve -overwrite -jobs 16 -polort a \
                 -force_TR $tr \
-                -input VASO_LN.nii \
+                -input ${scan}_v_ups_mc_hpf.nii \
                 -num_stimts 1 \
                 -TR_times $tr \
                 -stim_times 1 "$stim_times" "$ublock" -stim_label 1 Task \

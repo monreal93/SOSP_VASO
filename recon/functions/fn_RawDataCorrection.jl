@@ -37,11 +37,12 @@ function CorrectRepetitionDORK(tmp,nav,nav_ref,params::Dict{Symbol,Any})
             nav = mean(nav, dims=2)
         end
     else
-        nav = nav[:,1,Int(params_pulseq["gen"]["n_ov"][3]/2)+1,:,1,1]  # Only center partiton and first FID
-        nav_ref = nav_ref[:,1,Int(params_pulseq["gen"]["n_ov"][3]/2)+1,:]  # Only center partition
+        # nav = nav[:,1,Int(params_pulseq["gen"]["n_ov"][3]/2)+1,:,1,1]  # Only center partiton and first FID
+        # nav_ref = nav_ref[:,1,Int(params_pulseq["gen"]["n_ov"][3]/2)+1,:]  # Only center partition
+        nav = nav[:,1,:,:,1,1]
     end
 
-    del_omg = mean(DSP.unwrap(angle.(nav), dims=1)-DSP.unwrap(angle.(nav_ref),dims=1))/params[:TE]
+    del_omg = mean(DSP.unwrap(angle.(nav), dims=1)-DSP.unwrap(angle.(nav_ref),dims=1),dims=1)/params[:TE]
 
     tmp = tmp.*exp.(-1im.*del_omg.*params[:acq_times]')
 
@@ -107,6 +108,7 @@ function CorrectPartitionDORK(tmp,nav,params::Dict{Symbol,Any})
     #### First nav, then partitions
     # nav = mean(nav, dims=4)   # Mean over channels..
     del_omg_n = nav[:,1,:,:,1,2] .* conj.(nav[:,1,:,:,1,1])
+    # del_omg_n = nav[:,1,:,:,1,2] ./ (nav[:,1,:,:,1,1])
     del_omg_n = DSP.unwrap(angle.(del_omg_n),dims=1) ./ params[:fid_nav_ΔTE]
     del_omg_n = mean(del_omg_n, dims=1)   # Mean over readout
     # del_omg_n = mean(del_omg_n, dims=3)   # Mean over channels..
@@ -133,7 +135,7 @@ function CorrectPartitionDORK(tmp,nav,params::Dict{Symbol,Any})
     # del_omg = (del_phi_i-del_phi_n) ./ del_t
 
     # tmp = tmp.*exp.(-1im.*(del_phi_n_o.+del_omg_n).*params[:acq_times]')
-    tmp = tmp.*exp.(-1im.*del_omg_n.*params[:acq_times]')
+    tmp = tmp.*exp.(1im.*del_omg_n.*params[:acq_times]')
 
     return tmp
 end
@@ -149,12 +151,13 @@ function Correctk0(tmp,k0_meas::AbstractMatrix{Float64},k0_sim::Any,params::Dict
 
     # Un-do Siemens ECC
     if params[:traj_type] == "sk"
-        tmp = tmp./exp.(1im.*k0_sim.*2*pi)
+        # tmp = tmp./exp.(1im.*k0_sim.*2*pi)
+        tmp = tmp./exp.(1im.*k0_sim)
     end
 
     # Apply Skope/girf K0
-    # tmp = tmp.*exp.(1im.*k0_meas.*π)
-    tmp = tmp.*exp.(1im.*k0_meas.*1)
+    tmp = tmp.*exp.(1im.*k0_meas.*2π)
+    # tmp = tmp.*exp.(-1im.*k0_meas.*1)
 
     return tmp
 end

@@ -4,13 +4,13 @@ using SphericalHarmonicExpansions, Distributions
 # using MAT
 # using ImageTransformations
 
-function getDynamicOffResonanceCalibrationMatrix(params::Dict{Symbol,Any},b0_init,recon_b0; calib_steps=100)
+function getDynamicOffResonanceCalibrationMatrix(params::Dict{Symbol,Any},b0_init,recon_b0; calib_steps=10)
     
     n_channels = size(recon_b0,4)
     n_times = calib_steps
 
     recon_b0 = recon_b0[:,:,:,:,1]
-    recon_b0 = imresize(recon_b0,size(b0_init)[1:3])
+    # recon_b0 = imresize(recon_b0,size(b0_init)[1:3])
 
     # b0_init = imresize(b0_init,size(recon_b0)[1:3])
 
@@ -26,7 +26,8 @@ function getDynamicOffResonanceCalibrationMatrix(params::Dict{Symbol,Any},b0_ini
     # Convert B0_init from rad/s to Hz
     b0_init = imag.(b0_init)./(2*pi)
 
-    sh_basis = zeros(mtx_s[1],mtx_s[2],mtx_s[3],lmax)
+    # sh_basis = zeros(mtx_s[1],mtx_s[2],mtx_s[3],lmax)
+    sh_basis = zeros((size(recon_b0)[1:3]...,lmax))
 
     # if params[:recon_b0ri] == 1
     #     recon_b0 = matread(string("../",params[:directory],"acq/recon_b0_", params[:scan],".mat"))
@@ -46,7 +47,8 @@ function getDynamicOffResonanceCalibrationMatrix(params::Dict{Symbol,Any},b0_ini
     m = -l[end]:l[end]
 
     # Creating cartesian coordinates
-    (xx,yy,zz) = (LinRange.(-1,1,[mtx_s[1],mtx_s[2],mtx_s[3]]).*vec(fov)./2)
+    # (xx,yy,zz) = (LinRange.(-1,1,[mtx_s[1],mtx_s[2],mtx_s[3]]).*vec(fov)./2)
+    (xx,yy,zz) = (LinRange.(-1,1,[size(recon_b0)[1],size(recon_b0)[2],size(recon_b0)[3]]).*vec(fov)./2)
 
     tmp = 1
     for  il=0:l[end]
@@ -68,42 +70,44 @@ function getDynamicOffResonanceCalibrationMatrix(params::Dict{Symbol,Any},b0_ini
 
     sh_basis = reshape(sh_basis,:,lmax)
 
-    b = sh_basis \ vec(b0_init)
+    # b = sh_basis \ vec(b0_init)
 
-    # del_b0 is the lth-order aproximation of the initial b0 map
-    ΔB0 = sh_basis * b
-    ΔB0 = reshape(ΔB0,mtx_s[1],mtx_s[2],mtx_s[3])
+    # # del_b0 is the lth-order aproximation of the initial b0 map
+    # ΔB0 = sh_basis * b
+    # ΔB0 = reshape(ΔB0,mtx_s[1],mtx_s[2],mtx_s[3])
 
-    b_calib = zeros(lmax,calib_steps)
-    # Random delta B0 coefficients, trying to get a realistic order of magnitude using ΔB0 as reference +/-10%
-    for i=1:calib_steps    
-        for j=1:lmax    
-            # d = Uniform(-abs(b[j]).*0.1,abs(b[j]).*0.1)
-            d = Uniform(0,abs(b[j]).*0.1)
-            # d = Uniform(0,1)
-            b_calib[j,i] = rand(d)
-        end
-    end
+    # b_calib = zeros(lmax,calib_steps)
+    # # Random delta B0 coefficients, trying to get a realistic order of magnitude using ΔB0 as reference +/-10%
+    # for i=1:calib_steps    
+    #     for j=1:lmax    
+    #         # d = Uniform(-abs(b[j]).*0.1,abs(b[j]).*0.1)
+    #         d = Uniform(0,abs(b[j]).*0.1)
+    #         # d = Uniform(0,1)
+    #         b_calib[j,i] = rand(d)
+    #     end
+    # end
 
-    fid = Matrix{ComplexF32}(undef,n_channels,n_times)
-    calib = Matrix{ComplexF32}(undef,n_channels,lmax)
+    # fid = Matrix{ComplexF32}(undef,n_channels,n_times)
+    # calib = Matrix{ComplexF32}(undef,n_channels,lmax)
 
-    @floop for i=1:calib_steps
+    # @floop for i=1:calib_steps
 
-        sh_tmp = sh_basis * b_calib[:,i]
+    #     sh_tmp = sh_basis * b_calib[:,i]
 
-        sh_tmp = reshape(sh_tmp,mtx_s[1],mtx_s[2],mtx_s[3])
+    #     sh_tmp = reshape(sh_tmp,mtx_s[1],mtx_s[2],mtx_s[3])
 
-        img_sim = recon_b0.*exp.(-im*2*pi*2e-3.*sh_tmp).*exp.(im*2*pi*2e-3.*b0_init)
+    #     img_sim = recon_b0.*exp.(-im*2*pi*2e-3.*sh_tmp).*exp.(im*2*pi*2e-3.*b0_init)
 
-        fid[:,i] = dropdims(sum(img_sim,dims=(1,2,3)),dims=(1,2,3))
+    #     fid[:,i] = dropdims(sum(img_sim,dims=(1,2,3)),dims=(1,2,3))
 
-    end
+    # end
 
-    calib = fid / b_calib
+    # calib = fid / b_calib
 
     @info("Stop... Dyn B0 corr...")
     @infiltrate
+
+    calib = []
 
     # # Now generating the calibration matrix A as im Wallace paper
     # s_vec = reshape(recon_b0,:,params[:nCoils])

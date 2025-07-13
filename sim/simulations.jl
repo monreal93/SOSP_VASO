@@ -27,14 +27,14 @@ include("../recon/functions/fn_calculateGfactor.jl")
 include("../recon/functions/fn_save_nii.jl")
 # include("../recon/functions/fn_CalculateSensitivityOffresonanceMaps.jl")
 
-phn_sim = 0            # 1=brain, 0=point (psf), for point (PSF), set all to false
+phn_sim = 1            # 1=brain, 0=point (psf), for point (PSF), set all to false
 cs_sim = true
 cs_recon = true
 b0_sim = false
 b0_recon = false
 coco_sim = false
 coco_recon = false
-t2s_sim = true
+t2s_sim = false
 t2s_recon = false
 high_order_recon = false
 order_recon =  1            # Recon order (1,2,3)
@@ -45,23 +45,22 @@ gfactor_replicas = 100
 channels = 32            # 0-channels from CS file, >0 less channels (it will be cropped)]
 changeBW = 0             # Integer to change the value of the BW.. (ex. 2 = half the BW), 0 = No change
 # For PSF only.. T2* and b0
-psf_t2s = 20e-3     # T2* in s
+psf_t2s = 22e-3     # T2* in s
 psf_b0 = 20         # off-resonance in Hz
-bold_sim = true
+bold_sim = false
 
 # Folder and name of sequence to simulate
-folder_sim = "simulations_bold_psf"
+folder_sim = "06242025_sb_7T"
 # scan_sim = ["DS_SO_96fovz_1rz_NOrot"]
 traj_type = "nom"
-scan_sim = ["sb_OUT_2shots_6te_0p6mm","sb_OUT_2shots_12te_0p6mm","sb_OUT_2shots_18te_0p6mm"]  
-# ["sb_OUT_2shots_2te_0p6mm","sb_OUT_2shots_4te_0p6mm","sb_OUT_2shots_6te_0p6mm","sb_OUT_2shots_8te_0p6mm",
-# "sb_OUT_2shots_10te_0p6mm","sb_OUT_2shots_12te_0p6mm","sb_OUT_2shots_14te_0p6mm","sb_OUT_2shots_16te_0p6mm","sb_OUT_2shots_18te_0p6mm","sb_OUT_2shots_20te_0p6mm","sb_OUT_2shots_22te_0p6mm"]
+scan_sim = ["sb_03_TS_SO_05mm_rz2_12phov_vis"]
+# scan_sim = ["DS_SO_fb_08mm_rz1_NOrot_NOblip","DS_SO_fb_08mm_rz3_NOrot_NOblip","DS_SO_fb_08mm_rz3_120rot_NOblip","DS_SO_fb_08mm_rz3_120rot_blip"]  
 
 # Folder and name of sensitivity maps and b0 map to use for simulation
-folder = "12102024_sb_7T"
-scan = "sb_001_DS_SO_24fovz_1rz_8ov"
-fieldmap = "s001"   # Normally S00X 
-path = string("/neurodesktop-storage/5T3/Alejandro/sosp_vaso/data/",folder)
+folder = "06242025_sb_7T"
+scan = "sb_03_TS_SO_05mm_rz2_12phov_vis"
+fieldmap = "s03"   # Normally S00X 
+path = string("/neurodesktop-storage/5T4/Alejandro/sosp_vaso/data/",folder)
 path_sim = string("/neurodesktop-storage/5T4/Alejandro/sosp_vaso/data/",folder_sim)
 
 ##### Load parameters
@@ -563,6 +562,10 @@ for i = 1:Int(length(scan_sim))
         params_reco[:rxyz] = params_pulseq["gen"]["kz"]*params_pulseq["epi"]["ry"]/params_pulseq["epi"]["pf"]
     end
 
+    params_reco[:solver] = ADMM
+    params_reco[:reg] = L1Regularization(1e-3) # (1e-3)
+    # params_reco[:sparseTrafo] = "Wavelet"
+
     # AMM: Temp: Rescaling the B0 map before reconstruction, to have a missmatch btw sim and recon
     # @info("Temp.... Reescaling B0 map before recon...")
     # @infiltrate
@@ -708,9 +711,10 @@ for i = 1:Int(length(scan_sim))
         suffix = string(suffix,"_BOLDsim")
     end
 
-    if cs_sim == true && cs_recon ==false
+    if cs_sim == true && cs_recon ==false || cs_sim == false
         Ireco = Ireco[:,:,:,1,:,1]
-        Ireco = sqrt.(sum((Ireco.^2),dims=4))
+        # Ireco = sqrt.(sum((Ireco.^2),dims=4)) # root sum of squares
+        Ireco = mean(Ireco ,dims=5) # mean
         Ireco = Ireco[:,:,:,1]
     end
 

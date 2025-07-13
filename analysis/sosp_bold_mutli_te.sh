@@ -58,3 +58,10 @@ cd ${scan:0:6}_te_comparison
 
 3dcalc -overwrite -a te1_te2_bin_output.nii -b ../${scan}_${traj}_ech1/clustered_BOLD.nii -expr "a*b" -prefix BOLD_te1_common.nii
 3dcalc -overwrite -a te1_te2_bin_output.nii -b ../${scan}_${traj}_ech2/clustered_BOLD.nii -expr "a*b" -prefix BOLD_te2_common.nii
+
+
+## Percent signal change common voxels
+mv te1_te2_bin_output.nii te1_te2_roi_bin_output.nii
+3dcalc -a ../${scan}_${traj}_ech1/b_bin_output.nii -b ../${scan}_${traj}_ech2/b_bin_output.nii -expr "a*b" -prefix te1_te2_bin_output.nii
+3dcalc -overwrite -a te1_te2_bin_output.nii -b ../${scan}_${traj}_ech1/${scan}_per_ch.nii  -expr "a*b" -prefix ${scan}_per_ch_te1_common.nii 
+3dcalc -overwrite -a te1_te2_bin_output.nii -b ../${scan}_${traj}_ech2/${scan}_per_ch.nii  -expr "a*b" -prefix ${scan}_per_ch_te2_common.nii 
