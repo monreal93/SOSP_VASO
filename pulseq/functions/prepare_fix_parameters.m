@@ -33,11 +33,18 @@ function [params,ro_blocks] = prepare_fix_parameters(params)
     end
     % Partition or phase oversampling
     params.gen.n_ov = params.gen.n;
+    params.gen.fov_ov = params.gen.fov;
     if params.gen.ph_oversampling > 0
-        % Increase FOV?
+        % % Increase FOV? Actually increasing FOV...
+        % % params.gen.fov(3) = params.gen.fov(3).*(1+(params.gen.ph_oversampling/100));
+        % params.gen.fov(3) =  round(params.gen.fov(3).*(1+(params.gen.ph_oversampling/100)) / params.gen.res(3)/2)*params.gen.res(3)*2;
+        % params.gen.del_k(3) = (1/params.gen.fov(3))*params.gen.kz; 
+        % params.gen.n(3) = round(params.gen.fov(3)/params.gen.res(3)/params.gen.kz/2)*2;
+        % Just increasing del_k and n..
         params.gen.del_k(3) = params.gen.del_k(3)/(1+(params.gen.ph_oversampling/100)); 
-        params.gen.n(3) = round(round(params.gen.n(3)*(1+(params.gen.ph_oversampling/100)))/2)*2;
-%         params.gen.fov(3) = 1 / params.gen.del_k(3);
+        params.gen.n(3) = round(round(params.gen.n(3)*(1+(params.gen.ph_oversampling/100))/params.gen.kz)/2)*2;
+    else
+        params.gen.n(3) = round(round(params.gen.n(3)/params.gen.kz)/2)*2; 
     end
     % Fat sat angle
     if params.gen.fs_angle == 0
@@ -48,11 +55,11 @@ function [params,ro_blocks] = prepare_fix_parameters(params)
 %     tmp = mod(params.gen.n,4);
 %     params.gen.n(1:2) = params.gen.n(1:2)+tmp(1:2);
     % ToDo: Check... Not sure if I do need this...
-    params.gen.n(3) = round(params.gen.n(3)/params.gen.kz/params.gen.pf/2)*2;
-    % Making sure fovz/rz are integers and even
-    if round((params.gen.fov(3)/params.gen.kz)*1000,9)/round((params.gen.fov(3)/params.gen.kz)*1000) ~= 1
-        params.gen.fov(3) = round(params.gen.fov(3)*1000/2/params.gen.kz)*2*params.gen.kz*1e-3;
-    end
+    % params.gen.n(3) = round(params.gen.n(3)/params.gen.kz/params.gen.pf/2)*2;
+    % % Making sure fovz/rz are integers and even
+    % if round((params.gen.fov(3)/params.gen.kz)*1000,9)/round((params.gen.fov(3)/params.gen.kz)*1000) ~= 1
+    %     params.gen.fov(3) = round(params.gen.fov(3)*1000/2/params.gen.kz)*2*params.gen.kz*1e-3;
+    % end
     % if params.gen.seq == 3; params.gen.ro_type = 'c'; end   % if fieldmap, cartesian
     if params.gen.seq == 2; params.gen.ro_type = 's'; end   % if ABC, Spiral
     if params.mt.mt == 0; params.mt.bold = 0; end           % if no MT, no ref BOLD  

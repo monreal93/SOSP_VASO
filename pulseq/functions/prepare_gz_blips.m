@@ -13,7 +13,14 @@ for i=1:i_tmp
         if mod(params.gen.n(3),2) == 1
             area = -(params.gen.del_k(3)*(ceil(params.gen.n(3)/2)+1))+(params.gen.del_k(3)/params.gen.kz_caipi*(tmp-1))+(params.gen.del_k(3)/2);
         else
-            area = -(params.gen.del_k(3)*(ceil(params.gen.n(3)/2)))+(params.gen.del_k(3)/params.gen.kz_caipi*(tmp-1));
+            if mod(j,2) == 0 && mod(params.spi.interl,2) == 1
+                area = -(params.gen.del_k(3)*(ceil(params.gen.n(3)/2)))+(params.gen.del_k(3)*(i))-(params.gen.del_k(3)/params.gen.kz_caipi);
+            % elseif  mod(j,2) == 1 && j > 1
+            %     area = -(params.gen.del_k(3)*(ceil(params.gen.n(3)/2)))+(params.gen.del_k(3)/params.gen.kz_caipi*(tmp-j));
+            else
+                % area = -(params.gen.del_k(3)*(ceil(params.gen.n(3)/2)))+(params.gen.del_k(3)/params.gen.kz_caipi*(tmp-j));
+                area = -(params.gen.del_k(3)*(ceil(params.gen.n(3)/2)))+(params.gen.del_k(3)*(i-1));
+            end
         end
         if area==0
             area = 1e-10;

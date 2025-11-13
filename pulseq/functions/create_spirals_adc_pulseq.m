@@ -32,6 +32,8 @@ function [gx,gy,gx_pre,gy_pre,adc,params] =  create_spirals_adc_pulseq(spiral_gr
                     if mod(adc_total_samples,k) == 0 && mod(adc_total_samples/k*adcDwell,10e-9) == 0 && (adc_total_samples/k) < 8192 && mod(adc_total_samples/k,4) == 0
                         adcSplit = adc_total_samples/k;
                         break
+                    else
+                        adcSplit = 0;
                     end
                 end
                 params.gen.adc_split = adcSplit;

@@ -32,6 +32,8 @@ function [rf_phase_offset,adc_phase_offset] = rf_adc_phase(params, flag)
             rf_phase_offset(i,j) = mod(rf_phase(i,j),360)*pi/180;
             
             % adc_phase_offset(i,j) = rf_phase(i,j)-RF.InitPhaseSet;
+            % adc_phase_offset(i,j) = mod(adc_phase_offset(i,j),360)*pi/180;
+
             adc_phase_offset(i,j) = rf_phase(i,j);
             adc_phase_offset(i,j) = mod(adc_phase_offset(i,j),360)*pi/180;
             tmp = tmp+1;

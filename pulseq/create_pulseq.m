@@ -4,30 +4,31 @@ cd /home/amonreal/Documents/PhD/PhD_2025/sosp_vaso/
 
 %% Adding paths 
 addpath(genpath("./pulseq/functions"))                                                                  % Functions to create pulseq sequence
-% addpath(genpath("/home/amonreal/Documents/PhD/tools/pulseq_1.4.1/"))                                    % Pulseq toolbox
-addpath(genpath("/home/amonreal/Documents/PhD/tools/pulseq_1.5.0/"))                                    % Pulseq toolbox
+addpath(genpath("/home/amonreal/Documents/PhD/tools/pulseq_1.4.1/"))                                    % Pulseq toolbox
+% addpath(genpath("/home/amonreal/Documents/PhD/tools/pulseq_1.5.0/"))                                    % Pulseq toolbox
 addpath(genpath("/home/amonreal/Documents/PhD/tools/tOptGrad_V0.2/minTimeGradient/mex_interface/"))     % Minminue time gradieng Lusitg
 % addpath(genpath("/home/amonreal/Documents/PhD/tools/tOptGrad_V0.2/minTimeGradient/Matlab/"))     % Minminue time gradieng Lusitg
 addpath(genpath("/home/amonreal/Documents/PhD/tools/pns_prediction/"))                                  % PNS prediction
+addpath(genpath("/home/amonreal/Documents/PhD/tools/matlab/functions/pulseq")) 
 addpath(genpath("/home/amonreal/Documents/PhD/tools/check_grad_idea_Des/"))                             % Check Forbidden Fq
 warning('OFF', 'mr:restoreShape')
 
 %% Define parameters
-folder_name = 'simulations_bold_psf';                % Folder will be created in ./data
-seq_name = 'sample';                % use sv/abc/sb_n (n for the diff scans at each day)
+folder_name = 'simulations_thesis';                % Folder will be created in ./data
+seq_name = 'sb_04_SS_SO_08mm_rz1_imp';                % use sv/abc/sb_n (n for the diff scans at each day)
 params.gen.seq = 4;                 % 1-VASO 2-ABC 3-Multi-Echo 4-BOLD
-params.gen.field_strength = 11;      % Field Strength (7=7T,7i=7T-impuse_grad,9=9.4T,11=11.7T)
+params.gen.field_strength = 7i;      % Field Strength (7=7T,7i=7T-impuse_grad,9=9.4T,11=11.7T)
 params.gen.pns_check = 0;           % PNS check, .acs files to be added in ./tools/pns_check/grad_files
 
 %%%%%%%%%%%%%% General parameters
 params.gen.fov = [140 140 24].*1e-3;% FOV (Logan/Jan: 150,150,32
-params.gen.res = [0.8 0.8 0.8].*1e-3;% Nominal resolution
+params.gen.res = [1 1 1].*1e-3;% Nominal resolution
 params.gen.te = 0e-3;               % Set to 0 to shortest TE possible
-params.gen.tr_delay = 10e-3;         % Delay between acquisitions in sec (0e-3)
+params.gen.tr_delay = 0e-3;         % Delay between acquisitions in sec (0e-3)
 params.gen.fa = 0;                  % FA in degrees. Set to 0, to use Ernst Angle 
 params.gen.vfa = 0;                 % Variable FA (WIP)
 params.gen.vfa_cutoff = 33;         % Variable FA cut-off (WIP) in degrees
-params.gen.ernst_t1 = 2200e-3;      % T1 to calculate Ernst Angle (s) 7T=(WM-1220e-3)(GM-1800e-3)(blood=2587e-3) 9T=(1425e-3)(2100e-3) 11T=(GM=2200e-3)
+params.gen.ernst_t1 = 1800e-3;      % T1 to calculate Ernst Angle (s) 7T=(WM-1220e-3)(GM-1800e-3)(blood=2587e-3) 9T=(1425e-3)(2100e-3) 11T=(GM=2200e-3)
 params.gen.multi_te = [6e-3 12e-3]; % Echo times for ME seq=3 start with longest (WIP)
 params.gen.ro_type = 's';           % 's'-Spiral, 'c'-Cartesiaen (WIP)
 params.gen.dork = 0;                % extra adc'sdefn for DORK correction (WIP)
@@ -41,35 +42,39 @@ params.gen.kz_caipi = 1;            % CAIPI shift in partition direction (1-No,2
 params.gen.pf = 1;                  % Partial fourier in Kz (WIP)
 params.gen.ph_oversampling = 0;     % Partition phase oversampling in %, to avoid partition phase-wrap (default=0) (12)
 %%% Spoiling parameters
-params.gen.max_grad_spoil = 20;      % Max gradient amplitude for spoling in mT/m (0-highest)
-params.gen.max_sr_spoil = 100;        % Max gradient for spoling in mT/m/ms (0-highest)
+params.gen.max_grad_spoil = 30;      % Max gradient amplitude for spoling in mT/m (0-highest)
+params.gen.max_sr_spoil = 190;        % Max gradient for spoling in mT/m/ms (0-highest)
 %%% Fat sat parameters
 params.gen.fat_sat = 1;             % Fat saturation (1=yes,0=no)
 params.gen.fs_angle = 0;            % Fat sat angle (0=default)
 params.gen.fs_interl = 0;           % Fat sat in every shot/interl? (WIP)
 %%% ME-GRE parameters
-params.gen.me_gre = 2;              % ME GRE calibration scan, 0=NO, 1=same seq, 2=separate seq
+params.gen.me_gre = 0;              % ME GRE calibration scan, 0=NO, 1=same seq, 2=separate seq
 params.gen.me_gre_echos = 3;        % ME GRE calibration scan echos (>1)
 params.gen.me_gre_tr = 60e-3;       % ME GRE TR (30e-3/50e-3)
 params.gen.me_gre_interl = 42;      % ME GRE Shots (42)
+params.gen.me_gre_fov_inc = 4e-3;   % Increment in mm on FOV in all dimensions compared to fMRI seq, useful for FID mot corr. (0e-3)
+params.gen.me_gre_res_inc = 2;      % Resolution factor compared to fMRI seq (2)
 %%% Skope parameters
-params.gen.skope = 1;               % Add skope sync scan and triggers, 0=N0, 1=sep scan, 2=concurrent(center partition), 3=1&2
+params.gen.skope = 0;               % Add skope sync scan and triggers, 0=N0, 1=sep scan, 2=concurrent(center partition), 3=1&2
 params.gen.skope_sync = 0;          % Skope pre-scans, only added in skope seq
+
+%%%% Temp....
+params.gen.part_offset = 0e-2;    % distance from isocenter for freq offset
 
 %%%%%%%%%%%%%% Spiral parameters
 params.spi.type = 0;                % spiral type 0=spiral-Out , 1=spiral-In, 3=In-Out (WIP), 4=In-Out kspace interleavead (WIP)
 params.spi.in_out_order = 0;        % 0=In-Out same k-space path (separate vol.), 1=In-Out k-space path shift (WIP)
 params.spi.rotate = 'none';         % Spiral rotation ('none','golden','180','120')
 params.spi.increment = 'linear';    % Spiral increment mode (for now only 'linear') (WIP)
-params.spi.max_grad  = 30;          % Peak gradient amplitude for spiral (mT/m)
-params.spi.max_sr = 155;            % Max gradient slew rate for spiral (mT/m/ms) (155).
+params.spi.max_grad  = 90;          % Peak gradient amplitude for spiral (mT/m) (35)
+params.spi.max_sr = 600;            % Max gradient slew rate for spiral (mT/m/ms) (155).
 params.spi.interl = 1;              % Spiral interleaves
-params.spi.vd = 1.5;                % Variability density (accepts negative values)
-params.spi.rxy = 3.5;               % In-plane (radial) undersampling
+params.spi.vd = 1;                % Variability density (accepts negative values)
+params.spi.rxy = 3;               % In-plane (radial) undersampling
 params.spi.rxy_az = 1;              % In-plane (azimuthal) undersampling (WIP)
 params.spi.bw = 0e3;                % Spiral BW in Hz 0=Nyquist, highest=1000e3
 params.spi.safe_sp = 0;             % Safe spirals (WIP)
-
 %%%%%%%%%%%%%% MT pulse parameters
 params.mt.mt = 0;                   % Add MT pulse, 0 for reference scan without MT
 params.mt.mt_prep = 0;              % MT (pre) dummy scans
@@ -79,22 +84,20 @@ params.mt.delta = -650;             % default=-650
 params.mt.trf = 0.004;
 params.mt.mt_rep = 100e-3;          % How often to play the MT pulse
 params.mt.bold = 0;                 % Get BOLD reference acq after MT one (WIP)
-
 %%%%%%%%%%%%%% EPI parameters
 params.epi.ry = 3;                  % In-plane undersampling
-params.epi.pf = 6/8;                % In-plane PF, (1,7/8,6/8)
+params.epi.pf = 1;                % In-plane PF, (1,7/8,6/8)
 params.epi.te = [33.6 36.6 38.6 40]*1e-3+0.07; % Echo times for field map
-params.epi.seg = 2;                 % EPI Segments
+params.epi.seg = 1;                 % EPI Segments
 params.epi.tr_delay = 0;            % Delay after each TR, needed to reduce SAR
 params.epi.bw_px = 1512;            % BW in Hz (1096)
-
 %%%%%%%%%%%%%% VASO parameters
 params.vaso.foci = 1;               % FOCI inversion?
 params.vaso.bold_ref = 1;           % BOLD reference volume
 params.vaso.foci_ampl = 270;        % FOCI amplitude (270)
 params.vaso.foci_dur = 10410e-6;    % FOCI duration (10410e-6)
 params.vaso.foci_bw = 150;          % FOCI Bandwidth (150)
-params.vaso.f_v_delay = 200e-3;     % FOCI-VASO delay (600e-3)
+params.vaso.f_v_delay = 0e-3;     % FOCI-VASO delay (600e-3)
 params.vaso.v_b_delay = 0e-3;      % VASO-BOLD delay (10e-3)
 params.vaso.b_f_delay = 0e-3;       % BOLD-FOCI delay (5e-3)
 
@@ -120,8 +123,15 @@ end
 gz_blips = prepare_gz_blips(params);
 
 % Gradient spoilers
-grad_area = 1/params.gen.fov(1)*params.gen.n(1)/2;
+% 1.5 times Kmax...
+grad_area = (1/params.gen.fov(1)*params.gen.n(1)/2)*1.5;
+% 4pi per px...
+% grad_area = (4*pi)/(2*pi*params.gen.lims.gamma*max(params.gen.res));
+% grad_area = grad_area*params.gen.lims.gamma; % Convert to 1/m
 [gx_spoil,gy_spoil,gz_spoil] = prepare_spoilers(params,grad_area);
+% Temp: checking Spoilers frequencies
+grad = decompress_grad(gx_spoil,params.gen.lims);
+check_forbbiden_fq(grad,11,true);
 
 % Fat sat
 if params.gen.fat_sat || params.gen.me_gre ~= 0
@@ -174,9 +184,9 @@ if params.gen.me_gre > 0 && params.gen.ro_type == 's'
     params_me_gre = params;
     params_me_gre.gen.fat_sat = 1;          % Let's always use fat sat for ME-GRE
 %     params_me_gre.gen.res(1:2) = params_me_gre.gen.res(1:2).*2; % (2) twice the fMRI one..
-    params_me_gre.gen.res(1:2) = 1.2e-3;  % Fix it at 1.2 mm
+    % params_me_gre.gen.res(1:2) = 1.2e-3;  % Fix it at 1.2 mm
 %     params_me_gre.gen.res(3) = params_me_gre.gen.res(3) * 2; % Do I want to have low res in partition dim too?
-%     params_me_gre.gen.res = params_me_gre.gen.res .* 1.5;
+    params_me_gre.gen.res = params_me_gre.gen.res .* params.gen.me_gre_res_inc;
     params_me_gre.spi.interl = params.gen.me_gre_interl;  % (32)
     params_me_gre.gen.seg = params_me_gre.spi.interl;
     params_me_gre.spi.rxy = 1;
@@ -192,23 +202,29 @@ if params.gen.me_gre > 0 && params.gen.ro_type == 's'
     %%%%% Temp: Increasing FOV a bit (4mm)... for motion correction simulations
 %     params_me_gre.gen.fov(1:2) = params_me_gre.gen.fov(1:2)+10e-3;
     % params_me_gre.gen.fov(3) = params_me_gre.gen.fov(3)+(params_me_gre.gen.res(3)*6); % 6 voxels more...
-    params_me_gre.gen.n = round(params_me_gre.gen.fov./params_me_gre.gen.res);
-    tmp = mod(params_me_gre.gen.n(3),2); 
-    params_me_gre.gen.n(3) = params_me_gre.gen.n(3)+tmp; % making in-plane even
-    params_me_gre.gen.n_ov = params_me_gre.gen.n;
+    params_me_gre.gen.fov = params_me_gre.gen.fov + params.gen.me_gre_fov_inc;
+    params_me_gre.gen.n = round(params_me_gre.gen.fov./params_me_gre.gen.res/2)*2;
+    params_me_gre.gen.n_ov = round(params_me_gre.gen.fov_ov./params_me_gre.gen.res/2)*2;
     
     %%%%% Original....
     % No under-sampling for GRE-ME:
-    params_me_gre.gen.n(3) = round(params_me_gre.gen.fov(3)./params_me_gre.gen.res(3));
+    % params_me_gre.gen.n(3) = round(params_me_gre.gen.fov(3)./params_me_gre.gen.res(3));
     params_me_gre.gen.del_k = 1./(params_me_gre.gen.fov);
-    % Adding phase oversampling as for fMRI run...
-    if params_me_gre.gen.ph_oversampling > 0
-        % Increase FOV?
-        params_me_gre.gen.del_k(3) = params_me_gre.gen.del_k(3)/(1+(params.gen.ph_oversampling/100)); 
-        params_me_gre.gen.n(3) = round(round(params_me_gre.gen.n(3)*(1+(params_me_gre.gen.ph_oversampling/100)))/2)*2; % original
-%         params_me_gre.gen.fov(3) = 1 / params_me_gre.gen.del_k(3);
-%         params_me_gre.gen.n(3) = floor(params.gen.n(3)/2); 
-    end
+
+%     % Partition or phase oversampling
+%     params_me_gre.gen.n_ov = params_me_gre.gen.n;
+%     params_me_gre.gen.fov_ov = params_me_gre.gen.fov;
+%     if params_me_gre.gen.ph_oversampling > 0
+%         % Increase FOV?
+%         % params_me_gre.gen.fov(3) = params_me_gre.gen.fov(3).*(1+(params_me_gre.gen.ph_oversampling/100));
+%         params_me_gre.gen.del_k(3) = 1/params_me_gre.gen.fov(3) ; 
+%         params_me_gre.gen.n(3) = round(params_me_gre.gen.fov(3)/params_me_gre.gen.res(3));
+% %         params.gen.fov(3) = 1 / params.gen.del_k(3);
+%     end
+
+    % Making nz even
+    tmp = mod(params_me_gre.gen.n(3),2); 
+    params_me_gre.gen.n(3) = params_me_gre.gen.n(3)+tmp; % making in-plane even
 
 %     params_me_gre.gen.n(3) = round(params_me_gre.gen.n(3)/params_me_gre.gen.kz/params_me_gre.gen.pf/2)*2;
     % Making sure fovz/rz are integers and even
@@ -242,7 +258,7 @@ if params.gen.me_gre > 0 && params.gen.ro_type == 's'
 %         max_area = [gy_me_gre.area];
 %         max_area = max(max_area);
 %         duration = round(max_area/params.gen.lims.maxGrad/params.gen.lims.gradRasterTime)*params.gen.lims.gradRasterTime;
-        duration = 5e-4;    % Fixed to 0.5ms
+        duration = 5.5e-4;    % Fixed to 0.5ms
         gxReph_me_gre(i_interl) = mr.makeTrapezoid('x',params_me_gre.gen.lims,'Area',gx_me_gre(1,i_interl).area.*-1,'Duration',duration);
         gyReph_me_gre(i_interl) = mr.makeTrapezoid('y',params_me_gre.gen.lims,'Area',gy_me_gre(1,i_interl).area.*-1,'Duration',duration);
     end
@@ -304,7 +320,8 @@ if params.gen.skope ~= 0
     if params.gen.field_strength == 7i || params.gen.field_strength == 11
         skope_trig = mr.makeDigitalOutputPulse('ext1','duration',10e-6,'system',params.gen.lims);  % Skope trigger
     else
-        skope_trig = mr.makeDigitalOutputPulse('osc0','duration',10e-6,'system',params.gen.lims);  % Skope trigger
+        skope_trig = mr.makeDigitalOutputPulse('ext1','duration',10e-6,'system',params.gen.lims);  % Skope trigger
+        % skope_trig = mr.makeDigitalOutputPulse('osc0','duration',10e-6,'system',params.gen.lims);  % Skope trigger
     end   
     
 end
@@ -389,10 +406,10 @@ if params.gen.skope == 1 || params.gen.skope == 3
         if i_sk_pre == params.gen.skope_sync; seq_sk.addBlock(sk_post_delay); end
         seq_sk.addBlock(mr.makeLabel('SET','ONCE',0));
     end
-    % Partitions loop
-    for i=1:last_part
-        % Spiral/Cartesian Interleaves/segments loop
-        % for m=1:params.gen.n(3)
+    % Skope repetiton loop (to get all interleaves)...
+    for m=1:last_seg
+        % Partitions loop
+        for i=1:last_part
             for j = 1:last_seg
                 % Fat Sat
                 if (params.gen.fat_sat && params.gen.fs_interl==1) || (params.gen.fat_sat && params.gen.fs_interl==0)
@@ -401,13 +418,12 @@ if params.gen.skope == 1 || params.gen.skope == 3
                 end
                 % Spoil
                 % seq_sk.addBlock(gx_spoil,gy_spoil,gz_spoil); % original
-                seq_sk.addBlock(gx_spoil,gz_spoil); % 
+                seq_sk.addBlock(gx_spoil,gy_spoil); % 
                 if params.gen.tr_delay > 0; seq_sk.addBlock(tr_delay); end % TR delay
                 seq_sk.addBlock(gz(i));
                 seq_sk.addBlock(gzReph(i));
                 adc.phaseOffset = adc_phase_offset(i);
 %                 seq_sk.addBlock(gzReph(i));
-                if params.gen.te > 0; seq_sk.addBlock(te_delay); end % TE delay
                 % EPI navigators
                 if params.gen.ro_type == 'c'
                     for i_nav = 1:3
@@ -418,7 +434,7 @@ if params.gen.skope == 1 || params.gen.skope == 3
                 seq_sk.addBlock(sk_no_rf_delay);      % Delay to account for the missing RF pulses... 
 %                 Trigger Before readout...
 %                 We only add the trigger in the center partition, remove if if I want it in all partitions
-                if i == floor((params.gen.n(3)/2)+1) && j==1
+                if i == floor((params.gen.n(3)/2)+1) && j==m
                     sk0 = seq_sk.duration();           % To get Skope triger-ADC delay
                     % Trigger before spiral readout..
                     seq_sk.addBlock(skope_trig);
@@ -427,6 +443,7 @@ if params.gen.skope == 1 || params.gen.skope == 3
                 end
                 if params.gen.ro_type == 's'
                     seq_sk.addBlock(gz_blips(i,j));
+                    if params.gen.te > 0; seq_sk.addBlock(te_delay); end % TE delay
                     % if spiral-in or in-out, we need in-plane pre-phasing
                     if params.spi.type == 1 || params.spi.type == 3 || params.spi.type == 4
                         seq_sk.addBlock(gx_pre(i,j),gy_pre(i,j));                       
@@ -468,9 +485,9 @@ if params.gen.skope == 1 || params.gen.skope == 3
                     % if params.gen.tr_delay > 0; seq_sk.addBlock(tr_delay); end % TR delay
                     if params.epi.tr_delay > 0; seq_sk.addBlock(tr_delay_epi); end
                 end
-%                 seq_sk.addBlock(sk_min_tr_delay); % Do I need this if I only trigger center partition?
+    %                 seq_sk.addBlock(sk_min_tr_delay); % Do I need this if I only trigger center partition?
             end
-        % end
+        end
     end
     params.gen.skope_trig_adc_delay = sk1-sk0;
 end
@@ -497,10 +514,11 @@ if params.gen.me_gre > 0
             end
             % Spoil
             % seq.addBlock(gx_spoil,gy_spoil,gz_spoil); % original
-            seq.addBlock(gx_spoil,gz_spoil);
+            seq.addBlock(gx_spoil,gy_spoil);
             if params.gen.tr_delay > 0; seq.addBlock(tr_delay); end % TR delay
             rf = rf0_me_gre(i);
             rf.phaseOffset = rf_phase_offset_me_gre(i,j);
+            rf.freqOffset = gz_me_gre(i).amplitude*params.gen.part_offset;
             adc_me_gre.phaseOffset = adc_phase_offset_me_gre(i,j);
             adc_post.phaseOffset = adc_phase_offset_me_gre(i,j);
             if i==1 && j==1; te0_me_gre = seq.duration(); end         % save seq dur to calc TE
@@ -611,10 +629,11 @@ for i_ro_blocks = 1:ro_blocks
                 end
                 % Spoil
                 % seq.addBlock(gx_spoil,gy_spoil,gz_spoil); % original
-                seq.addBlock(gx_spoil,gz_spoil);
+                seq.addBlock(gx_spoil,gy_spoil);
                 if params.gen.tr_delay > 0; seq.addBlock(tr_delay); end % TR delay
                 rf = rf0(i);
                 rf.phaseOffset = rf_phase_offset(i,j);
+                rf.freqOffset = gz(i).amplitude*params.gen.part_offset; % Temp... 
                 adc.phaseOffset = adc_phase_offset(i,j);
                 adc_post.phaseOffset = adc_phase_offset(i,j);
                 seq.addBlock(rf,gz(i));
@@ -633,6 +652,7 @@ for i_ro_blocks = 1:ro_blocks
                     if i==1 && j==1; te0_fid = seq.duration(); end
                     seq.addBlock(fid_nav_delay1);
                     if i==1 && j==1; te1_fid = seq.duration(); end
+                    fid_nav_adc.phaseOffset = adc_phase_offset(i,j);
                     seq.addBlock(fid_nav_adc);
                     seq.addBlock(fid_nav_delay2);
                     if i==1 && j==1; te2_fid = seq.duration(); end
@@ -643,7 +663,9 @@ for i_ro_blocks = 1:ro_blocks
                 for k=1:last_ech
                     if params.gen.ro_type == 's'
                         if k==1 || k==params.gen.echos-1
-                            if i == 1 && params.gen.kz_enc == 1
+                            % if i == 1 && params.gen.kz_enc == 1 %
+                            % original
+                            if i == floor((params.gen.n(3)/2)+1) && j == 1
                                 if params.gen.skope == 2 || params.gen.skope == 3
                                     seq.addBlock(skope_trig);
                                     seq.addBlock(sk_int_delay);     % Gradient free interval
