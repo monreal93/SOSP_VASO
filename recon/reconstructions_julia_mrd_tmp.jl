@@ -40,9 +40,9 @@ include("./functions/fn_CorrectOffResonance.jl")
 
 params = Dict{Symbol, Any}()
 params[:do_pi_recon] = true             # Perform PI reconstruction or direct recon
-params[:do_b0_corr] = false
+params[:do_b0_corr] = true
 params[:do_b0_corr_seg] = 2   # Perform custom  0=Gridding(MRIReco), 1=Time Segmented, 2=Frequency segmented,
-params[:do_rDORK_corr] = true      
+params[:do_rDORK_corr] = false      
 params[:do_iDORK_corr] = false            # Perform Interleaf DORK (WIP)
 params[:do_pDORK_corr] = false            # Perform Partition DORK (WIP)
 params[:do_coco_corr] = false           # Perform concomitant field correction (WIP)  
@@ -208,8 +208,6 @@ if input == "n"
         params[:b0_TE] = vec(params_me_gre_pulseq["gen"]["te"].*1e3)
     end
     recon_b0_resize = params_pulseq["gen"]["n"]
-    recon_b0_resize[1:2] = round.(params_me_gre_pulseq["gen"]["fov_ov"][1:2] ./ params_pulseq["gen"]["res"][1:2])  # oP1
-    recon_b0_resize[3] = round.(params_me_gre_pulseq["gen"]["fov_ov"][3] ./ params_pulseq["gen"]["res"][3]./2)*2 
 else
     @info ("Reconstructing ME GRE ...")
     # Reconstruction of ME-GRE scan (spiral from pulseq or cartesian separate scan)
@@ -259,7 +257,8 @@ else
             numPar = Int(params_me_gre_pulseq["gen"]["n_ov"][3]./params_me_gre_pulseq["gen"]["kz"])
             numSet = maximum(unique([rawData_b0_ech.profiles[l].head.idx.set+1 for l=1:length(rawData_b0_ech.profiles)]))
             numCha = size(rawData_b0_ech.profiles[1].data,2)
-            numRep = rawData_b0_ech.params["userParameters"]["sWipMemBlock.alFree[7]"]  # I think this is repetitions in special card
+            # numRep = rawData_b0_ech.params["userParameters"]["sWipMemBlock.alFree[7]"]  # I think this is repetitions in special card
+            numRep = 1
             # numEch = Int(params_me_gre_pulseq["gen"]["me_gre_echos"])
             numEch = 1
 
@@ -340,10 +339,10 @@ else
     @info("stop... recon_b0...")
     @infiltrate
     if params_pulseq["gen"]["me_gre"] > 0
-        if params_pulseq["gen"]["fov_ov"][3] != params_me_gre_pulseq["gen"]["fov_ov"][3]
+        if params_pulseq["gen"]["n_ov"][3] != params_me_gre_pulseq["gen"]["n_ov"][3]
             recon_b0_resize = params_me_gre_pulseq["gen"]["fov"] ./ params_pulseq["gen"]["res"]
-            recon_b0_resize[1:2] = round.(params_me_gre_pulseq["gen"]["fov_ov"][1:2] ./ params_pulseq["gen"]["res"][1:2])  # oP1
-            recon_b0_resize[3] = round.(params_me_gre_pulseq["gen"]["fov_ov"][3] ./ params_pulseq["gen"]["res"][3]./2)*2 
+            recon_b0_resize[1:2] = round.(params_me_gre_pulseq["gen"]["fov"][1:2] ./ params_pulseq["gen"]["res"][1:2])  # oP1
+            recon_b0_resize[3] = round.(params_me_gre_pulseq["gen"]["fov"][3] ./ params_pulseq["gen"]["res"][3]./2)*2 
             # recon_b0_resize[1] = 258;
             # recon_b0_resize = [params_pulseq["gen"]["n"][1:2]... round.(params_me_gre_pulseq["gen"]["fov"][3] ./ params_pulseq["gen"]["res"][3])] # oP 2
             b0_nii = imresize(b0_nii,Int(recon_b0_resize[1]),Int(recon_b0_resize[2]),Int(recon_b0_resize[3]))
@@ -389,7 +388,8 @@ numInterl = Int(params_pulseq["spi"]["interl"])
 numPar = Int(params_pulseq["gen"]["n_ov"][3])
 numSet = maximum(unique([rawData.profiles[l].head.idx.set+1 for l=1:length(rawData.profiles)]))
 numCha = size(rawData.profiles[1].data,2)
-numRep = rawData.params["userParameters"]["sWipMemBlock.alFree[7]"]  # I think this is repetitions in special card
+# numRep = rawData.params["userParameters"]["sWipMemBlock.alFree[7]"]  # I think this is repetitions in special card
+numRep = 4
 numEch = Int(params_pulseq["gen"]["echos"])
 # numRep = Int(length(rawData.profiles)/numPar/numSet)
 if params_pulseq["gen"]["seq"] == 3
@@ -668,7 +668,7 @@ params_recon[:reconSize] = Tuple(params_pulseq["gen"]["n"])
 params_recon[:solver] = ADMM
 params_recon[:reg] = L1Regularization(1e-3) # (1e-3)
 # params_recon[:sparseTrafo] = "Wavelet"
-params_recon[:iterations] = 100 # (40)
+params_recon[:iterations] = 40
 
 # FFT Shift
 fftShift = (rawData.profiles[1].head.position .- rawData_b0.profiles[1].head.position)./Float32(2)

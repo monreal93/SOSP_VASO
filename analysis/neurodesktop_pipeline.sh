@@ -5,12 +5,12 @@ ml laynii
 
 cd /neurodesktop-storage/5T4/Alejandro/sosp_vaso/data
 
-folder="02202025_sb_9T_paper"
-scan="sb_601_DS_SO_06mm_18fovz_12te_6te"
-traj="girf"   # nom or girf
-r_a_tr=7   # rest/activity TRs
-tr=2.7 # volume TR paper=sv(1.66), cv(1.81)
-recon_file="sb_601_DS_SO_06mm_18fovz_12te_6te_ech2_girf_cs_fsb0_co_rDORK"  # name of the reconstructred volume.. it should be in the recon folder...
+folder="05282025_sb_11T"
+scan="sb_01_DS_SO_08mm_tra"
+traj="nom"   # nom or girf
+r_a_tr=6   # rest/activity TRs
+tr=4.8176 # volume TR paper=sv(1.66), cv(1.81)
+recon_file="sb_01_DS_SO_08mm_tra_b_r1_96_nom_cs_fsb0_rDORK"  # name of the reconstructred volume.. it should be in the recon folder...
 motion_glm=0     # GLM including motion parametrs
 stim=1           # number of stimulus for block desig
 
@@ -289,13 +289,27 @@ echo -e "BOLD brain mean effective tSNR: \n $mean_tSNR_b" >> results.txt
 ##### ) Get mean of activations and percentage change
 ### BOLD
 3dcalc -overwrite -a clustered_BOLD.nii -expr "step(a-$thr)" -prefix bin_output.nii
+3dcalc -overwrite -a bin_output.nii -b roi_mask.nii -expr "a*b" -prefix bin_roi_output.nii
 # Might be needed to clean up the binary mask before getting mean
 3dROIstats -mask bin_output.nii -1DRformat -quiet ./${scan}_mc_hpf.nii > timecourse_BOLD.dat
+3dROIstats -mask bin_output.nii -1DRformat -quiet ./${scan}_per_ch.nii > timecourse_BOLD_psc.dat
+3dROIstats -mask bin_roi_output.nii -1DRformat -quiet ./${scan}_per_ch.nii > timecourse_BOLD_roi_psc.dat
 
 ### BOLD mean residual
 3dcalc -overwrite -a clustered_BOLD.nii -expr "step(a-$thr)" -prefix b_bin_output.nii
 # Might be needed to clean up the binary mask before getting mean
 3dROIstats -mask b_bin_output.nii -1DRformat -quiet ./residual_BOLD.nii > residual_BOLD.dat
+
+# BOLD percent signal change
+3dZeropad -master mean.nii -prefix b_bin_output.nii b_bin_output.nii -overwrite
+3dcalc \
+    -a ./${scan}_mc_hpf.nii                              \
+    -b mean.nii                                       \
+    -c b_bin_output.nii                            \
+    -expr 'c * a/b*100'       \
+    -prefix ./${scan}_per_ch.nii -overwrite
+
+    # -expr 'c * min(200, a/b*100)*step(a)*step(b)'       \
 
 ################################## ROI quality metrics....
 # ToDo: Open clustered_BOLD and mean_mask.nii in FSLeyes, then create a mask with brush size 6 covering the desired area...

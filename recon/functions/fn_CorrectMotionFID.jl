@@ -27,14 +27,13 @@ function getMotionCalibrationMatrix(recon_b0,SensitivityMap,nav_ref;calib_steps=
     fid = Matrix{Float32}(undef,n_channels,n_times)
     calib = Matrix{ComplexF32}(undef,n_channels,6)
 
-
-    @info("Stop... Motion corr...")
-    @infiltrate
-
     # Find scaling factor...
     fid_ref = (recon_b0_cc.*cs)
     fid_ref = abs.(dropdims(sum(fid_ref,dims=(1,2,3)),dims=(1,2,3)))
-    nav_scaling = abs.(nav_ref) ./ abs.(fid_ref)
+    nav_scaling = nav_ref ./ fid_ref
+
+    @info("Stop... Motion corr...")
+    @infiltrate
 
     @floop for i=1:calib_steps
 
@@ -71,9 +70,6 @@ function getMotionCalibrationMatrix(recon_b0,SensitivityMap,nav_ref;calib_steps=
 
     end
 
-    @info("Stop... Motion corr...")
-    @infiltrate
-
     calib = fid / motion_params
 
     return calib
@@ -85,11 +81,11 @@ function applyMotionCalibrationMatrix(rawData,ksTraj::Matrix{Float32},nav,calib)
     @infiltrate
 
     # AMM: Temp...
-    nav = abs.(mean(nav,dims=3))
-    nav = abs.(mean(nav,dims=1))
-    nav = nav[:]
-    # nav = nav[:] .* 10
-    # nav = nav[1,1,21,:]
+    # nav = abs.(mean(nav,dims=3))
+    # nav = abs.(mean(nav,dims=1))
+    # nav = nav[:]
+    # # nav = nav[:] .* 10
+    # # nav = nav[1,1,21,:]
 
     motion_params = nav' / calib'
     # motion_params = abs.(motion_params)
@@ -127,9 +123,6 @@ function applyMotionCalibrationMatrix(rawData,ksTraj::Matrix{Float32},nav,calib)
     ksTraj[1,:] =  ksTraj[1,:]./(maximum([abs(minimum(ksTraj[1,:])),abs(maximum(ksTraj[1,:]))])*2)
     ksTraj[2,:] =  ksTraj[2,:]./(maximum([abs(minimum(ksTraj[2,:])),abs(maximum(ksTraj[2,:]))])*2)
     ksTraj[3,:] =  ksTraj[3,:]./(maximum([abs(minimum(ksTraj[3,:])),abs(maximum(ksTraj[3,:]))])*2)
-
-    @info("Stop... Apply Motion...")
-    @infiltrate
 
     return rawData, ksTraj
 end

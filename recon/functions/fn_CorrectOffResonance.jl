@@ -106,8 +106,8 @@ function CorrectOffResonanceFrequencySegmented(ks_traj,kdata,OffResonanceMap,par
     @info("Stop... Frequency-Segmented B0...")
     @infiltrate
 
-    @time @floop for i_FrequencySegments in 1:Int(FrequencySegments)-1
-    # for i_FrequencySegments in 1:Int(FrequencySegments)-1
+    # @time @floop for i_FrequencySegments in 1:Int(FrequencySegments)-1
+    for i_FrequencySegments in 1:Int(FrequencySegments)-1
 
         # Adding phase to segment
         kdata_seg = deepcopy(kdata)
@@ -122,10 +122,11 @@ function CorrectOffResonanceFrequencySegmented(ks_traj,kdata,OffResonanceMap,par
 
         SegmentIndex = OffResonanceMapRange .== SegmentValues[i_FrequencySegments]
 
-        local Ireco[SegmentIndex] = Ireco_seg.data[SegmentIndex]
+        @info("Stop... Frequency-Segmented B0...")
+        @infiltrate
 
-        # @info("Stop... Frequency-Segmented B0...")
-        # @infiltrate
+        local Ireco[SegmentIndex] = Ireco_seg.data[SegmentIndex] # original
+
 
         # # Trying to clear some memory
         # ccall(:malloc_trim, Cvoid, (Cint,), 0) 

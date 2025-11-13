@@ -5,13 +5,13 @@ ml laynii
 
 cd /neurodesktop-storage/5T4/Alejandro/sosp_vaso/data
 
-folder="08122024_sv_cv_josh_thesis"
-scan="sv_512_OUT_2shot"
+folder="05072025_sv_7T_m1"
+scan="sv_012302_DS_SO_fs_pp"
 r_a_tr=6     # rest/activity TRs paper=sv(8), cv(7)
-tr=2.41   # volume TR paper=sv(1.66), cv(1.81)
+tr=2.453   # volume TR paper=sv(1.66), cv(1.81)
 
 # Spiral reconstruction options
-traj="_nom" && cs="_cs" && b0="_b0" && co="_co" && k0="" && rDORK="_rDORK"
+traj="_nom" && cs="_cs" && b0="_tsb0" && co="" && k0="" && rDORK="_rDORK"
 suffix=""
 
 cd ${folder}
@@ -92,8 +92,8 @@ gzip -d mask.nii.gz
 
 # Replacing non-steady state volumes..
 # ToDo: How many volumes should I replace?
-3dTcat -prefix ${b_file} ${b_file}'[4..7]' ${b_file}'[4..$]' -overwrite
-3dTcat -prefix ${v_file} ${v_file}'[4..7]' ${v_file}'[4..$]' -overwrite
+3dTcat -prefix ${b_file} ${b_file}'[3..5]' ${b_file}'[3..$]' -overwrite
+3dTcat -prefix ${v_file} ${v_file}'[3..5]' ${v_file}'[3..$]' -overwrite
 
 #### ) Temporal upsampling
 3dUpsample -overwrite  -datum short -prefix ./${scan}_b_ups.nii -n 2 -input ./${b_file}
@@ -107,21 +107,21 @@ gzip -d mask.nii.gz
 # ToDo: Use same function as Renzo's new scripts... 3dAllineate
 echo "Motion correction... BOLD..."
 # --- 3dvolreg
-3dvolreg -base 4 -heptic -zpad 1 -overwrite -prefix ./${scan}_b_ups_mc.nii -1Dfile motion_b.1D ${scan}_b_ups.nii
+# 3dvolreg -base 4 -heptic -zpad 1 -overwrite -prefix ./${scan}_b_ups_mc.nii -1Dfile motion_b.1D ${scan}_b_ups.nii
 # --- 3dAllineate
-# 3dTstat -mean -overwrite -prefix ./n_ref.nii ${b_file}'[0..3]'  # create reference
-# 3dAllineate -1Dmatrix_save  matrix.aff12.1D -1Dparam_save   param.aff12 -cost lpa \
-#     -prefix ./${scan}_b_mc.nii -base ${output_dir} ./n_ref.nii -source ${b_file} \
-#     -weight ./mask.nii -warp shift_rotate -final wsinc5
+3dTstat -mean -overwrite -prefix ./n_ref.nii ${b_file}'[0..3]'  # create reference
+3dAllineate -1Dmatrix_save  matrix.aff12.1D -1Dparam_save   param.aff12 -cost lpa \
+    -prefix ./${scan}_b_ups_mc.nii -base ${output_dir} ./n_ref.nii -source ${scan}_b_ups.nii \
+    -weight ./mask.nii -warp shift_rotate -final wsinc5
 
 echo "Motion correction... VASO..."
 # --- 3dvolreg
-3dvolreg -base 4 -heptic -zpad 1 -overwrite -prefix ./${scan}_v_ups_mc.nii -1Dfile motion_v.1D ${scan}_v_ups.nii
+# 3dvolreg -base 4 -heptic -zpad 1 -overwrite -prefix ./${scan}_v_ups_mc.nii -1Dfile motion_v.1D ${scan}_v_ups.nii
 # --- 3dAllineate
-# 3dTstat -mean -overwrite -prefix ./n_ref.nii ${v_file}'[0..3]'  # create reference
-# 3dAllineate -1Dmatrix_save  matrix.aff12.1D -1Dparam_save   param.aff12 -cost lpa \
-#     -prefix ./${scan}_v_mc.nii -base ${output_dir} ./n_ref.nii -source ${v_file} \
-#     -weight ./mask.nii -warp shift_rotate -final wsinc5
+3dTstat -mean -overwrite -prefix ./n_ref.nii ${v_file}'[2..3]'  # create reference
+3dAllineate -1Dmatrix_save  matrix.aff12.1D -1Dparam_save   param.aff12 -cost lpa \
+    -prefix ./${scan}_v_ups_mc.nii -base ${output_dir} ./n_ref.nii -source ${scan}_v_ups.nii \
+    -weight ./mask.nii -warp shift_rotate -final wsinc5
 
 #### ) Temporal filtering
 # This commands can be used for Tmporal filtering in AFNI 3dDetrend, 3dBandpass

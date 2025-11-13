@@ -1,9 +1,9 @@
 cd /neurodesktop-storage/5T4/Alejandro/sosp_vaso/data
 
-folder="01152025_sb_9T"
-scan="sb_001_DS_SO_06mm_18fovz_12te_6te_girf_ech1"
+folder="05282025_sb_11T"
+scan="sb_01_DS_SO_08mm_tra_nom"
 # scan_t1="dicom_mp2rage_iso0.7mm_iPAT3_20230519112423_17"
-scan_t1="s1_brain_t1"          # subject # =  s#_ brain 
+scan_t1="brain_t2_ss"          # subject # =  s#_ brain 
 
 ##### README.... 
 # Before running this script:
@@ -28,8 +28,8 @@ fi
 
 t1_file=../../raw/nifti/${scan_t1}.nii
 # t1_vaso_file=../${scan}/mean_v_msk.nii # original
-# mask=../${scan}/${scan}_roi_msk.nii     # Mask created from ITKsnap..
-mask=../${scan}/mask.nii     # General mask...
+mask=../${scan}/${scan}_roi_msk.nii     # Mask created from ITKsnap..
+# mask=../${scan}/mask.nii     # General mask...
 output1=registered_Warped_${scan}.nii
 output2=registered_InverseWarped_${scan}.nii
 initial_mtx=initial_matrix_${scan}.txt                     
@@ -166,3 +166,10 @@ cp "${scan}"_wm_msk_reg.nii ../${scan}/${scan}_wm_msk.nii
 # --shrink-factors 2x1 \
 # --smoothing-sigmas 1x0vox \
 # -x mask.nii
+
+
+# antsApplyTransforms --interpolation BSpline[5] -d 3 \
+# -i ../../raw/nifti/brain_t2_denoised.nii \
+# -r ../"${scan}"/mean_msk.nii \
+# -t sb_01_DS_SO_08mm_tra_final_transformation.txt \
+# -o ../"${scan}"/"${scan}"_t1.nii
