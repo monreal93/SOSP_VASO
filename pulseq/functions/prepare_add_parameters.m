@@ -24,7 +24,8 @@ function params = prepare_add_parameters(ks_traj,gx,rf,adc,te0,te1,tr0,tr1,param
     % ToDo: Check what value I really want in n_ov (to be used in recon)
 %     params.gen.n_ov(3) = params.gen.n_ov(3).*params.gen.kz;
     [params.gen.n, params.gen.n_ov] = deal(params.gen.n_ov, params.gen.n);
-    
+    [params.gen.fov, params.gen.fov_ov] = deal(params.gen.fov_ov, params.gen.fov);
+
     % converting FA back to degrees
     params.gen.fa = real(params.gen.fa)*180/pi;
     
