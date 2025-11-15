@@ -5,12 +5,12 @@ ml laynii
 
 cd /neurodesktop-storage/5T4/Alejandro/sosp_vaso/data
 
-folder="05282025_sb_11T"
-scan="sb_01_DS_SO_08mm_tra"
+folder="06242025_sb_7T"
+scan="sb_03_TS_SO_05mm_rz2_12phov_vis"
 traj="nom"   # nom or girf
 r_a_tr=6   # rest/activity TRs
-tr=4.8176 # volume TR paper=sv(1.66), cv(1.81)
-recon_file="sb_01_DS_SO_08mm_tra_b_r1_96_nom_cs_fsb0_rDORK"  # name of the reconstructred volume.. it should be in the recon folder...
+tr=4.84 # volume TR paper=sv(1.66), cv(1.81)
+recon_file="sb_03_TS_SO_05mm_rz2_12phov_vis_b_nom_cs_fsb0_rDORK"  # name of the reconstructred volume.. it should be in the recon folder...
 motion_glm=0     # GLM including motion parametrs
 stim=1           # number of stimulus for block desig
 
@@ -171,6 +171,8 @@ if [ "$motion_glm" = 0 ]; then
             -tout \
             -x1D MODEL_wm \
             -iresp 1 HRF_BOLD.nii \
+            -sresp std_BOLD.nii \
+            -fitts fit_BOLD.nii \
             -errts residual_BOLD.nii \
             -bucket STATS_BOLD.nii
     fi
@@ -240,13 +242,13 @@ fi
 3dcalc -a tSNR.nii -b mask.nii -expr 'a*b' -prefix tSNR_msk.nii -overwrite
 3dcalc -a 2_STATS_BOLD.nii -b mask.nii -expr 'a*b' -prefix BOLD_msk.nii -overwrite
 
-# Let's ommit the first two slices (fold over artifacts)
-# ToDo: Find better way of doing this
-slices=$(3dinfo -nk BOLD_msk.nii)
-slices=$(($slices-1))
-# BOLD
-3dZcutup -keep 2 "${slices}" -prefix BOLD_msk.nii BOLD_msk.nii -overwrite
-3dZeropad -master mask.nii -prefix BOLD_msk.nii BOLD_msk.nii -overwrite
+# # Let's ommit the first two slices (fold over artifacts)
+# # ToDo: Find better way of doing this
+# slices=$(3dinfo -nk BOLD_msk.nii)
+# slices=$(($slices-1))
+# # BOLD
+# 3dZcutup -keep 2 "${slices}" -prefix BOLD_msk.nii BOLD_msk.nii -overwrite
+# 3dZeropad -master mask.nii -prefix BOLD_msk.nii BOLD_msk.nii -overwrite
 
 ##### ) Cluster activations, sometimes I use -sided RIGHT_TAIL 3 , sometimes 4 (check the clustering result...)
 # 3dclust -1noneg -overwrite -prefix clustered_BOLD.nii -1clip 3 1.4 120 BOLD_msk.nii

@@ -48,14 +48,14 @@ echo=["ech2","ech1"]
 # colors=[RGBA{Float32}(1,0,0,0.3),RGBA{Float32}(0,0,1,0.3)]
 colors = ["(:red,0.5)", "(:blue,0.5)"]
 
-plot_range=[30,10]  # [30,50] for tSNR, []
+plot_range=[100,100]  # [30,50] for tSNR, []
 
 #####
 # tSNR distribution in GM over subjects (Violin plots)
 ####### BOLD/VASO
 fig = Figure(size = (1200,500))         # For 3 "subjects"
 # ax = Axis(fig[1, 1])
-ax = Axis(fig[1,1], limits = (0,1.6,-1,30), yticklabelsize=64)
+ax = Axis(fig[1,1], limits = (0.5,18,-0.1,1.8), yticklabelsize=64)
 data = Vector{Float32}(undef,0)
 category =  Vector{Float32}(undef,0)
 # color = Vector{RGBA{Float32}}(undef,0)
@@ -74,7 +74,14 @@ for kk=1:1
                     # All active voxels
                     # @infiltrate
                     # tmp_data=niread(string("/neurodesktop-storage/",drive[i],"/Alejandro/sosp_vaso/data/",directories[i],"/analysis/",scans[p],"_girf_",echo[k],"/",scans[p],"_per_ch",".nii"))
-                    tmp_data=niread(string("/neurodesktop-storage/",drive[i],"/Alejandro/sosp_vaso/data/",directories[i],"/analysis/",scans[p],"_girf_",echo[k],"/psc_msk.nii"))
+                    # Percent signal change
+                    # tmp_data=niread(string("/neurodesktop-storage/",drive[i],"/Alejandro/sosp_vaso/data/",directories[i],"/analysis/",scans[p],"_girf_",echo[k],"/psc_msk.nii"))
+                    # Delta S over std
+                    # tmp_data=niread(string("/neurodesktop-storage/",drive[i],"/Alejandro/sosp_vaso/data/",directories[i],"/analysis/",scans[p],"_girf_",echo[k],"/del_sig_std_msk.nii"))
+                    # Delta S over residual std
+                    tmp_data=niread(string("/neurodesktop-storage/",drive[i],"/Alejandro/sosp_vaso/data/",directories[i],"/analysis/",scans[p],"_girf_",echo[k],"/del_sig_std_res_bold_msk.nii"))
+                    # Delta S
+                    # tmp_data=niread(string("/neurodesktop-storage/",drive[i],"/Alejandro/sosp_vaso/data/",directories[i],"/analysis/",scans[p],"_girf_",echo[k],"/del_sig_msk.nii"))
 
                     tmp_data=tmp_data.raw
 
@@ -92,9 +99,9 @@ for kk=1:1
                     tmp_data = tmp_data[tmp_data.!=0]
                     
                     if k==1
-                        density!(fig[1,1],tmp_data, color= (:red,0.3), direction =:y, offset = 0.1*p)
+                        density!(fig[1,1],tmp_data, color= (:red,0.3), direction =:y, offset = 1.2*p)
                     else
-                        density!(fig[1,1],tmp_data, color= (:blue,0.3), direction =:y, offset = 0.1*(p-1))
+                        density!(fig[1,1],tmp_data, color= (:blue,0.3), direction =:y, offset = 1.2*(p-1))
                     end
 
                     @info(string("/neurodesktop-storage/",drive[i],"/Alejandro/sosp_vaso/data/",directories[i],"/analysis/",scans[p][1:6],"_te_comparison","/",scans[p],"_per_ch_",echo[k],"_common",".nii"))
@@ -107,9 +114,11 @@ for kk=1:1
 end
 
 # @infiltrate
+# # Percent signal change
+# save(string("./data/tmp/multi_te_perc_actie_vox.eps"),fig)
 
-save(string("./data/tmp/multi_te_perc_actie_vox.eps"),fig)
-
+# Delta s over tSNR
+save(string("./data/tmp/multi_te_del_sig_std_res.eps"),fig)
 
 # @infiltrate
 # fig = Figure(size = (1600,400))

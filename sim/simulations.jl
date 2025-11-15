@@ -30,7 +30,7 @@ include("../recon/functions/fn_save_nii.jl")
 phn_sim = 1            # 1=brain, 0=point (psf), for point (PSF), set all to false
 cs_sim = true
 cs_recon = true
-b0_sim = false
+b0_sim = true
 b0_recon = false
 coco_sim = false
 coco_recon = false
@@ -41,7 +41,7 @@ order_recon =  1            # Recon order (1,2,3)
 add_noise = false
 gfactor = false              # G-factor....
 is2d = false
-gfactor_replicas = 100
+gfactor_replicas = 2
 channels = 32            # 0-channels from CS file, >0 less channels (it will be cropped)]
 changeBW = 0             # Integer to change the value of the BW.. (ex. 2 = half the BW), 0 = No change
 # For PSF only.. T2* and b0
@@ -50,10 +50,10 @@ psf_b0 = 20         # off-resonance in Hz
 bold_sim = false
 
 # Folder and name of sequence to simulate
-folder_sim = "06242025_sb_7T"
+folder_sim = "simulations_thesis"
 # scan_sim = ["DS_SO_96fovz_1rz_NOrot"]
 traj_type = "nom"
-scan_sim = ["sb_03_TS_SO_05mm_rz2_12phov_vis"]
+scan_sim = ["sb_04_SS_SO_08mm_rz1_imp"]
 # scan_sim = ["DS_SO_fb_08mm_rz1_NOrot_NOblip","DS_SO_fb_08mm_rz3_NOrot_NOblip","DS_SO_fb_08mm_rz3_120rot_NOblip","DS_SO_fb_08mm_rz3_120rot_blip"]  
 
 # Folder and name of sensitivity maps and b0 map to use for simulation
@@ -377,11 +377,12 @@ for i = 1:Int(length(scan_sim))
         end
         # Downsampling if requested:
         if mtx_pulseq != mtx
-            mtx_pulseq_tmp = (mtx_pulseq[1:2]..., 32)
-            tmp = permutedims(tmp,(1,2,4,3))
-            tmp = imresize(tmp[:,:,:,:], (mtx_pulseq_tmp))
-            tmp = cat(tmp, dims=4)
-            tmp = permutedims(tmp,(1,2,4,3))
+            # mtx_pulseq_tmp = (mtx_pulseq[1:2]..., 32) # Original..
+            mtx_pulseq_tmp = (mtx_pulseq..., 32) 
+            # tmp = permutedims(tmp,(1,2,4,3))
+            tmp = imresize(tmp, (mtx_pulseq_tmp))
+            # tmp = cat(tmp, dims=4)
+            # tmp = permutedims(tmp,(1,2,4,3))
         end
         if channels != 0
             tmp = tmp[:,:,:,1:Int(floor(size(tmp,4)/channels)):end]
@@ -418,7 +419,8 @@ for i = 1:Int(length(scan_sim))
     end
     # Downsampling if requested:
     if mtx_pulseq != mtx
-        tmp = imresize(tmp, (mtx_pulseq[1:2]))
+        # tmp = imresize(tmp, (mtx_pulseq[1:2])) # Original...
+        tmp = imresize(tmp, mtx_pulseq) 
     end
 
     global phn = deepcopy(tmp)
@@ -455,11 +457,12 @@ for i = 1:Int(length(scan_sim))
         end
         # Downsampling if requested:
         if mtx_pulseq != mtx
-            mtx_pulseq_tmp = (mtx_pulseq[1:2]..., 32)
-            tmp = permutedims(tmp,(1,2,4,3))
-            tmp = imresize(tmp[:,:,:,1], (mtx_pulseq_tmp))
-            tmp = cat(tmp, dims=4)
-            tmp = permutedims(tmp,(1,2,4,3))
+            # mtx_pulseq_tmp = (mtx_pulseq[1:2]..., 32) # Original..
+            mtx_pulseq_tmp = (mtx_pulseq..., 32) 
+            # tmp = permutedims(tmp,(1,2,4,3))
+            tmp = imresize(tmp, (mtx_pulseq_tmp))
+            # tmp = cat(tmp, dims=4)
+            # tmp = permutedims(tmp,(1,2,4,3))
         end
         global b0 = deepcopy(tmp)
         t2s = deepcopy(t2s_orig)
@@ -472,11 +475,12 @@ for i = 1:Int(length(scan_sim))
         end
         # Downsampling if requested:
         if mtx_pulseq != mtx
-            mtx_pulseq_tmp = (mtx_pulseq[1:2]..., 32)
-            tmp = permutedims(tmp,(1,2,4,3))
-            tmp = imresize(tmp[:,:,:,1], (mtx_pulseq_tmp))
-            tmp = cat(tmp, dims=4)
-            tmp = permutedims(tmp,(1,2,4,3))
+            # mtx_pulseq_tmp = (mtx_pulseq[1:2]..., 32) # Original..
+            mtx_pulseq_tmp = (mtx_pulseq..., 32) 
+            # tmp = permutedims(tmp,(1,2,4,3))
+            tmp = imresize(tmp, (mtx_pulseq_tmp))
+            # tmp = cat(tmp, dims=4)
+            # tmp = permutedims(tmp,(1,2,4,3))
         end
         global t2s = deepcopy(tmp)
         acqData = simulation(ks, phn, t2s+b0; senseMaps=cs, params_sim)
@@ -508,7 +512,8 @@ for i = 1:Int(length(scan_sim))
         end
         # Downsampling if requested:
         if mtx_pulseq != mtx
-            tmp = imresize(tmp, mtx_pulseq[1:2])
+            # tmp = imresize(tmp, mtx_pulseq[1:2])  # Original...
+            tmp = imresize(tmp, mtx_pulseq)  # Original...
         end
         global t2s = deepcopy(tmp)
         acqData = simulation(ks, phn, t2s; senseMaps=cs, params_sim) # Original
@@ -594,9 +599,7 @@ for i = 1:Int(length(scan_sim))
     elseif t2s_recon
         params_reco[:correctionMap] = t2s
     end
-    if coco_recon
-        params_reco[:correctionMap] = b0
-    elseif b0_recon==true && coco_recon==false
+    if b0_recon==true && coco_recon==true
         params_reco[:correctionMap] .= params_reco[:correctionMap] .+ CocoFieldMap.*im
     end
 
@@ -658,7 +661,7 @@ for i = 1:Int(length(scan_sim))
     Ireco = reconstruction(acqData, params_reco)
 
     # Scaling Ireco
-    Ireco .*= 1e3
+    Ireco .*= 1e9
 
     ###### Quality measurments
     # Normalize datasets

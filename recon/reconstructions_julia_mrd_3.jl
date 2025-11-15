@@ -40,7 +40,7 @@ include("./functions/fn_CorrectOffResonance.jl")
 
 params = Dict{Symbol, Any}()
 params[:do_pi_recon] = true             # Perform PI reconstruction or direct recon
-params[:do_b0_corr] = false
+params[:do_b0_corr] = true
 params[:do_b0_corr_seg] = 2   # Perform custom  0=Gridding(MRIReco), 1=Time Segmented, 2=Frequency segmented,
 params[:do_rDORK_corr] = true      
 params[:do_iDORK_corr] = false            # Perform Interleaf DORK (WIP)
@@ -58,6 +58,7 @@ params[:save_ph] = false                       # Save phase of recon as nifti
 params[:mcorr] = ""           # Motion correction with navigators "_mCorr"
 params[:recon_order] =  1                  # Higher order recon (2,3)
 params[:coil_compression] = true
+numVC = 16                     # Number of virtual coils for coil compression
 b0_fq_shift = 0;                     # B0 frequency shift for B0 map...(-400 for 9.4T), +1600 for 11.7T
 
 # Some parameters
@@ -207,7 +208,7 @@ if input == "n"
     if params_pulseq["gen"]["me_gre"] != 0
         params[:b0_TE] = vec(params_me_gre_pulseq["gen"]["te"].*1e3)
     end
-    recon_b0_resize = params_pulseq["gen"]["n"]
+    recon_b0_resize = deepcopy(params_pulseq["gen"]["n"])
     recon_b0_resize[1:2] = round.(params_me_gre_pulseq["gen"]["fov_ov"][1:2] ./ params_pulseq["gen"]["res"][1:2])  # oP1
     recon_b0_resize[3] = round.(params_me_gre_pulseq["gen"]["fov_ov"][3] ./ params_pulseq["gen"]["res"][3]./2)*2 
 else
@@ -347,10 +348,10 @@ else
             # recon_b0_resize[1] = 258;
             # recon_b0_resize = [params_pulseq["gen"]["n"][1:2]... round.(params_me_gre_pulseq["gen"]["fov"][3] ./ params_pulseq["gen"]["res"][3])] # oP 2
             b0_nii = imresize(b0_nii,Int(recon_b0_resize[1]),Int(recon_b0_resize[2]),Int(recon_b0_resize[3]))
-            crop_size = Int(ceil((recon_b0_resize[3]-params_pulseq["gen"]["n"][3])/2))
-            if crop_size > 0
-                b0_nii = b0_nii[:,:,crop_size+1:end-crop_size+1,:]
-            end
+            crop_size = Int.(ceil.((recon_b0_resize.-params_pulseq["gen"]["n"])./2))
+            # if crop_size[3] .> 0
+                b0_nii = b0_nii[crop_size[1]:end-crop_size[1],crop_size[2]:end-crop_size[2],crop_size[3]+1:end-crop_size[3],:]
+            # end
         else
             recon_b0_resize = params_pulseq["gen"]["n_ov"]
             b0_nii = imresize(b0_nii,Int(recon_b0_resize[1]),Int(recon_b0_resize[2]),Int(recon_b0_resize[3])) 
@@ -600,9 +601,11 @@ if params_pulseq["gen"]["me_gre"] > 0
         crop_size1 = Int.(crop_size.-floor.(crop_size./2))
         crop_size2 = Int.(crop_size.-crop_size1)
         SensitivityMap_crop = SensitivityMap[crop_size1[1]+1:end-crop_size2[1],crop_size1[2]+1:end-crop_size2[2],crop_size1[3]+1:end-crop_size2[3],:]
+        # SensitivityMap_crop = SensitivityMap[crop_size1[1]+2:end-crop_size2[1]+1,crop_size1[2]+2:end-crop_size2[2]+1,crop_size1[3]+1:end-crop_size2[3],:]
         if params[:do_b0_corr] 
             # OffResonanceMap_crop = OffResonanceMap[:,:,crop_size+1:end-crop_size+1]
             OffResonanceMap_crop = OffResonanceMap[crop_size1[1]+1:end-crop_size2[1],crop_size1[2]+1:end-crop_size2[2],crop_size1[3]+1:end-crop_size2[3]]
+            # OffResonanceMap_crop = OffResonanceMap[crop_size1[1]+2:end-crop_size2[1]+1,crop_size1[2]+2:end-crop_size2[2]+1,crop_size1[3]+1:end-crop_size2[3]]    
         end
     elseif params[:do_pi_recon] && (params_pulseq["gen"]["fov_ov"][3] == params_me_gre_pulseq["gen"]["fov_ov"][3])
         SensitivityMap_crop = SensitivityMap
@@ -885,7 +888,7 @@ end
 
         # Coil Compression 
         if params[:coil_compression] && params[:do_pi_recon]
-            numVC = 16
+            # numVC = 16
             kdata[1], ccMat = softwareCoilCompression(kdata[1],numVC)
             params_recon[:senseMaps] = applyCoilCompressionSensitivityMaps(SensitivityMap_crop, ccMat, numVC)
         end

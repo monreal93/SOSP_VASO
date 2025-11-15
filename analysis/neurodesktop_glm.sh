@@ -3,21 +3,23 @@ ml afni
 
 cd /neurodesktop-storage/5T4/Alejandro/sosp_vaso/data
 
-folder="05072025_sv_7T_m1"
-scan="sv_002_DS_SO_fs_pp"
+folder="06242025_sb_7T"
+scan="sb_03_TS_SO_05mm_rz2_12phov_vis"
+traj="nom"   # nom or girf
+suffix=""
 r_a_tr=6     # rest/activity TRs paper=sv(8), cv(7), josh=sv/cv(6)
-tr=2.453    # volume TR paper=sv(1.66), cv(1.81), josh=sv(2.1651),cv(2.344)
+tr=4.84    # volume TR paper=sv(1.66), cv(1.81), josh=sv(2.1651),cv(2.344)
 motion_glm=0
-multi_runs=1        # Multiple runs concatenated???
+multi_runs=0        # Multiple runs concatenated???
 
 # Spiral reconstruction options
-traj="_nom" && cs="_cs" && b0="_b0" && co="_co" && k0="" && rDORK="_rDORK"
+# traj="_nom" && cs="_cs" && b0="_b0" && co="_co" && k0="" && rDORK="_rDORK"
 
 cd ${folder}
 
-mkdir ./analysis/${scan}
-chmod ugo+rwx ./analysis/${scan}
-cd ./analysis/${scan}
+mkdir -p ./analysis/${scan}_${traj}${suffix}
+chmod ugo+rwx ./analysis/${scan}_${traj}${suffix}
+cd ./analysis/${scan}_${traj}${suffix}
 
 if [ "${scan:0:2}" = "sv" ]; then
     echo "Spiral VASO .."
@@ -31,7 +33,7 @@ elif [ "${scan:0:2}" = "cv" ]; then
     3drefit -TR $tr ${b_file}
     3drefit -TR $tr ./VASO_LN.nii
 else
-    b_file=./${scan}_ups_mc_hpf.nii
+    b_file=./${scan}_mc_hpf.nii
     3drefit -TR $tr ${b_file}
 fi
 
@@ -138,13 +140,15 @@ else
     echo "BOLD based on GLM..."
     3dDeconvolve -overwrite -jobs 16 -polort a \
                 -force_TR $tr \
-                -input ${scan}_b_ups_mc_hpf.nii \
+                -input ${scan}_mc_hpf.nii \
                 -num_stimts 1 \
                 -TR_times $tr \
                 -stim_times 1 "$stim_times" "$ublock" -stim_label 1 Task \
                 -tout \
                 -x1D MODEL_wm \
                 -iresp 1 HRF_BOLD.nii \
+                -sresp 1 std_BOLD.nii \
+                -fitts fit_BOLD.nii \
                 -errts residual_BOLD.nii \
                 -bucket STATS_BOLD.nii
 fi

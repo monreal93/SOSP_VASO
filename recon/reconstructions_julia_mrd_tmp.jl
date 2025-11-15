@@ -58,12 +58,13 @@ params[:save_ph] = false                       # Save phase of recon as nifti
 params[:mcorr] = ""           # Motion correction with navigators "_mCorr"
 params[:recon_order] =  1                  # Higher order recon (2,3)
 params[:coil_compression] = true
+numVC = 16                     # Number of virtual coils for coil compression
 b0_fq_shift = 0;                     # B0 frequency shift for B0 map...(-400 for 9.4T), +1600 for 11.7T
 
 # Some parameters
-params[:scan] = "sb_04_DS_SO_08mm_fb_rz33"            # For now: if multipe echos, include _e1.. _e2..
+params[:scan] = "sb_02_SS_SO_08mm_con"            # For now: if multipe echos, include _e1.. _e2..
 params[:scan_b0] = "..."           # Name of the ME-GRE to use for CS and B0map, ONLY USED WHEN SEPARATE FIELDMAP SCAN...
-params[:directory] = "06242025_sb_7T"        # directory where the data is stored
+params[:directory] = "07102025_sb_7T_mpi"        # directory where the data is stored
 
 # Drive where data is stored... (5T4/5T3)
 path_tmp = "/neurodesktop-storage/5T4/Alejandro/sosp_vaso/"
@@ -207,7 +208,10 @@ if input == "n"
     if params_pulseq["gen"]["me_gre"] != 0
         params[:b0_TE] = vec(params_me_gre_pulseq["gen"]["te"].*1e3)
     end
-    recon_b0_resize = params_pulseq["gen"]["n"]
+    # recon_b0_resize = params_pulseq["gen"]["n"]
+    recon_b0_resize = params_me_gre_pulseq["gen"]["fov_ov"] ./ params_pulseq["gen"]["res"]
+    recon_b0_resize[1:2] = round.(params_me_gre_pulseq["gen"]["fov_ov"][1:2] ./ params_pulseq["gen"]["res"][1:2])  # oP1
+    recon_b0_resize[3] = round.(params_me_gre_pulseq["gen"]["fov_ov"][3] ./ params_pulseq["gen"]["res"][3]./2)*2 
 else
     @info ("Reconstructing ME GRE ...")
     # Reconstruction of ME-GRE scan (spiral from pulseq or cartesian separate scan)
@@ -215,7 +219,7 @@ else
         ks_traj_me_gre = matread(string(params[:path],"/acq/",params[:scan],"_ks_traj_me_gre_",params[:traj_type],".mat")); ks_traj_me_gre = ks_traj_me_gre["ks_traj_me_gre"]
         # Normalizing
         # Not sure if I want to do -1 for kx
-        ks_traj_me_gre["kx"] = ks_traj_me_gre["kx"]./(maximum([abs(minimum(ks_traj_me_gre["kx"])),abs(maximum(ks_traj_me_gre["kx"]))])*2)
+        ks_traj_me_gre["kx"] = ks_traj_me_gre["kx"]./(maximum([abs(minimum(ks_traj_me_gre["kx"])),abs(maximum(ks_traj_me_gre["kx"]))])*2)#.*(-1)
         ks_traj_me_gre["ky"] = ks_traj_me_gre["ky"]./(maximum([abs(minimum(ks_traj_me_gre["ky"])),abs(maximum(ks_traj_me_gre["ky"]))])*2)#.*(-1)
         ks_traj_me_gre["kz"] = ks_traj_me_gre["kz"]./(maximum([abs(minimum(ks_traj_me_gre["kz"])),abs(maximum(ks_traj_me_gre["kz"]))])*2)
 
@@ -340,16 +344,22 @@ else
     @infiltrate
     if params_pulseq["gen"]["me_gre"] > 0
         if params_pulseq["gen"]["n_ov"][3] != params_me_gre_pulseq["gen"]["n_ov"][3]
-            recon_b0_resize = params_me_gre_pulseq["gen"]["fov"] ./ params_pulseq["gen"]["res"]
-            recon_b0_resize[1:2] = round.(params_me_gre_pulseq["gen"]["fov"][1:2] ./ params_pulseq["gen"]["res"][1:2])  # oP1
-            recon_b0_resize[3] = round.(params_me_gre_pulseq["gen"]["fov"][3] ./ params_pulseq["gen"]["res"][3]./2)*2 
-            # recon_b0_resize[1] = 258;
+            recon_b0_resize = params_me_gre_pulseq["gen"]["fov_ov"] ./ params_pulseq["gen"]["res"]
+            recon_b0_resize[1:2] = round.(params_me_gre_pulseq["gen"]["fov_ov"][1:2] ./ params_pulseq["gen"]["res"][1:2])  # oP1
+            recon_b0_resize[3] = round.(params_me_gre_pulseq["gen"]["fov_ov"][3] ./ params_pulseq["gen"]["res"][3]./2)*2 
+            recon_b0_resize[1:2] = recon_b0_resize[1:2] .+ 4 #  Temp...
+            recon_b0_resize[3] = recon_b0_resize[3] .- 1 #  Temp...
             # recon_b0_resize = [params_pulseq["gen"]["n"][1:2]... round.(params_me_gre_pulseq["gen"]["fov"][3] ./ params_pulseq["gen"]["res"][3])] # oP 2
             b0_nii = imresize(b0_nii,Int(recon_b0_resize[1]),Int(recon_b0_resize[2]),Int(recon_b0_resize[3]))
-            crop_size = Int(ceil((recon_b0_resize[3]-params_pulseq["gen"]["n"][3])/2))
-            if crop_size > 0
-                b0_nii = b0_nii[:,:,crop_size+1:end-crop_size+1,:]
-            end
+            # crop_size = Int(ceil((recon_b0_resize[3]-params_pulseq["gen"]["n"][3])/2))
+            crop_size = Int.(floor.((collect(size(b0_nii)[1:3]) .- Tuple(Int.(params_pulseq["gen"]["n"])))))
+            crop_size1 = Int.(crop_size.-floor.(crop_size./2))
+            crop_size2 = Int.(crop_size.-crop_size1)
+            # b0_nii = b0_nii[crop_size1[1]+1:end-crop_size2[1],crop_size1[2]+1:end-crop_size2[2],crop_size1[3]+1:end-crop_size2[3],:]    
+            b0_nii = b0_nii[crop_size1[1]+2:end-crop_size2[1]+1,crop_size1[2]+2:end-crop_size2[2]+1,crop_size1[3]+1:end-crop_size2[3],:]    
+            # if crop_size > 0
+            #     b0_nii = b0_nii[:,:,crop_size+1:end-crop_size+1,:]
+            # end
         else
             recon_b0_resize = params_pulseq["gen"]["n_ov"]
             b0_nii = imresize(b0_nii,Int(recon_b0_resize[1]),Int(recon_b0_resize[2]),Int(recon_b0_resize[3])) 
@@ -554,7 +564,7 @@ if params[:traj_type] == "sk"
 else
     ks_traj = matread(string(params[:path],"/acq/",params[:scan],"_ks_traj_",params[:traj_type],".mat")); ks_traj = ks_traj["ks_traj"]
     # Normalizing
-    ks_traj["kx"] = ks_traj["kx"]./(maximum([abs(minimum(ks_traj["kx"])),abs(maximum(ks_traj["kx"]))])*2)
+    ks_traj["kx"] = ks_traj["kx"]./(maximum([abs(minimum(ks_traj["kx"])),abs(maximum(ks_traj["kx"]))])*2)#.*(-1)
     ks_traj["ky"] = ks_traj["ky"]./(maximum([abs(minimum(ks_traj["ky"])),abs(maximum(ks_traj["ky"]))])*2)#.*(-1)
     ks_traj["kz"] = ks_traj["kz"]./(maximum([abs(minimum(ks_traj["kz"])),abs(maximum(ks_traj["kz"]))])*2)
     ks_traj = hcat(ks_traj["kx"][:],ks_traj["ky"][:],ks_traj["kz"][:])
@@ -599,10 +609,12 @@ if params_pulseq["gen"]["me_gre"] > 0
         crop_size = Int.(floor.((collect(size(SensitivityMap)[1:3]) .- Tuple(Int.(params_pulseq["gen"]["n"])))))
         crop_size1 = Int.(crop_size.-floor.(crop_size./2))
         crop_size2 = Int.(crop_size.-crop_size1)
-        SensitivityMap_crop = SensitivityMap[crop_size1[1]+1:end-crop_size2[1],crop_size1[2]+1:end-crop_size2[2],crop_size1[3]+1:end-crop_size2[3],:]
+        # SensitivityMap_crop = SensitivityMap[crop_size1[1]+1:end-crop_size2[1],crop_size1[2]+1:end-crop_size2[2],crop_size1[3]+1:end-crop_size2[3],:]
+        SensitivityMap_crop = SensitivityMap[crop_size1[1]+2:end-crop_size2[1]+1,crop_size1[2]+2:end-crop_size2[2]+1,crop_size1[3]+1:end-crop_size2[3],:]    
         if params[:do_b0_corr] 
             # OffResonanceMap_crop = OffResonanceMap[:,:,crop_size+1:end-crop_size+1]
-            OffResonanceMap_crop = OffResonanceMap[crop_size1[1]+1:end-crop_size2[1],crop_size1[2]+1:end-crop_size2[2],crop_size1[3]+1:end-crop_size2[3]]
+            # OffResonanceMap_crop = OffResonanceMap[crop_size1[1]+1:end-crop_size2[1],crop_size1[2]+1:end-crop_size2[2],crop_size1[3]+1:end-crop_size2[3]]
+            OffResonanceMap_crop = OffResonanceMap[crop_size1[1]+2:end-crop_size2[1]+1,crop_size1[2]+2:end-crop_size2[2]+1,crop_size1[3]+1:end-crop_size2[3]]    
         end
     elseif params[:do_pi_recon] && (params_pulseq["gen"]["fov_ov"][3] == params_me_gre_pulseq["gen"]["fov_ov"][3])
         SensitivityMap_crop = SensitivityMap
@@ -885,7 +897,6 @@ end
 
         # Coil Compression 
         if params[:coil_compression] && params[:do_pi_recon]
-            numVC = 16
             kdata[1], ccMat = softwareCoilCompression(kdata[1],numVC)
             params_recon[:senseMaps] = applyCoilCompressionSensitivityMaps(SensitivityMap_crop, ccMat, numVC)
         end

@@ -27,7 +27,7 @@ function CorrectOffResonanceTimeSegmented(ks_traj,kdata,OffResonanceMap,params,p
     @infiltrate
 
     # Empty Ireco
-    Ireco = Array{ComplexF32}(undef,Tuple([params["gen"]["n_ov"]... TimeSegments]))
+    Ireco = zeros(ComplexF32, Tuple([size(OffResonanceMap)... TimeSegments]))
 
     @time @floop for i_TimeSegments in 1:TimeSegments
     # for i_TimeSegments in 1:Int(TimeSegments)

@@ -58,6 +58,9 @@ function calculateGfactor(acqData::AcquisitionData,acqData_full::AcquisitionData
     noise_replicas = noise_replicas["noise_replicas"]
     
   end
+ 
+  @info("stop g-factor....")
+  @infiltrate
 
   # Reconstruct image-noise data
   acqData_noise = deepcopy(acqData)
